@@ -1,0 +1,3 @@
+[submodule "HOPE"]
+	path = HOPE
+	url = git@github.com:bardiadoosti/HOPE.git
