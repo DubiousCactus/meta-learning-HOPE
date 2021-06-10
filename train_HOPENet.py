@@ -35,9 +35,9 @@ class HOPETrainer:
         self.transform = transforms.Compose([transforms.Resize((224, 224)),
             transforms.ToTensor()])
         self.inner_criterion = nn.MSELoss()
-        self.inner_optimizer = optim.Adam(model.parameters(), lr=lr)
-        self.scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=lr_step_gamma)
-        self.scheduler.last_epoch = start
+        # TODO: Add a scheduler in the meta-training loop?
+        # self.scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=lr_step_gamma)
+        # self.scheduler.last_epoch = start
         self.lambda_1 = 0.01
         self.lambda_2 = 1
         self.batch_size = batch_size
@@ -88,8 +88,8 @@ class HOPETrainer:
         return query_loss
 
 
-    def train(self, meta_batch_size: int, iterations: int, fast_lr: float = 0.1, meta_lr: float =
-            0.001, steps: int = 5, shots: int = 10):
+    def train(self, meta_batch_size: int, iterations: int, fast_lr: float = 0.1,
+            meta_lr: float = 0.001, steps: int = 5, shots: int = 10):
         maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=False)
         opt = torch.optim.SGD(maml.parameters(), lr=meta_lr)
         for iteration in range(iterations):
@@ -110,8 +110,8 @@ class HOPETrainer:
                 inner_loss = self._training_step(batch, learner, steps, shots)
                 meta_val_loss += inner_loss.item()
             print(f"==========[Iteration {iteration}]==========")
-            print(f"Meta-training Loss: {meta_train_loss/meta_batch_size}:.6f}")
-            print(f"Meta-validation Loss: {meta_val_loss/meta_batch_size}:.6f}")
+            print(f"Meta-training Loss: {meta_train_loss/meta_batch_size:.6f}")
+            print(f"Meta-validation Loss: {meta_val_loss/meta_batch_size:.6f}")
             print("============================================")
 
             # Average the accumulated gradients and optimize
@@ -136,8 +136,9 @@ class HOPETrainer:
 
 
 def main(args):
-    HOPETrainer(args.input_file, args.learning_rate, args.lr_step, args.lr_step_gamma,
-            args.batch_size, use_cuda=args.gpu, gpu_number=args.gpu_number)
+    hope_trainer = HOPETrainer(args.input_file, args.learning_rate, args.lr_step,
+            args.lr_step_gamma, args.batch_size, use_cuda=args.gpu, gpu_number=args.gpu_number)
+    # hope_trainer.train()
     # if args.pretrained_model != '':
         # model.load_state_dict(torch.load(args.pretrained_model))
         # losses = np.load(args.pretrained_model[:-4] + '-losses.npy').tolist()
