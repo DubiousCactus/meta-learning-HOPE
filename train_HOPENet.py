@@ -27,14 +27,15 @@ from torch.autograd import Variable
 class HOPETrainer:
     def __init__(self, dataset_root, lr, lr_step, lr_step_gamma, batch_size, use_cuda=False,
             gpu_number=0, test=False):
-        self.model = select_model("HopeNet")
+        self.model = select_model("hopenet")
+        self.use_cuda = use_cuda
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.model = nn.DataParallel(self.model, device_ids=gpu_number)
         self.dataset_root = dataset_root
         self.transform = transforms.Compose([transforms.Resize((224, 224)),
             transforms.ToTensor()])
-        self.inner_criterion = nn.MSELoss()
+        self.inner_criterion = nn.MSELoss(reduction='mean')
         # TODO: Add a scheduler in the meta-training loop?
         # self.scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=lr_step_gamma)
         # self.scheduler.last_epoch = start
@@ -44,10 +45,10 @@ class HOPETrainer:
         self._load_train_val() if not test else self._load_test()
 
     def _load_train_val(self):
-        trainset = Dataset(root=self.dataset_root, load_set='train', transform=self.transform)
-        valset = Dataset(root=self.dataset_root, load_set='val', transform=self.transform)
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=16)
-        valloader = torch.utils.data.DataLoader(valset, batch_size=self.batch_size, shuffle=False, num_workers=8)
+        self.trainset = Dataset(root=self.dataset_root, load_set='train', transform=self.transform)
+        self.valset = Dataset(root=self.dataset_root, load_set='val', transform=self.transform)
+        self.trainloader = torch.utils.data.DataLoader(self.trainset, batch_size=self.batch_size, shuffle=True, num_workers=16)
+        self.valloader = torch.utils.data.DataLoader(self.valset, batch_size=self.batch_size, shuffle=False, num_workers=8)
 
     def _load_test(self):
         testset = Dataset(root=self.dataset_root, load_set='test', transform=self.transform)
@@ -63,7 +64,7 @@ class HOPETrainer:
         labels3d = Variable(labels3d)
 
         # TODO: Do this in the construction of the tasks dataset
-        if use_cuda and torch.cuda.is_available():
+        if self.use_cuda and torch.cuda.is_available():
             inputs = inputs.float().cuda(device=args.gpu_number[0])
             labels2d = labels2d.float().cuda(device=args.gpu_number[0])
             labels3d = labels3d.float().cuda(device=args.gpu_number[0])
@@ -71,27 +72,28 @@ class HOPETrainer:
         # Adapt the model on the support set
         for step in range(steps):
             # forward + backward + optimize
-            outputs2d_init, outputs2d, outputs3d = leaner(inputs)
+            outputs2d_init, outputs2d, outputs3d = learner(inputs)
             loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
             loss2d = self.inner_criterion(outputs2d, labels2d)
             loss3d = self.inner_criterion(outputs3d, labels3d)
-            support_loss = (lambda_1)*loss2d_init + (lambda_1)*loss2d + (lambda_2)*loss3d
+            support_loss = (self.lambda_1)*loss2d_init + (self.lambda_1)*loss2d + (self.lambda_2)*loss3d
             learner.adapt(support_loss)
 
         # Evaluate the adapted model on the query set
-        outputs2d_init, outputs2d, outputs3d = leaner(inputs)
-        loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
-        loss2d = self.inner_criterion(outputs2d, labels2d)
-        loss3d = self.inner_criterion(outputs3d, labels3d)
-        query_loss = (lambda_1)*loss2d_init + (lambda_1)*loss2d + (lambda_2)*loss3d
+        e_outputs2d_init, e_outputs2d, e_outputs3d = learner(inputs)
+        e_loss2d_init = self.inner_criterion(e_outputs2d_init, labels2d)
+        e_loss2d = self.inner_criterion(e_outputs2d, labels2d)
+        e_loss3d = self.inner_criterion(e_outputs3d, labels3d)
+        query_loss = (self.lambda_1)*e_loss2d_init + (self.lambda_1)*e_loss2d + (self.lambda_2)*e_loss3d
 
         return query_loss
 
 
-    def train(self, meta_batch_size: int, iterations: int, fast_lr: float = 0.1,
-            meta_lr: float = 0.001, steps: int = 5, shots: int = 10):
-        maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=False)
-        opt = torch.optim.SGD(maml.parameters(), lr=meta_lr)
+    def train(self, meta_batch_size: int, iterations: int, fast_lr: float = 0.01,
+            meta_lr: float = 0.001, steps: int = 1, shots: int = 10):
+        maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=False, allow_unused=True)
+        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        batch = next(iter(self.trainloader))
         for iteration in range(iterations):
             opt.zero_grad()
             meta_train_loss = .0
@@ -99,16 +101,16 @@ class HOPETrainer:
             for task in range(meta_batch_size):
                 # Compute the meta-training loss
                 learner = maml.clone()
-                batch = tasks_set.train.sample()
+                # batch = tasks_set.train.sample()
                 inner_loss = self._training_step(batch, learner, steps, shots)
                 inner_loss.backward()
                 meta_train_loss += inner_loss.item()
 
                 # Compute the meta-validation loss
-                leaner = maml.clone()
-                batch = tasks_set.validation.sample()
-                inner_loss = self._training_step(batch, learner, steps, shots)
-                meta_val_loss += inner_loss.item()
+                # leaner = maml.clone()
+                # batch = tasks_set.validation.sample()
+                # inner_loss = self._training_step(batch, learner, steps, shots)
+                # meta_val_loss += inner_loss.item()
             print(f"==========[Iteration {iteration}]==========")
             print(f"Meta-training Loss: {meta_train_loss/meta_batch_size:.6f}")
             print(f"Meta-validation Loss: {meta_val_loss/meta_batch_size:.6f}")
@@ -116,14 +118,17 @@ class HOPETrainer:
 
             # Average the accumulated gradients and optimize
             for p in maml.parameters():
-                p.grad.data.mul_(1.0 / meta_batch_size)
+                # Some parameters in HOPE-Net are unused but require grad (surely a mistake, but
+                # instead of modifying the original code, this simple check will do).
+                if p.grad is not None:
+                    p.grad.data.mul_(1.0 / meta_batch_size)
             opt.step()
 
 
     def test(self, meta_batch_size: int, fast_lr: float = 0.1, meta_lr: float = 0.001,
             steps: int = 5, shots: int = 10):
-        maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=False)
-        opt = torch.optim.SGD(maml.parameters(), lr=meta_lr)
+        maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=True)
+        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         meta_test_loss = .0
         for task in range(meta_batch_size):
             learner = maml.clone()
@@ -134,18 +139,16 @@ class HOPETrainer:
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")
 
 
+# TODO:
+# [ ] Implement the right data loader such that one task = one object (several sequences per object!)
+# [ ] Implement MAML learning for the entire HOPENet
+# [ ] Implement MAML learning for the feature extractor only (ResNet)
+# [ ] Implement MAML learning for Graph U-Net only
 
 def main(args):
     hope_trainer = HOPETrainer(args.input_file, args.learning_rate, args.lr_step,
             args.lr_step_gamma, args.batch_size, use_cuda=args.gpu, gpu_number=args.gpu_number)
-    # hope_trainer.train()
-    # if args.pretrained_model != '':
-        # model.load_state_dict(torch.load(args.pretrained_model))
-        # losses = np.load(args.pretrained_model[:-4] + '-losses.npy').tolist()
-        # start = len(losses)
-    # else:
-        # losses = []
-#         start = 0
+    hope_trainer.train(1, 10)
 
 
 
