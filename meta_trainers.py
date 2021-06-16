@@ -58,6 +58,14 @@ class BaseTrainer(ABC):
                 shuffle=False, num_workers=8)
         return test_data_loader
 
+    def train(self, meta_batch_size: int = 16, iterations: int = 1000, fast_lr: float = 0.01,
+            meta_lr: float = 0.001, steps: int = 1, shots: int = 10):
+        raise NotImplementedError
+
+    def test(self, meta_batch_size: int = 16, fast_lr: float = 0.01, meta_lr: float = 0.001,
+            steps: int = 1, shots: int = 10):
+        raise NotImplementedError
+
 
 class MAMLTrainer(BaseTrainer):
     def __init__(self, model_name: str, dataset_name: str, dataset_root: str, lr: float,
@@ -71,8 +79,8 @@ class MAMLTrainer(BaseTrainer):
     def _training_step(self, batch: tuple, learner, steps: int, shots: int):
         raise NotImplementedError("_training_step() not implemented!")
 
-    def train(self, meta_batch_size: int, iterations: int, fast_lr: float = 0.01,
-            meta_lr: float = 0.001, steps: int = 1, shots: int = 10):
+    def train(self, meta_batch_size: int = 16, iterations: int = 1000, fast_lr: float = 0.0001,
+            meta_lr: float = 0.0001, steps: int = 1, shots: int = 10):
         maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=False, allow_unused=True)
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         batch = next(iter(self.dataset.train))
@@ -106,8 +114,8 @@ class MAMLTrainer(BaseTrainer):
                     p.grad.data.mul_(1.0 / meta_batch_size)
             opt.step()
 
-    def test(self, meta_batch_size: int, fast_lr: float = 0.1, meta_lr: float = 0.001,
-            steps: int = 5, shots: int = 10):
+    def test(self, meta_batch_size: int = 16, fast_lr: float = 0.01, meta_lr: float = 0.001,
+            steps: int = 1, shots: int = 10):
         maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=True)
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         meta_test_loss = .0
@@ -193,6 +201,39 @@ class ResnetTrainer(MAMLTrainer):
         # Evaluate the adapted model on the query set
         e_outputs2d_init, _ = learner(inputs)
         query_loss = self.inner_criterion(e_outputs2d_init, labels2d)
+        return query_loss
+
+
+class GraphUNetTrainer(MAMLTrainer):
+    def __init__(self, dataset_name: str, dataset_root: str, lr: float,
+            lr_step: float, lr_step_gamma: float, batch_size: int, use_cuda: int = False,
+            gpu_number: int = 0, test_mode: bool = False):
+        super().__init__("graphunet", dataset_name, dataset_root, lr, lr_step, lr_step_gamma,
+                batch_size, use_cuda=use_cuda, gpu_number=gpu_number, test_mode=test_mode)
+
+    def _training_step(self, batch: tuple, learner, steps: int, shots: int):
+        # TODO: Have a batch contain several (input, labels) pairs, and split them in support/query
+        # sets
+        _, labels2d, labels3d = batch
+        # wrap them in Variable
+        labels2d = Variable(labels2d)
+        labels3d = Variable(labels3d)
+
+        # TODO: Do this in the construction of the tasks dataset
+        if self._use_cuda and torch.cuda.is_available():
+            labels2d = labels2d.float().cuda(device=self._gpu_number[0])
+            labels3d = labels3d.float().cuda(device=self._gpu_number[0])
+
+        # Adapt the model on the support set
+        for step in range(steps):
+            # forward + backward + optimize
+            outputs3d = learner(labels2d)
+            support_loss = self.inner_criterion(outputs3d, labels3d)
+            learner.adapt(support_loss)
+
+        # Evaluate the adapted model on the query set
+        outputs3d = learner(labels2d)
+        query_loss = self.inner_criterion(outputs3d, labels3d)
         return query_loss
 
 
