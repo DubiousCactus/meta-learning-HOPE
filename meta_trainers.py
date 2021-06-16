@@ -120,12 +120,11 @@ class MAMLTrainer(BaseTrainer):
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")
 
 
-
 class HOPETrainer(MAMLTrainer):
-    def __init__(self, model_name: str, dataset_name: str, dataset_root: str, lr: float,
+    def __init__(self, dataset_name: str, dataset_root: str, lr: float,
             lr_step: float, lr_step_gamma: float, batch_size: int, use_cuda: int = False,
             gpu_number: int = 0, test_mode: bool = False):
-        super().__init__(model_name, dataset_name, dataset_root, lr, lr_step, lr_step_gamma,
+        super().__init__("hopenet", dataset_name, dataset_root, lr, lr_step, lr_step_gamma,
                 batch_size, use_cuda=use_cuda, gpu_number=gpu_number, test_mode=test_mode)
 
     def _training_step(self, batch: tuple, learner, steps: int, shots: int):
@@ -161,7 +160,39 @@ class HOPETrainer(MAMLTrainer):
         e_loss3d = self.inner_criterion(e_outputs3d, labels3d)
         query_loss = ((self._lambda1)*e_loss2d_init + (self._lambda1)*e_loss2d +
                 (self._lambda2)*e_loss3d)
+        return query_loss
 
+
+class ResnetTrainer(MAMLTrainer):
+    def __init__(self, dataset_name: str, dataset_root: str, lr: float,
+            lr_step: float, lr_step_gamma: float, batch_size: int, use_cuda: int = False,
+            gpu_number: int = 0, test_mode: bool = False):
+        super().__init__("resnet10", dataset_name, dataset_root, lr, lr_step, lr_step_gamma,
+                batch_size, use_cuda=use_cuda, gpu_number=gpu_number, test_mode=test_mode)
+
+    def _training_step(self, batch: tuple, learner, steps: int, shots: int):
+        # TODO: Have a batch contain several (input, labels) pairs, and split them in support/query
+        # sets
+        inputs, labels2d, _ = batch
+        # wrap them in Variable
+        inputs = Variable(inputs)
+        labels2d = Variable(labels2d)
+
+        # TODO: Do this in the construction of the tasks dataset
+        if self._use_cuda and torch.cuda.is_available():
+            inputs = inputs.float().cuda(device=self._gpu_number[0])
+            labels2d = labels2d.float().cuda(device=self._gpu_number[0])
+
+        # Adapt the model on the support set
+        for step in range(steps):
+            # forward + backward + optimize
+            outputs2d_init, _ = learner(inputs)
+            support_loss = self.inner_criterion(outputs2d_init, labels2d)
+            learner.adapt(support_loss)
+
+        # Evaluate the adapted model on the query set
+        e_outputs2d_init, _ = learner(inputs)
+        query_loss = self.inner_criterion(e_outputs2d_init, labels2d)
         return query_loss
 
 
