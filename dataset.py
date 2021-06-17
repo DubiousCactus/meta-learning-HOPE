@@ -13,6 +13,7 @@ frames for one unique object.
 
 import torchvision.transforms as transforms
 import learn2learn as l2l
+import numpy as np
 import pickle
 import torch
 import os
@@ -26,29 +27,31 @@ from PIL import Image
 
 
 class CustomTaskDataset(TorchDataset):
-    def __init__(self, image_paths: Dict[int, List[str]], transform=None, lazy=True):
+    def __init__(self, image_paths: Dict[int, List[tuple]], transform=None, lazy=True):
         self._lazy = lazy
         self.transform = transform if transform is not None else lambda i: i
-        self.images, self.class_labels = self._load_images(image_paths)
-        self.points2d = []
-        self.points3d = []
+        self.images, self.class_labels, self.points2d, self.points3d = self._load(image_paths)
 
-    def _load_images(self, image_paths: Dict[int, List[str]]) -> tuple:
+    def _load(self, image_paths: Dict[int, List[tuple]]) -> tuple:
         images, labels, i = [], {}, 0
+        points2d, points3d = [], []
         for k, v in image_paths.items():
-            for img_path in v:
+            for img_path, c_2d, c_3d in v:
                 images.append(img_path if self._lazy else self.transform(Image.open(img_path)))
+                points2d.append(c_2d)
+                points3d.append(c_3d)
                 labels[i] = k
                 i += 1
-        return images, labels
+        return images, labels, points2d, points3d
+
+    def shuffle(self):
+        # indices = np.random....
+        pass
 
     def __getitem__(self, index):
         img = self.transform(Image.open(self.images[index])) if self._lazy else self.images[index]
         assert type(img) is torch.Tensor, "Image is not a tensor! Perhaps you forgot a transform?"
         return img[:3], self.points2d[index], self.points3d[index]
-
-    def get_label(self, index):
-        return self.class_labels[index]
 
     def __len__(self):
         return len(self.images)
@@ -148,14 +151,15 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         for idx, meta in tqdm(indices.items()):
             with open(meta, "rb") as meta_file:
                 meta_obj = pickle.load(meta_file)
-                if meta_obj["class_id"] in class_ids:
-                    samples[class_ids.index(meta_obj["class_id"])].append(os.path.join(root, "rgb", f"{idx}.jpg"))
+                obj_id = meta_obj["class_id"]
+                img_path = os.path.join(root, "rgb", f"{idx}.jpg")
+                # TODO:
+                p_2d, p_3d = np.array([.0, .0]), np.array([.0, .0, .0])
+                if obj_id in class_ids:
+                    samples[class_ids.index(obj_id)].append((img_path, p_2d, p_3d))
                 else:
-                    class_ids.append(meta_obj["class_id"])
-                    print(
-                        f"[*] Loading object class '{self._shapenet_labels[len(class_ids)-1]}'..."
-                    )
-                    samples[class_ids.index(meta_obj["class_id"])] = [os.path.join(root, "rgb", f"{idx}.jpg")]
+                    class_ids.append(obj_id)
+                    samples[class_ids.index(obj_id)] = [(img_path, p_2d, p_3d)]
         self.num_objects = len(list(samples.keys()))
         print(f"[*] Loaded {self.num_objects} object classes from {root}!")
         return CustomTaskDataset(samples, self._transform)
