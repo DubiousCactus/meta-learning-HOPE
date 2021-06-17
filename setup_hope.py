@@ -15,22 +15,29 @@ from distutils.core import setup
 import os
 
 
-os.chdir('HOPE')
-for mod in ['', 'models', 'utils']:
+os.chdir("HOPE")
+for mod in ["", "models", "utils"]:
     try:
-        os.mknod(os.path.join(mod, '__init__.py'))
+        os.mknod(os.path.join(mod, "__init__.py"))
     except:
         pass
 
-setup(name = 'HopeNet',
-        version = '1.0',
-        packages = ['utils', 'models'],
-        py_modules = ['utils.dataset', 'utils.model', 'utils.options', 'models.graphunet',
-        'models.hopenet', 'models.resnet']
-        )
+setup(
+    name="HopeNet",
+    version="1.0",
+    packages=["utils", "models"],
+    py_modules=[
+        "utils.dataset",
+        "utils.model",
+        "utils.options",
+        "models.graphunet",
+        "models.hopenet",
+        "models.resnet",
+    ],
+)
 
-os.chdir('../')
+os.chdir("../")
 try:
-    os.symlink('./HOPE/datasets', 'datasets')
+    os.symlink("./HOPE/datasets", "datasets")
 except Exception as e:
     print(f"[!] Could not create symlink: \n\t -> {e}")
