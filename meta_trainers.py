@@ -132,10 +132,7 @@ class MAMLTrainer(BaseTrainer):
             self.model, lr=fast_lr, first_order=False, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
-        print(self.dataset.train)
-        # batch = next(iter(self.dataset.train))
         batch = self.dataset.train.sample()
-        print(batch)
         for iteration in range(iterations):
             opt.zero_grad()
             meta_train_loss = 0.0

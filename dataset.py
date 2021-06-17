@@ -28,25 +28,27 @@ from PIL import Image
 class CustomTaskDataset(TorchDataset):
     def __init__(self, image_paths: Dict[int, List[str]], transform=None, lazy=True):
         self._lazy = lazy
-        self.transform = lambda i: i if transform is None else transform
+        self.transform = transform if transform is not None else lambda i: i
         self.images, self.class_labels = self._load_images(image_paths)
         self.points2d = []
         self.points3d = []
 
     def _load_images(self, image_paths: Dict[int, List[str]]) -> tuple:
-        images, labels = [], []
+        images, labels, i = [], {}, 0
         for k, v in image_paths.items():
-            images += (
-                v
-                if self._lazy
-                else [self.transform(Image.open(img_path)) for img_path in v]
-            )
-            labels += [k] * len(v)
+            for img_path in v:
+                images.append(img_path if self._lazy else self.transform(Image.open(img_path)))
+                labels[i] = k
+                i += 1
         return images, labels
 
     def __getitem__(self, index):
-        img = self.transform(self.images[index]) if self._lazy else self.images[index]
-        return img
+        img = self.transform(Image.open(self.images[index])) if self._lazy else self.images[index]
+        assert type(img) is torch.Tensor, "Image is not a tensor! Perhaps you forgot a transform?"
+        return img[:3], self.points2d[index], self.points3d[index]
+
+    def get_label(self, index):
+        return self.class_labels[index]
 
     def __len__(self):
         return len(self.images)
@@ -129,7 +131,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         object_as_task: bool = True,
     ):
         super().__init__(root, batch_size, k_shots, test, object_as_task)
-        self.num_tasks = -1
+        self.num_objects = -1
         # TODO:
         # 1. Load meta files, add index and meta info to the dictionary with the object as key
         # 2. Go through the dictionary and load the RGB image, the 2D and 3D labels
@@ -147,15 +149,15 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             with open(meta, "rb") as meta_file:
                 meta_obj = pickle.load(meta_file)
                 if meta_obj["class_id"] in class_ids:
-                    samples[class_ids.index(meta_obj["class_id"])].append(idx)
+                    samples[class_ids.index(meta_obj["class_id"])].append(os.path.join(root, "rgb", f"{idx}.jpg"))
                 else:
                     class_ids.append(meta_obj["class_id"])
                     print(
                         f"[*] Loading object class '{self._shapenet_labels[len(class_ids)-1]}'..."
                     )
-                    samples[class_ids.index(meta_obj["class_id"])] = [idx]
-        self.num_tasks = len(list(samples.keys()))
-        print(f"[*] Loaded {self.num_tasks} object classes from {root}!")
+                    samples[class_ids.index(meta_obj["class_id"])] = [os.path.join(root, "rgb", f"{idx}.jpg")]
+        self.num_objects = len(list(samples.keys()))
+        print(f"[*] Loaded {self.num_objects} object classes from {root}!")
         return CustomTaskDataset(samples, self._transform)
 
     def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
@@ -170,15 +172,16 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             # train_dataset = l2l.data.MetaDataset(
                 # self._load_as_tasks(train_path), indices_to_labels=self._shapenet_labels
             # )
-            val_dataset = l2l.data.MetaDataset(self._load_as_tasks(val_path),
-                    indices_to_labels=self._shapenet_labels)
+            val_task_set = self._load_as_tasks(val_path)
+            val_dataset = l2l.data.MetaDataset(val_task_set,
+                    indices_to_labels=val_task_set.class_labels)
             # t_transforms = [
-                # l2l.data.transforms.NWays(train_dataset, n=self.num_tasks),
+                # l2l.data.transforms.NWays(train_dataset, n=self.num_objects),
                 # l2l.data.transforms.KShots(train_dataset, k=self.k_shots),
                 # l2l.data.transforms.LoadData(train_dataset),
             # ]
             v_transforms = [
-                l2l.data.transforms.NWays(val_dataset, n=self.num_tasks),
+                l2l.data.transforms.NWays(val_dataset, n=self.num_objects),
                 l2l.data.transforms.KShots(val_dataset, k=self.k_shots),
                 l2l.data.transforms.LoadData(val_dataset),
             ]
