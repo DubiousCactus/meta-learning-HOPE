@@ -118,7 +118,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 meta_obj = pickle.load(meta_file)
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
                 # TODO:
-                p_2d, p_3d = torch.tensor([0.0, 0.0]), torch.tensor([0.0, 0.0, 0.0])
+                p_2d, p_3d = torch.zeros((29,2)), zeros((29,3))
                 samples.append((img_path, p_2d, p_3d))
         return CustomDataset(samples, self._transform)
 
@@ -193,10 +193,10 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
     def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
         trainset = Dataset(root=self._root, load_set="train", transform=self._transform)
         valset = Dataset(root=self._root, load_set="val", transform=self._transform)
-        train_data_loader = torch.utils.data.DataLoader(
+        train_data_loader = CompatDataLoader(
             trainset, batch_size=self._batch_size, shuffle=True, num_workers=16
         )
-        val_data_loader = torch.utils.data.DataLoader(
+        val_data_loader = CompatDataLoader(
             valset, batch_size=self._batch_size, shuffle=False, num_workers=8
         )
         return train_data_loader, val_data_loader

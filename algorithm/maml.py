@@ -59,10 +59,8 @@ class MAMLTrainer(BaseTrainer):
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         # TODO: Test by plotting all images in the batch!
-        batch = self.dataset.train.sample()
-        print("Batch:", batch)
-        batch = self.dataset.train.sample()
-        print("Batch:", batch)
+        # batch = self.dataset.train.sample()
+        # print("Batch:", batch[0].shape, batch[1].shape, batch[2].shape)
         for iteration in range(iterations):
             opt.zero_grad()
             meta_train_loss = 0.0
@@ -70,14 +68,14 @@ class MAMLTrainer(BaseTrainer):
             for task in range(meta_batch_size):
                 # Compute the meta-training loss
                 learner = maml.clone()
-                # batch = tasks_set.train.sample()
+                batch = self.dataset.train.sample()
                 inner_loss = self._training_step(batch, learner, steps, shots)
                 inner_loss.backward()
                 meta_train_loss += inner_loss.item()
 
                 # Compute the meta-validation loss
                 # leaner = maml.clone()
-                # batch = tasks_set.validation.sample()
+                # batch = self.dataset.val.sample()
                 # inner_loss = self._training_step(batch, learner, steps, shots)
                 # meta_val_loss += inner_loss.item()
             print(f"==========[Iteration {iteration}]==========")

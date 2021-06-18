@@ -129,6 +129,9 @@ class CompatDataLoader(TorchDataLoader):
         )
         self.dataset_iter = iter(self.dataset)
 
-    def sample(self):
+    def _get_batch(self):
         for indices in self.batch_sampler:
             yield self.collate_fn([next(self.dataset_iter) for _ in indices])
+
+    def sample(self):
+        return next(self._get_batch())
