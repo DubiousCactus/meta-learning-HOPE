@@ -13,88 +13,17 @@ frames for one unique object.
 
 import torchvision.transforms as transforms
 import learn2learn as l2l
-import numpy as np
-import torchvision
 import pickle
 import torch
 import os
 
-from torch.utils.data import Dataset as TorchDataset
+from data.custom import CustomDataset, CustomTaskDataset, CompatDataLoader
 from HOPE.utils.dataset import Dataset
+
+
 from typing import Tuple, Dict, List
 from abc import abstractmethod, ABC
 from tqdm import tqdm
-from PIL import Image
-
-
-class CustomDataset(TorchDataset):
-    def __init__(self, samples: List[tuple], transform=None, lazy=True):
-        self._lazy = lazy
-        self.transform = transform if transform is not None else lambda i: i
-        self.images, self.points2d, self.points3d = self._load(samples)
-
-    def _load(self, samples: List[tuple]) -> tuple:
-        images, points2d, points3d = [], [], []
-        for img_path, p_2d, p_3d in samples:
-            images.append(
-                img_path if self._lazy else self.transform(Image.open(img_path))
-            )
-            points2d.append(p_2d)
-            points3d.append(p_3d)
-        return images, points2d, points3d
-
-    def __len__(self):
-        return len(self.images)
-
-    def __getitem__(self, index):
-        img = (
-            self.transform(Image.open(self.images[index]))
-            if self._lazy
-            else self.images[index]
-        )
-        # TODO: Return a Pillow image to test the batch!
-        assert (
-            type(img) is torch.Tensor
-        ), "Image is not a tensor! Perhaps you forgot a transform?"
-        return img[:3], self.points2d[index], self.points3d[index]
-
-
-class CustomTaskDataset(TorchDataset):
-    def __init__(self, image_paths: Dict[int, List[tuple]], transform=None, lazy=True):
-        self._lazy = lazy
-        self.transform = transform if transform is not None else lambda i: i
-        self.images, self.class_labels, self.points2d, self.points3d = self._load(
-            image_paths
-        )
-
-    def _load(self, image_paths: Dict[int, List[tuple]]) -> tuple:
-        images, labels, i = [], {}, 0
-        points2d, points3d = [], []
-        for k, v in image_paths.items():
-            for img_path, c_2d, c_3d in v:
-                images.append(
-                    img_path if self._lazy else self.transform(Image.open(img_path))
-                )
-                points2d.append(c_2d)
-                points3d.append(c_3d)
-                labels[i] = k
-                i += 1
-        return images, labels, points2d, points3d
-
-    def __getitem__(self, index):
-        img = (
-            self.transform(Image.open(self.images[index]))
-            if self._lazy
-            else self.images[index]
-        )
-        # TODO: Return a Pillow image to test the batch!
-        assert (
-            type(img) is torch.Tensor
-        ), "Image is not a tensor! Perhaps you forgot a transform?"
-        return img[:3], self.points2d[index], self.points3d[index]
-
-    def __len__(self):
-        return len(self.images)
 
 
 class BaseDatasetTaskLoader(ABC):
@@ -119,42 +48,6 @@ class BaseDatasetTaskLoader(ABC):
 
     def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
         raise NotImplementedError
-
-
-class DatasetFactory:
-    @abstractmethod
-    def make_data_loader(
-        dataset: str,
-        dataset_root: str,
-        batch_size: int,
-        test: bool,
-        object_as_task: bool,
-        k_shots: int,
-    ):
-        if not os.path.isdir(dataset_root):
-            print(f"[!] {dataset_root} is not a valid directory!")
-            exit(1)
-        dataset = dataset.lower()
-        if dataset == "obman":
-            return ObManTaskLoader(
-                dataset_root,
-                batch_size,
-                k_shots,
-                test=test,
-                object_as_task=object_as_task,
-            )
-        elif dataset == "fphad":
-            return FPHADTaskLoader(
-                dataset_root,
-                batch_size,
-                k_shots,
-                test=test,
-                object_as_task=object_as_task,
-            )
-        elif dataset == "ho3d":
-            raise NotImplementedError("HO-3D Dataset Loader not implemented!")
-        else:
-            raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
 
 
 class ObManTaskLoader(BaseDatasetTaskLoader):
@@ -204,7 +97,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 obj_id = meta_obj["class_id"]
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
                 # TODO:
-                p_2d, p_3d = np.array([0.0, 0.0]), np.array([0.0, 0.0, 0.0])
+                p_2d, p_3d = torch.tensor([0.0, 0.0]), torch.tensor([0.0, 0.0, 0.0])
                 if obj_id in class_ids:
                     samples[class_ids.index(obj_id)].append((img_path, p_2d, p_3d))
                 else:
@@ -225,7 +118,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 meta_obj = pickle.load(meta_file)
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
                 # TODO:
-                p_2d, p_3d = np.array([0.0, 0.0]), np.array([0.0, 0.0, 0.0])
+                p_2d, p_3d = torch.tensor([0.0, 0.0]), torch.tensor([0.0, 0.0, 0.0])
                 samples.append((img_path, p_2d, p_3d))
         return CustomDataset(samples, self._transform)
 
@@ -261,7 +154,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             # train_dataset_loader = torch.utils.data.DataLoader(
             # self._load(train_path), self._batch_size, shuffle=True, num_workers=8
             # )
-            val_dataset_loader = torch.utils.data.DataLoader(
+            val_dataset_loader = CompatDataLoader(
                 self._load(val_path), self._batch_size, shuffle=False, num_workers=4
             )
         return val_dataset_loader, val_dataset_loader
