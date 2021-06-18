@@ -111,5 +111,3 @@ class MAMLTrainer(BaseTrainer):
             meta_test_loss += inner_loss.item()
         print("==========[Test Error]==========")
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")
-
-

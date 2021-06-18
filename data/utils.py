@@ -50,4 +50,3 @@ class DatasetFactory:
             raise NotImplementedError("HO-3D Dataset Loader not implemented!")
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
-

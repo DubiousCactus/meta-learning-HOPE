@@ -132,5 +132,3 @@ class CompatDataLoader(TorchDataLoader):
     def sample(self):
         for indices in self.batch_sampler:
             yield self.collate_fn([next(self.dataset_iter) for _ in indices])
-
-

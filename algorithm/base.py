@@ -83,4 +83,3 @@ class BaseTrainer(ABC):
         shots: int = 10,
     ):
         raise NotImplementedError
-
