@@ -105,7 +105,7 @@ class MAMLTrainer(BaseTrainer):
         object_as_task: bool = True,
     ):
         dataset = DatasetFactory.make_data_loader(
-            dataset_name, dataset_root, batch_size, test_mode, object_as_task, k_shots
+            dataset_name, dataset_root, batch_size, test_mode, False, k_shots
         )
         super().__init__(
             model_name,
@@ -132,6 +132,7 @@ class MAMLTrainer(BaseTrainer):
             self.model, lr=fast_lr, first_order=False, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        # TODO: Test by plotting all images in the batch!
         batch = self.dataset.train.sample()
         for iteration in range(iterations):
             opt.zero_grad()
