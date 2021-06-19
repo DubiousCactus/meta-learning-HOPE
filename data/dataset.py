@@ -53,10 +53,9 @@ class BaseDatasetTaskLoader(ABC):
                 object_as_task, "train", True
             ), self._load(object_as_task, "val", False)
 
-    def _load_test(self, object_as_task: bool) -> dict:
-        raise NotImplementedError
-
-    def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
+    def _load(
+        self, object_as_task: bool, split: str, shuffle: bool
+    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
         raise NotImplementedError
 
 
@@ -168,6 +167,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
 
 
 class FPHADTaskLoader(BaseDatasetTaskLoader):
+    # TODO:
     """
     REMEMBER:
         "In addition to the samples in the FPHA dataset, we augment the 2D points with Gaussian noise
@@ -189,23 +189,16 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         )
 
     # TODO: TaskLoader
-    def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
-        trainset = Dataset(root=self._root, load_set="train", transform=self._transform)
-        valset = Dataset(root=self._root, load_set="val", transform=self._transform)
-        train_data_loader = CompatDataLoader(
-            trainset,
+    def _load(
+        self, object_as_task: bool, split: str, shuffle: bool
+    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
+        split_dataset = Dataset(root=self._root, load_set=split, transform=self._transform)
+        split_data_loader = CompatDataLoader(
+            split_dataset,
             batch_size=self._batch_size,
-            shuffle=True,
-            num_workers=16,
-            use_cuda=self._use_cuda,
-            gpu_number=self._gpu_number,
-        )
-        val_data_loader = CompatDataLoader(
-            valset,
-            batch_size=self._batch_size,
-            shuffle=False,
+            shuffle=shuffle,
             num_workers=8,
             use_cuda=self._use_cuda,
             gpu_number=self._gpu_number,
         )
-        return train_data_loader, val_data_loader
+        return split_data_loader
