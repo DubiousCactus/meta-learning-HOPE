@@ -92,7 +92,6 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number
         )
 
-    # TODO: Cache into pickle file
     def _make_dataset(self, root, object_as_task=False) -> CustomDataset:
         samples = {} if object_as_task else []
         class_ids = []
@@ -134,7 +133,16 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
-        split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
+        pickle_path = os.path.join(split_path, f"{split}_task_pickle.pkl" if object_as_task else f"{split}_pickle.pkl")
+        if os.path.isfile(pickle_path):
+            with open(pickle_path, "rb") as pickle_file:
+                print(f"[*] Loading {split} split from {pickle_path}...")
+                split_task_set = pickle.load(pickle_file)
+        else:
+            split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
+            with open(pickle_path, "wb") as pickle_file:
+                print(f"[*] Saving {split} split into {pickle_path}...")
+                pickle.dump(split_task_set, pickle_file)
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels
