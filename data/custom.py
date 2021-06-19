@@ -37,6 +37,16 @@ class CustomDataset(TorchDataset):
         self.images, self.points2d, self.points3d, self.class_labels = (
             self._load_as_tasks(samples) if object_as_task else self._load(samples)
         )
+        if not self._lazy:
+            self.images = [self._preprocess(img, image_type=True) for img in self.images]
+            self.points2d = [self._preprocess(p) for p in self.points2d]
+            self.points3d = [self._preprocess(p) for p in self.points3d]
+
+    def _preprocess(self, v, image_type=False) -> List:
+        v = Variable(v[:3]) if image_type else Variable(v)
+        if self._use_cuda and torch.cuda.is_available():
+            v = v.float().cuda(device=self._gpu_number)
+        return v
 
     def _load_as_tasks(self, image_paths: Dict[int, List[tuple]]) -> tuple:
         images, labels, i = [], {}, 0
@@ -66,24 +76,21 @@ class CustomDataset(TorchDataset):
         return len(self.images)
 
     def __getitem__(self, index):
-        img = (
-            self.transform(Image.open(self.images[index]))
-            if self._lazy
-            else self.images[index]
-        )
+        if self._lazy:
+            img = self.transform(Image.open(self.images[index]))
+            img, labels_2d, labels_3d = (
+                self._preprocess(img, image_type=True),
+                self._preprocess(self.points2d[index]),
+                self._preprocess(self.points3d[index]),
+            )
+        else:
+            img = self.images[index]
+            labels_2d = self.points2d[index]
+            labels_3d = self.points3d[index]
+
         assert (
             type(img) is Tensor
         ), "Image is not a tensor! Perhaps you forgot a transform?"
-        # TODO: Do this for the entire lists during loading?
-        img, labels_2d, labels_3d = (
-            Variable(img[:3]),
-            Variable(self.points2d[index]),
-            Variable(self.points3d[index]),
-        )
-        if self._use_cuda and torch.cuda.is_available():
-            img = img.float().cuda(device=self._gpu_number)
-            labels_2d = labels_2d.float().cuda(device=self._gpu_number)
-            labels_3d = labels_3d.float().cuda(device=self._gpu_number)
         return img, labels_2d, labels_3d
 
 
