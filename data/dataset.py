@@ -20,7 +20,7 @@ import os
 from data.custom import CustomDataset, CompatDataLoader
 from HOPE.utils.dataset import Dataset
 
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union
 from abc import abstractmethod, ABC
 from tqdm import tqdm
 
@@ -47,9 +47,11 @@ class BaseDatasetTaskLoader(ABC):
         self._gpu_number = gpu_number
         self.train, self.val, self.test = None, None, None
         if test:
-            self.test = self._load_test(object_as_task)
+            self.test = self._load(object_as_task, "test", False)
         else:
-            self.train, self.val = self._load_train_val(object_as_task)
+            self.train, self.val = self._load(
+                object_as_task, "train", True
+            ), self._load(object_as_task, "val", False)
 
     def _load_test(self, object_as_task: bool) -> dict:
         raise NotImplementedError
@@ -91,7 +93,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         )
 
     # TODO: Cache into pickle file
-    def _load(self, root, object_as_task=False) -> CustomDataset:
+    def _make_dataset(self, root, object_as_task=False) -> CustomDataset:
         samples = {} if object_as_task else []
         class_ids = []
         indices = {
@@ -123,88 +125,38 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             gpu_number=self._gpu_number,
         )
 
-    # TODO: Refactor
-    def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
-        if "train" in os.listdir(self._root):
-            train_path = os.path.join(self._root, "train")
-            val_path = os.path.join(self._root, "val")
+    def _load(
+        self, object_as_task: bool, split: str, shuffle: bool
+    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
+        if split in os.listdir(self._root):
+            split_path = os.path.join(self._root, split)
         else:
             raise Exception(
-                f"{self._root} directory does not contain the 'train' folder!"
+                f"{self._root} directory does not contain the '{split}' folder!"
             )
-        train_task_set = self._load(train_path, object_as_task=object_as_task)
-        val_task_set = self._load(val_path, object_as_task=object_as_task)
+        split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
         if object_as_task:
-            train_dataset = l2l.data.MetaDataset(
-                train_task_set, indices_to_labels=train_task_set.class_labels
+            split_dataset = l2l.data.MetaDataset(
+                split_task_set, indices_to_labels=split_task_set.class_labels
             )
-            val_dataset = l2l.data.MetaDataset(
-                val_task_set, indices_to_labels=val_task_set.class_labels
-            )
-            train_dataset_loader = l2l.data.TaskDataset(
-                train_dataset,
+            split_dataset_loader = l2l.data.TaskDataset(
+                split_dataset,
                 [
-                    l2l.data.transforms.NWays(train_dataset, n=1),
-                    l2l.data.transforms.KShots(train_dataset, k=self.k_shots),
-                    l2l.data.transforms.LoadData(train_dataset),
-                ],
-            )
-            val_dataset_loader = l2l.data.TaskDataset(
-                val_dataset,
-                [
-                    l2l.data.transforms.NWays(val_dataset, n=1),
-                    l2l.data.transforms.KShots(val_dataset, k=self.k_shots),
-                    l2l.data.transforms.LoadData(val_dataset),
+                    l2l.data.transforms.NWays(split_dataset, n=1),
+                    l2l.data.transforms.KShots(split_dataset, k=self.k_shots),
+                    l2l.data.transforms.LoadData(split_dataset),
                 ],
             )
         else:
-            train_dataset_loader = CompatDataLoader(
-                train_task_set,
+            split_dataset_loader = CompatDataLoader(
+                split_task_set,
                 self._batch_size,
-                shuffle=True,
+                shuffle=shuffle,
                 num_workers=8,
                 use_cuda=self._use_cuda,
                 gpu_number=self._gpu_number,
             )
-            val_dataset_loader = CompatDataLoader(
-                val_task_set,
-                self._batch_size,
-                shuffle=False,
-                num_workers=4,
-                use_cuda=self._use_cuda,
-                gpu_number=self._gpu_number,
-            )
-        return train_dataset_loader, val_dataset_loader
-
-    def _load_test(self, object_as_task: bool) -> dict:
-        if "test" in os.listdir(self._root):
-            path = os.path.join(self._root, "test")
-        else:
-            raise Exception(
-                f"{self._root} directory does not contain the 'test' folder!"
-            )
-        test_task_set = self._load(path, object_as_task=object_as_task)
-        if object_as_task:
-            test_dataset = l2l.data.MetaDataset(
-                test_task_set, indices_to_labels=test_task_set.class_labels
-            )
-            test_dataset_loader = l2l.data.TaskDataset(
-                test_dataset,
-                [
-                    l2l.data.transforms.NWays(test_dataset, n=1),
-                    l2l.data.transforms.KShots(test_dataset, k=self.k_shots),
-                    l2l.data.transforms.LoadData(test_dataset),
-                ],
-            )
-        else:
-            test_dataset_loader = CompatDataLoader(
-                test_task_set,
-                self._batch_size,
-                shuffle=False,
-                use_cuda=self._use_cuda,
-                gpu_number=self._gpu_number,
-            )
-        return test_dataset_loader
+        return split_dataset_loader
 
 
 class FPHADTaskLoader(BaseDatasetTaskLoader):
