@@ -20,7 +20,6 @@ import os
 from data.custom import CustomDataset, CompatDataLoader
 from HOPE.utils.dataset import Dataset
 
-
 from typing import Tuple, Dict, List
 from abc import abstractmethod, ABC
 from tqdm import tqdm
@@ -91,40 +90,10 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number
         )
 
-    # TODO: Refactor the two following functions
     # TODO: Cache into pickle file
-    def _load_as_tasks(self, root) -> CustomDataset:
-        samples = {}
+    def _load(self, root, object_as_task=False) -> CustomDataset:
+        samples = {} if object_as_task else []
         class_ids = []
-        indices = {
-            x.split(".")[0]: os.path.join(root, "meta", x)
-            for x in sorted(os.listdir(os.path.join(root, "meta")))
-        }
-        for idx, meta in tqdm(indices.items()):
-            with open(meta, "rb") as meta_file:
-                meta_obj = pickle.load(meta_file)
-                obj_id = meta_obj["class_id"]
-                img_path = os.path.join(root, "rgb", f"{idx}.jpg")
-                # TODO:train
-                # print(meta_obj.keys())
-                # print(meta_obj['pose'].shape, meta_obj['verts_3d'].shape, meta_obj['coords_2d'].shape, meta_obj['coords_3d'].shape)
-                # print()
-                p_2d, p_3d = torch.zeros((29, 2)), torch.zeros((29, 3))
-                if obj_id in class_ids:
-                    samples[class_ids.index(obj_id)].append((img_path, p_2d, p_3d))
-                else:
-                    class_ids.append(obj_id)
-                    samples[class_ids.index(obj_id)] = [(img_path, p_2d, p_3d)]
-        return CustomDataset(
-            samples,
-            self._transform,
-            object_as_task=True,
-            use_cuda=self._use_cuda,
-            gpu_number=self._gpu_number,
-        )
-
-    def _load(self, root) -> CustomDataset:
-        samples = []
         indices = {
             x.split(".")[0]: os.path.join(root, "meta", x)
             for x in sorted(os.listdir(os.path.join(root, "meta")))
@@ -134,12 +103,22 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 meta_obj = pickle.load(meta_file)
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
                 # TODO:
+                # print(meta_obj.keys())
+                # print(meta_obj['pose'].shape, meta_obj['verts_3d'].shape, meta_obj['coords_2d'].shape, meta_obj['coords_3d'].shape)
                 p_2d, p_3d = torch.zeros((29, 2)), torch.zeros((29, 3))
-                samples.append((img_path, p_2d, p_3d))
+                if object_as_task:
+                    obj_id = meta_obj["class_id"]
+                    if obj_id in class_ids:
+                        samples[class_ids.index(obj_id)].append((img_path, p_2d, p_3d))
+                    else:
+                        class_ids.append(obj_id)
+                        samples[class_ids.index(obj_id)] = [(img_path, p_2d, p_3d)]
+                else:
+                    samples.append((img_path, p_2d, p_3d))
         return CustomDataset(
             samples,
             self._transform,
-            object_as_task=False,
+            object_as_task=object_as_task,
             use_cuda=self._use_cuda,
             gpu_number=self._gpu_number,
         )
@@ -153,30 +132,34 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the 'train' folder!"
             )
+        train_task_set = self._load(train_path, object_as_task=object_as_task)
+        val_task_set = self._load(val_path, object_as_task=object_as_task)
         if object_as_task:
-            train_task_set = self._load_as_tasks(train_path)
             train_dataset = l2l.data.MetaDataset(
                 train_task_set, indices_to_labels=train_task_set.class_labels
             )
-            val_task_set = self._load_as_tasks(val_path)
             val_dataset = l2l.data.MetaDataset(
                 val_task_set, indices_to_labels=val_task_set.class_labels
             )
-            t_transforms = [
-                l2l.data.transforms.NWays(train_dataset, n=1),
-                l2l.data.transforms.KShots(train_dataset, k=self.k_shots),
-                l2l.data.transforms.LoadData(train_dataset),
-            ]
-            v_transforms = [
-                l2l.data.transforms.NWays(val_dataset, n=1),
-                l2l.data.transforms.KShots(val_dataset, k=self.k_shots),
-                l2l.data.transforms.LoadData(val_dataset),
-            ]
-            train_dataset_loader = l2l.data.TaskDataset(train_dataset, t_transforms)
-            val_dataset_loader = l2l.data.TaskDataset(val_dataset, v_transforms)
+            train_dataset_loader = l2l.data.TaskDataset(
+                train_dataset,
+                [
+                    l2l.data.transforms.NWays(train_dataset, n=1),
+                    l2l.data.transforms.KShots(train_dataset, k=self.k_shots),
+                    l2l.data.transforms.LoadData(train_dataset),
+                ],
+            )
+            val_dataset_loader = l2l.data.TaskDataset(
+                val_dataset,
+                [
+                    l2l.data.transforms.NWays(val_dataset, n=1),
+                    l2l.data.transforms.KShots(val_dataset, k=self.k_shots),
+                    l2l.data.transforms.LoadData(val_dataset),
+                ],
+            )
         else:
             train_dataset_loader = CompatDataLoader(
-                self._load(train_path),
+                train_task_set,
                 self._batch_size,
                 shuffle=True,
                 num_workers=8,
@@ -184,7 +167,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 gpu_number=self._gpu_number,
             )
             val_dataset_loader = CompatDataLoader(
-                self._load(val_path),
+                val_task_set,
                 self._batch_size,
                 shuffle=False,
                 num_workers=4,
@@ -200,19 +183,27 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the 'test' folder!"
             )
+        test_task_set = self._load(path, object_as_task=object_as_task)
         if object_as_task:
-            test_task_set = self._load_as_tasks(path)
             test_dataset = l2l.data.MetaDataset(
                 test_task_set, indices_to_labels=test_task_set.class_labels
             )
-            t_transforms = [
-                l2l.data.transforms.NWays(test_dataset, n=1),
-                l2l.data.transforms.KShots(test_dataset, k=self.k_shots),
-                l2l.data.transforms.LoadData(test_dataset),
-            ]
-            test_dataset_loader = l2l.data.TaskDataset(test_dataset, t_transforms)
+            test_dataset_loader = l2l.data.TaskDataset(
+                test_dataset,
+                [
+                    l2l.data.transforms.NWays(test_dataset, n=1),
+                    l2l.data.transforms.KShots(test_dataset, k=self.k_shots),
+                    l2l.data.transforms.LoadData(test_dataset),
+                ],
+            )
         else:
-            test = {}
+            test_dataset_loader = CompatDataLoader(
+                test_task_set,
+                self._batch_size,
+                shuffle=False,
+                use_cuda=self._use_cuda,
+                gpu_number=self._gpu_number,
+            )
         return test_dataset_loader
 
 

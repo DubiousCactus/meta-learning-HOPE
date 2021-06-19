@@ -16,7 +16,6 @@ from torch.autograd import Variable
 from torch import Tensor
 from PIL import Image
 
-
 import torch
 
 
@@ -38,7 +37,9 @@ class CustomDataset(TorchDataset):
             self._load_as_tasks(samples) if object_as_task else self._load(samples)
         )
         if not self._lazy:
-            self.images = [self._preprocess(img, image_type=True) for img in self.images]
+            self.images = [
+                self._preprocess(img, image_type=True) for img in self.images
+            ]
             self.points2d = [self._preprocess(p) for p in self.points2d]
             self.points3d = [self._preprocess(p) for p in self.points3d]
 
@@ -150,7 +151,10 @@ class CompatDataLoader(TorchDataLoader):
             yield self.collate_fn(
                 [
                     to_cuda(
-                        [Variable(Tensor(e)).float() for e in next(self.dataset_iter)]
+                        [
+                            Variable(Tensor(e)).float() if not e.is_cuda else e
+                            for e in next(self.dataset_iter)
+                        ]
                     )
                     for _ in indices
                 ]
