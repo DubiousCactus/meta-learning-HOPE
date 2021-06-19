@@ -78,12 +78,8 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
     ):
         super().__init__(root, batch_size, k_shots, test, object_as_task)
         self.num_objects = -1
-        # TODO:
-        # 1. Load meta files, add index and meta info to the dictionary with the object as key
-        # 2. Go through the dictionary and load the RGB image, the 2D and 3D labels
-        # 3. Build a DataLoader?
-        # 4. Use l2l's TaskDataSet module?
 
+    # TODO: Refactor the two following functions
     def _load_as_tasks(self, root) -> CustomTaskDataset:
         samples = {}
         class_ids = []
@@ -96,8 +92,11 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 meta_obj = pickle.load(meta_file)
                 obj_id = meta_obj["class_id"]
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
-                # TODO:
-                p_2d, p_3d = torch.tensor([0.0, 0.0]), torch.tensor([0.0, 0.0, 0.0])
+                # TODO:train
+                # print(meta_obj.keys())
+                # print(meta_obj['pose'].shape, meta_obj['verts_3d'].shape, meta_obj['coords_2d'].shape, meta_obj['coords_3d'].shape)
+                # print()
+                p_2d, p_3d = torch.zeros((29,2)), torch.zeros((29,3))
                 if obj_id in class_ids:
                     samples[class_ids.index(obj_id)].append((img_path, p_2d, p_3d))
                 else:
@@ -118,10 +117,11 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 meta_obj = pickle.load(meta_file)
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
                 # TODO:
-                p_2d, p_3d = torch.zeros((29,2)), zeros((29,3))
+                p_2d, p_3d = torch.zeros((29,2)), torch.zeros((29,3))
                 samples.append((img_path, p_2d, p_3d))
         return CustomDataset(samples, self._transform)
 
+    # TODO: Refactor
     def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
         if "train" in os.listdir(self._root):
             train_path = os.path.join(self._root, "train")
@@ -131,33 +131,34 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 f"{self._root} directory does not contain the 'train' folder!"
             )
         if object_as_task:
-            # train_dataset = l2l.data.MetaDataset(
-            # self._load_as_tasks(train_path), indices_to_labels=self._shapenet_labels
-            # )
+            train_task_set = self._load_as_tasks(train_path)
+            train_dataset = l2l.data.MetaDataset(
+                train_task_set, indices_to_labels=train_task_set.class_labels
+            )
             val_task_set = self._load_as_tasks(val_path)
             val_dataset = l2l.data.MetaDataset(
                 val_task_set, indices_to_labels=val_task_set.class_labels
             )
-            # t_transforms = [
-            # l2l.data.transforms.NWays(train_dataset, n=self.num_objects),
-            # l2l.data.transforms.KShots(train_dataset, k=self.k_shots),
-            # l2l.data.transforms.LoadData(train_dataset),
-            # ]
+            t_transforms = [
+                l2l.data.transforms.NWays(train_dataset, n=self.num_objects),
+                l2l.data.transforms.KShots(train_dataset, k=self.k_shots),
+                l2l.data.transforms.LoadData(train_dataset),
+            ]
             v_transforms = [
                 l2l.data.transforms.NWays(val_dataset, n=self.num_objects),
                 l2l.data.transforms.KShots(val_dataset, k=self.k_shots),
                 l2l.data.transforms.LoadData(val_dataset),
             ]
-            # train_dataset_loader = l2l.data.TaskDataset(train_dataset, t_transforms)
+            train_dataset_loader = l2l.data.TaskDataset(train_dataset, t_transforms)
             val_dataset_loader = l2l.data.TaskDataset(val_dataset, v_transforms)
         else:
-            # train_dataset_loader = torch.utils.data.DataLoader(
-            # self._load(train_path), self._batch_size, shuffle=True, num_workers=8
-            # )
+            train_dataset_loader = CompatDataLoader(
+                self._load(train_path), self._batch_size, shuffle=True, num_workers=8
+            )
             val_dataset_loader = CompatDataLoader(
                 self._load(val_path), self._batch_size, shuffle=False, num_workers=4
             )
-        return val_dataset_loader, val_dataset_loader
+        return train_dataset_loader, val_dataset_loader
 
     def _load_test(self, object_as_task: bool) -> dict:
         if "test" in os.listdir(self._root):
@@ -167,10 +168,19 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 f"{self._root} directory does not contain the 'test' folder!"
             )
         if object_as_task:
-            test = self._load_as_tasks(path)
+            test_task_set = self._load_as_tasks(path)
+            test_dataset = l2l.data.MetaDataset(
+                test_task_set, indices_to_labels=test_task_set.class_labels
+            )
+            t_transforms = [
+                l2l.data.transforms.NWays(test_dataset, n=1),
+                l2l.data.transforms.KShots(test_dataset, k=self.k_shots),
+                l2l.data.transforms.LoadData(test_dataset),
+            ]
+            test_dataset_loader = l2l.data.TaskDataset(test_dataset, t_transforms)
         else:
             test = {}
-        return test
+        return test_dataset_loader
 
 
 class FPHADTaskLoader(BaseDatasetTaskLoader):
@@ -190,6 +200,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
     ):
         super().__init__(root, batch_size, k_shots, test, object_as_task)
 
+    # TODO: TaskLoader
     def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
         trainset = Dataset(root=self._root, load_set="train", transform=self._transform)
         valset = Dataset(root=self._root, load_set="val", transform=self._transform)

@@ -12,13 +12,13 @@ Part-specific training wrappers.
 
 import torch.optim as optim
 import torch.nn as nn
+import numpy as np
 import torch
 
 from data.dataset import BaseDatasetTaskLoader
 from algorithm.maml import MAMLTrainer
 from data.utils import DatasetFactory
 
-from torch.autograd import Variable
 from abc import ABC
 
 
@@ -45,19 +45,7 @@ class HOPETrainer(MAMLTrainer):
         )
 
     def _training_step(self, batch: tuple, learner, steps: int, shots: int):
-        # TODO: Have a batch contain several (input, labels) pairs, and split them in support/query
-        # sets
         inputs, labels2d, labels3d = batch
-        # wrap them in Variable
-        inputs = Variable(inputs)
-        labels2d = Variable(labels2d)
-        labels3d = Variable(labels3d)
-
-        # TODO: Do this in the construction of the tasks dataset
-        if self._use_cuda and torch.cuda.is_available():
-            inputs = inputs.float().cuda(device=self._gpu_number[0])
-            labels2d = labels2d.float().cuda(device=self._gpu_number[0])
-            labels3d = labels3d.float().cuda(device=self._gpu_number[0])
 
         # Adapt the model on the support set
         for step in range(steps):
@@ -109,17 +97,7 @@ class ResnetTrainer(MAMLTrainer):
         )
 
     def _training_step(self, batch: tuple, learner, steps: int, shots: int):
-        # TODO: Have a batch contain several (input, labels) pairs, and split them in support/query
-        # sets
         inputs, labels2d, _ = batch
-        # wrap them in Variable
-        inputs = Variable(inputs)
-        labels2d = Variable(labels2d)
-
-        # TODO: Do this in the construction of the tasks dataset
-        if self._use_cuda and torch.cuda.is_available():
-            inputs = inputs.float().cuda(device=self._gpu_number[0])
-            labels2d = labels2d.float().cuda(device=self._gpu_number[0])
 
         # Adapt the model on the support set
         for step in range(steps):
@@ -157,17 +135,16 @@ class GraphUNetTrainer(MAMLTrainer):
         )
 
     def _training_step(self, batch: tuple, learner, steps: int, shots: int):
-        # TODO: Have a batch contain several (input, labels) pairs, and split them in support/query
-        # sets
         _, labels2d, labels3d = batch
-        # wrap them in Variable
-        labels2d = Variable(labels2d)
-        labels3d = Variable(labels3d)
 
-        # TODO: Do this in the construction of the tasks dataset
-        if self._use_cuda and torch.cuda.is_available():
-            labels2d = labels2d.float().cuda(device=self._gpu_number[0])
-            labels3d = labels3d.float().cuda(device=self._gpu_number[0])
+        # Separate data into adaptation/evalutation sets
+        # adaptation_indices = np.zeros(labels2d.size(0), dtype=bool)
+        # adaptation_indices[np.arange(self._k_shots*1) * 2] = True
+        # evaluation_indices = torch.from_numpy(~adaptation_indices)
+        # adaptation_indices = torch.from_numpy(adaptation_indices)
+        # adaptation_data, adaptation_labels = labels2d[adaptation_indices], labels3d[adaptation_indices]
+        # evaluation_data, evaluation_labels = labels2d[evaluation_indices], labels3d[evaluation_indices]
+
 
         # Adapt the model on the support set
         for step in range(steps):

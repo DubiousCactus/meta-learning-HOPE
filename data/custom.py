@@ -12,12 +12,20 @@ Custom dataset classes and interfaces.
 
 from torch.utils.data import Dataset as TorchDataset, DataLoader as TorchDataLoader
 from typing import Tuple, Dict, List
+from torch.autograd import Variable
 from torch import Tensor
 from PIL import Image
 
 
+import torch
+
+
+# TODO: Refactor the two dataset classes into one
 class CustomDataset(TorchDataset):
-    def __init__(self, samples: List[tuple], transform=None, lazy=True):
+    def __init__(self, samples: List[tuple], transform=None, lazy=True, use_cuda=True,
+            gpu_number=0):
+        self._gpu_number = gpu_number
+        self._use_cuda = use_cuda
         self._lazy = lazy
         self.transform = transform if transform is not None else lambda i: i
         self.images, self.points2d, self.points3d = self._load(samples)
@@ -41,15 +49,23 @@ class CustomDataset(TorchDataset):
             if self._lazy
             else self.images[index]
         )
-        # TODO: Return a Pillow image to test the batch!
         assert (
             type(img) is Tensor
         ), "Image is not a tensor! Perhaps you forgot a transform?"
-        return img[:3], self.points2d[index], self.points3d[index]
+        # TODO: Do this for the entire lists during loading?
+        img, labels_2d, labels_3d = Variable(img[:3]), Variable(self.points2d[index]), Variable(self.points3d[index])
+        if self._use_cuda and torch.cuda.is_available():
+            img = img.float().cuda(device=self._gpu_number)
+            labels_2d = labels_2d.float().cuda(device=self._gpu_number)
+            labels_3d = labels_3d.float().cuda(device=self._gpu_number)
+        return img, labels_2d, labels_3d
 
 
 class CustomTaskDataset(TorchDataset):
-    def __init__(self, image_paths: Dict[int, List[tuple]], transform=None, lazy=True):
+    def __init__(self, image_paths: Dict[int, List[tuple]], transform=None, lazy=True,
+            use_cuda=True, gpu_number=0):
+        self._gpu_number = gpu_number
+        self._use_cuda = use_cuda
         self._lazy = lazy
         self.transform = transform if transform is not None else lambda i: i
         self.images, self.class_labels, self.points2d, self.points3d = self._load(
@@ -76,11 +92,15 @@ class CustomTaskDataset(TorchDataset):
             if self._lazy
             else self.images[index]
         )
-        # TODO: Return a Pillow image to test the batch!
         assert (
-            type(img) is torch.Tensor
+            type(img) is Tensor
         ), "Image is not a tensor! Perhaps you forgot a transform?"
-        return img[:3], self.points2d[index], self.points3d[index]
+        img, labels_2d, labels_3d = Variable(img[:3]), Variable(self.points2d[index]), Variable(self.points3d[index])
+        if self._use_cuda and torch.cuda.is_available():
+            img = img.float().cuda(device=self._gpu_number)
+            labels_2d = labels_2d.float().cuda(device=self._gpu_number)
+            labels_3d = labels_3d.float().cuda(device=self._gpu_number)
+        return img, labels_2d, labels_3d
 
     def __len__(self):
         return len(self.images)

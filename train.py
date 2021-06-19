@@ -48,13 +48,19 @@ def main(args):
         dataset_name,
         args.input_file,
         args.batch_size,
-        15,
+        5,
         use_cuda=args.gpu,
         gpu_number=args.gpu_number,
+        test_mode=args.test
     )
-    graphunet_trainer.train(
-        meta_batch_size=1, iterations=1000, fast_lr=1e-6, meta_lr=1e-4
+    if args.test:
+        graphunet_trainer.test(
+        meta_batch_size=32, fast_lr=1e-6, meta_lr=1e-5
     )
+    else:
+        graphunet_trainer.train(
+            meta_batch_size=32, iterations=1000, fast_lr=1e-6, meta_lr=1e-5
+        )
 
 
 if __name__ == "__main__":
