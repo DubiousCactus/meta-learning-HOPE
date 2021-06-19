@@ -22,8 +22,14 @@ import torch
 
 # TODO: Refactor the two dataset classes into one
 class CustomDataset(TorchDataset):
-    def __init__(self, samples: List[tuple], transform=None, lazy=True, use_cuda=True,
-            gpu_number=0):
+    def __init__(
+        self,
+        samples: List[tuple],
+        transform=None,
+        lazy=True,
+        use_cuda=True,
+        gpu_number=0,
+    ):
         self._gpu_number = gpu_number
         self._use_cuda = use_cuda
         self._lazy = lazy
@@ -53,7 +59,11 @@ class CustomDataset(TorchDataset):
             type(img) is Tensor
         ), "Image is not a tensor! Perhaps you forgot a transform?"
         # TODO: Do this for the entire lists during loading?
-        img, labels_2d, labels_3d = Variable(img[:3]), Variable(self.points2d[index]), Variable(self.points3d[index])
+        img, labels_2d, labels_3d = (
+            Variable(img[:3]),
+            Variable(self.points2d[index]),
+            Variable(self.points3d[index]),
+        )
         if self._use_cuda and torch.cuda.is_available():
             img = img.float().cuda(device=self._gpu_number)
             labels_2d = labels_2d.float().cuda(device=self._gpu_number)
@@ -62,8 +72,14 @@ class CustomDataset(TorchDataset):
 
 
 class CustomTaskDataset(TorchDataset):
-    def __init__(self, image_paths: Dict[int, List[tuple]], transform=None, lazy=True,
-            use_cuda=True, gpu_number=0):
+    def __init__(
+        self,
+        image_paths: Dict[int, List[tuple]],
+        transform=None,
+        lazy=True,
+        use_cuda=True,
+        gpu_number=0,
+    ):
         self._gpu_number = gpu_number
         self._use_cuda = use_cuda
         self._lazy = lazy
@@ -95,7 +111,11 @@ class CustomTaskDataset(TorchDataset):
         assert (
             type(img) is Tensor
         ), "Image is not a tensor! Perhaps you forgot a transform?"
-        img, labels_2d, labels_3d = Variable(img[:3]), Variable(self.points2d[index]), Variable(self.points3d[index])
+        img, labels_2d, labels_3d = (
+            Variable(img[:3]),
+            Variable(self.points2d[index]),
+            Variable(self.points3d[index]),
+        )
         if self._use_cuda and torch.cuda.is_available():
             img = img.float().cuda(device=self._gpu_number)
             labels_2d = labels_2d.float().cuda(device=self._gpu_number)
@@ -129,6 +149,8 @@ class CompatDataLoader(TorchDataLoader):
         generator=None,
         prefetch_factor=2,
         persistent_workers=False,
+        use_cuda=True,
+        gpu_number=0
     ):
         super().__init__(
             dataset,
@@ -148,10 +170,23 @@ class CompatDataLoader(TorchDataLoader):
             persistent_workers=persistent_workers,
         )
         self.dataset_iter = iter(self.dataset)
+        self._use_cuda = use_cuda
+        self._gpu_number = gpu_number
 
     def _get_batch(self):
+        def to_cuda(batch):
+            if self._use_cuda and torch.cuda.is_available():
+                return [e.cuda(device=self._gpu_number) for e in batch]
+
         for indices in self.batch_sampler:
-            yield self.collate_fn([next(self.dataset_iter) for _ in indices])
+            yield self.collate_fn(
+                [
+                    to_cuda(
+                        [Variable(Tensor(e)).float() for e in next(self.dataset_iter)]
+                    )
+                    for _ in indices
+                ]
+            )
 
     def sample(self):
         return next(self._get_batch())

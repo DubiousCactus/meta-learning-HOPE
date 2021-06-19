@@ -99,7 +99,9 @@ class MAMLTrainer(BaseTrainer):
         steps: int = 1,
         shots: int = 10,
     ):
-        maml = l2l.algorithms.MAML(self.model, lr=fast_lr, first_order=True, allow_unused=True)
+        maml = l2l.algorithms.MAML(
+            self.model, lr=fast_lr, first_order=True, allow_unused=True
+        )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         meta_test_loss = 0.0
         for task in range(meta_batch_size):
@@ -108,7 +110,7 @@ class MAMLTrainer(BaseTrainer):
 
             images = batch[0]
             for i in range(images.shape[0]):
-                image = images[i,:].permute(1, 2, 0).numpy()
+                image = images[i, :].permute(1, 2, 0).cpu().numpy()
                 plt.imshow(image)
                 plt.show()
 

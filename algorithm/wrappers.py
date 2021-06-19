@@ -145,7 +145,6 @@ class GraphUNetTrainer(MAMLTrainer):
         # adaptation_data, adaptation_labels = labels2d[adaptation_indices], labels3d[adaptation_indices]
         # evaluation_data, evaluation_labels = labels2d[evaluation_indices], labels3d[evaluation_indices]
 
-
         # Adapt the model on the support set
         for step in range(steps):
             # forward + backward + optimize

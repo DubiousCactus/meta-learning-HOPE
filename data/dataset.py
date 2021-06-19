@@ -32,11 +32,14 @@ class BaseDatasetTaskLoader(ABC):
     )
 
     def __init__(
-        self, root: str, batch_size: int, k_shots: int, test: bool, object_as_task: bool
+            self, root: str, batch_size: int, k_shots: int, test: bool, object_as_task: bool,
+            use_cuda: bool, gpu_number: int
     ):
         self._root = root
         self._batch_size = batch_size
         self.k_shots = k_shots
+        self._use_cuda = use_cuda
+        self._gpu_number = gpu_number
         self.train, self.val, self.test = None, None, None
         if test:
             self.test = self._load_test(object_as_task)
@@ -75,11 +78,13 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         k_shots,
         test: bool = False,
         object_as_task: bool = True,
+        use_cuda: bool = True,
+        gpu_number: int = 0,
     ):
-        super().__init__(root, batch_size, k_shots, test, object_as_task)
-        self.num_objects = -1
+        super().__init__(root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number)
 
     # TODO: Refactor the two following functions
+    # TODO: Cache into pickle file
     def _load_as_tasks(self, root) -> CustomTaskDataset:
         samples = {}
         class_ids = []
@@ -96,15 +101,13 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 # print(meta_obj.keys())
                 # print(meta_obj['pose'].shape, meta_obj['verts_3d'].shape, meta_obj['coords_2d'].shape, meta_obj['coords_3d'].shape)
                 # print()
-                p_2d, p_3d = torch.zeros((29,2)), torch.zeros((29,3))
+                p_2d, p_3d = torch.zeros((29, 2)), torch.zeros((29, 3))
                 if obj_id in class_ids:
                     samples[class_ids.index(obj_id)].append((img_path, p_2d, p_3d))
                 else:
                     class_ids.append(obj_id)
                     samples[class_ids.index(obj_id)] = [(img_path, p_2d, p_3d)]
-        self.num_objects = len(list(samples.keys()))
-        print(f"[*] Loaded {self.num_objects} object classes from {root}!")
-        return CustomTaskDataset(samples, self._transform)
+        return CustomTaskDataset(samples, self._transform, use_cuda=self._use_cuda, gpu_number=self._gpu_number)
 
     def _load(self, root) -> CustomDataset:
         samples = []
@@ -117,9 +120,9 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 meta_obj = pickle.load(meta_file)
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
                 # TODO:
-                p_2d, p_3d = torch.zeros((29,2)), torch.zeros((29,3))
+                p_2d, p_3d = torch.zeros((29, 2)), torch.zeros((29, 3))
                 samples.append((img_path, p_2d, p_3d))
-        return CustomDataset(samples, self._transform)
+        return CustomDataset(samples, self._transform, use_cuda=self._use_cuda, gpu_number=self._gpu_number)
 
     # TODO: Refactor
     def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
@@ -140,12 +143,12 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 val_task_set, indices_to_labels=val_task_set.class_labels
             )
             t_transforms = [
-                l2l.data.transforms.NWays(train_dataset, n=self.num_objects),
+                l2l.data.transforms.NWays(train_dataset, n=1),
                 l2l.data.transforms.KShots(train_dataset, k=self.k_shots),
                 l2l.data.transforms.LoadData(train_dataset),
             ]
             v_transforms = [
-                l2l.data.transforms.NWays(val_dataset, n=self.num_objects),
+                l2l.data.transforms.NWays(val_dataset, n=1),
                 l2l.data.transforms.KShots(val_dataset, k=self.k_shots),
                 l2l.data.transforms.LoadData(val_dataset),
             ]
@@ -153,10 +156,12 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             val_dataset_loader = l2l.data.TaskDataset(val_dataset, v_transforms)
         else:
             train_dataset_loader = CompatDataLoader(
-                self._load(train_path), self._batch_size, shuffle=True, num_workers=8
+                self._load(train_path), self._batch_size, shuffle=True, num_workers=8,
+                use_cuda=self._use_cuda, gpu_number=self._gpu_number
             )
             val_dataset_loader = CompatDataLoader(
-                self._load(val_path), self._batch_size, shuffle=False, num_workers=4
+                self._load(val_path), self._batch_size, shuffle=False, num_workers=4,
+                use_cuda=self._use_cuda, gpu_number=self._gpu_number
             )
         return train_dataset_loader, val_dataset_loader
 
@@ -197,17 +202,21 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         k_shots: int,
         test: bool = False,
         object_as_task: bool = True,
+        use_cuda: bool = True,
+        gpu_number: int = 0
     ):
-        super().__init__(root, batch_size, k_shots, test, object_as_task)
+        super().__init__(root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number)
 
     # TODO: TaskLoader
     def _load_train_val(self, object_as_task: bool) -> Tuple[dict, dict]:
         trainset = Dataset(root=self._root, load_set="train", transform=self._transform)
         valset = Dataset(root=self._root, load_set="val", transform=self._transform)
         train_data_loader = CompatDataLoader(
-            trainset, batch_size=self._batch_size, shuffle=True, num_workers=16
+            trainset, batch_size=self._batch_size, shuffle=True, num_workers=16,
+            use_cuda=self._use_cuda, gpu_number=self._gpu_number
         )
         val_data_loader = CompatDataLoader(
-            valset, batch_size=self._batch_size, shuffle=False, num_workers=8
+            valset, batch_size=self._batch_size, shuffle=False, num_workers=8,
+            use_cuda=self._use_cuda, gpu_number=self._gpu_number
         )
         return train_data_loader, val_data_loader
