@@ -102,10 +102,10 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             with open(meta, "rb") as meta_file:
                 meta_obj = pickle.load(meta_file)
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
+                hand_coords_2d, hand_coords_3d = torch.Tensor(meta_obj['coords_2d']), torch.Tensor(meta_obj['coords_3d'])
                 # TODO:
-                # print(meta_obj.keys())
-                # print(meta_obj['pose'].shape, meta_obj['verts_3d'].shape, meta_obj['coords_2d'].shape, meta_obj['coords_3d'].shape)
-                p_2d, p_3d = torch.zeros((29, 2)), torch.zeros((29, 3))
+                obj_coords_2d, obj_coords_3d = torch.zeros((8, 2)), torch.zeros((8, 3))
+                p_2d, p_3d = torch.cat([hand_coords_2d, obj_coords_2d]), torch.cat([hand_coords_3d, obj_coords_3d])
                 if object_as_task:
                     obj_id = meta_obj["class_id"]
                     if obj_id in class_ids:
@@ -132,16 +132,18 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
-        pickle_path = os.path.join(split_path, f"{split}_task_pickle.pkl" if object_as_task else f"{split}_pickle.pkl")
-        if os.path.isfile(pickle_path):
-            with open(pickle_path, "rb") as pickle_file:
-                print(f"[*] Loading {split} split from {pickle_path}...")
-                split_task_set = pickle.load(pickle_file)
-        else:
-            split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
-            with open(pickle_path, "wb") as pickle_file:
-                print(f"[*] Saving {split} split into {pickle_path}...")
-                pickle.dump(split_task_set, pickle_file)
+        # Pickling doesn't improve the speed, might remove:
+        # pickle_path = os.path.join(split_path, f"{split}_task_pickle.pkl" if object_as_task else f"{split}_pickle.pkl")
+        # if os.path.isfile(pickle_path):
+            # with open(pickle_path, "rb") as pickle_file:
+                # print(f"[*] Loading {split} split from {pickle_path}...")
+              #   split_task_set = pickle.load(pickle_file)
+        # else:
+            # split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
+            # with open(pickle_path, "wb") as pickle_file:
+                # print(f"[*] Saving {split} split into {pickle_path}...")
+            #     pickle.dump(split_task_set, pickle_file)
+        split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels
@@ -188,17 +190,20 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number
         )
 
-    # TODO: TaskLoader
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool
     ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
         split_dataset = Dataset(root=self._root, load_set=split, transform=self._transform)
-        split_data_loader = CompatDataLoader(
-            split_dataset,
-            batch_size=self._batch_size,
-            shuffle=shuffle,
-            num_workers=8,
-            use_cuda=self._use_cuda,
-            gpu_number=self._gpu_number,
-        )
+        if object_as_task:
+            # TODO: TaskLoader (look into the make_data.py script)
+            pass
+        else:
+            split_data_loader = CompatDataLoader(
+                split_dataset,
+                batch_size=self._batch_size,
+                shuffle=shuffle,
+                num_workers=8,
+                use_cuda=self._use_cuda,
+                gpu_number=self._gpu_number,
+            )
         return split_data_loader
