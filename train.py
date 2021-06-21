@@ -13,14 +13,6 @@ Meta-Train HOPE-Net or its individual parts.
 from algorithm.wrappers import HOPETrainer, ResnetTrainer, GraphUNetTrainer
 from HOPE.utils.options import parse_args_function
 
-# TODO:
-# [x] Implement the right data loader such that one task = one object (several sequences per
-# object!)
-# [x] Implement MAML learning for the entire HOPENet
-# [x] Implement MAML learning for the feature extractor only (ResNet)
-# [x] Implement MAML learning for Graph U-Net only
-# [ ] Implement normal learning for each part and whole HOPENet (just as in the paper)
-
 
 def main(args):
     # TODO: Parse from args instead
