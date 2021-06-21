@@ -217,6 +217,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         self._cam_intr = np.array(
             [[1395.749023, 0, 935.732544], [0, 1395.749268, 540.681030], [0, 0, 1]]
         )
+        # Only call super() last, because the base class's init() calls the _load() function!
         super().__init__(
             root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number
         )
@@ -239,7 +240,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             sample["seq_idx"],
             "skeleton.txt",
         )
-        # print('Loading skeleton from {}'.format(skeleton_path))
         skeleton_vals = np.loadtxt(skeleton_path)
         skeleton = skeleton_vals[:, 1:].reshape(skeleton_vals.shape[0], 21, -1)[
             sample["frame_idx"]
@@ -260,7 +260,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         line = raw_line.strip().split(" ")
         trans_matrix = np.array(line[1:]).astype(np.float32)
         trans_matrix = trans_matrix.reshape(4, 4).transpose()
-        # print('Loading obj transform from {}'.format(seq_path))
         return trans_matrix
 
     def _compute_labels(
@@ -305,8 +304,8 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             np.array(self._cam_intr).dot(skel_camcoords.transpose()).transpose()
         )
         skel_proj = (skel_hom2d / skel_hom2d[:, 2:])[:, :2]
-        points = np.concatenate((skel_camcoords, verts_camcoords))
-        projected_points = np.concatenate((skel_proj, verts_proj))
+        points = torch.Tensor(np.concatenate((skel_camcoords, verts_camcoords)))
+        projected_points = torch.Tensor(np.concatenate((skel_proj, verts_proj)))
         return projected_points, points
 
     def _make_dataset(self, split: str, object_as_task=False) -> CustomDataset:
@@ -314,7 +313,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/fhad/make_data.py.
         """
         samples = {} if object_as_task else []
-
         for root, dirs, files in os.walk(self._obj_trans_root):
             if "object_pose.txt" in files:
                 path = root.split(os.sep)
@@ -343,7 +341,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                         samples[obj_class_id].append((img_path, points_2d, points_3d))
                     else:
                         samples.append((img_path, points_2d, points_3d))
-
         if object_as_task:
             print(
                 f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
@@ -361,8 +358,17 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool
     ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
-        if object_as_task:
+        pickle_path = os.path.join(self._root, f"fphad_{split}_task_pickle.pkl" if object_as_task else f"fphad_{split}_pickle.pkl")
+        if os.path.isfile(pickle_path):
+            with open(pickle_path, "rb") as pickle_file:
+                print(f"[*] Loading {split} split from {pickle_path}...")
+                split_task_set = pickle.load(pickle_file)
+        else:
             split_task_set = self._make_dataset(split, object_as_task=object_as_task)
+            with open(pickle_path, "wb") as pickle_file:
+                print(f"[*] Saving {split} split into {pickle_path}...")
+                pickle.dump(split_task_set, pickle_file)
+        if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels
             )
@@ -375,9 +381,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                 ],
             )
         else:
-            split_dataset = Dataset(
-                root=self._root, load_set=split, transform=self._transform
-            )
             split_dataset_loader = CompatDataLoader(
                 split_dataset,
                 batch_size=self._batch_size,
