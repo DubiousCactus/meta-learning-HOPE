@@ -22,7 +22,6 @@ class BaseTrainer(ABC):
         self,
         model_name: str,
         dataset: BaseDatasetTaskLoader,
-        batch_size: int,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -41,27 +40,6 @@ class BaseTrainer(ABC):
         # self.scheduler.last_epoch = start
         self._lambda1 = 0.01
         self._lambda2 = 1
-        self.batch_size = batch_size
-
-    def _load_train_val(self, dataset_root: str, batch_size: int):
-        trainset = Dataset(
-            root=dataset_root, load_set="train", transform=self._transform
-        )
-        valset = Dataset(root=dataset_root, load_set="val", transform=self._transform)
-        train_data_loader = torch.utils.data.DataLoader(
-            trainset, batch_size=batch_size, shuffle=True, num_workers=16
-        )
-        val_data_loader = torch.utils.data.DataLoader(
-            valset, batch_size=batch_size, shuffle=False, num_workers=8
-        )
-        return train_data_loader, val_data_loader
-
-    def _load_test(self, dataset_root: str, batch_size: int):
-        testset = Dataset(root=dataset_root, load_set="test", transform=self._transform)
-        test_data_loader = torch.utils.data.DataLoader(
-            testset, batch_size=batch_size, shuffle=False, num_workers=8
-        )
-        return test_data_loader
 
     def train(
         self,

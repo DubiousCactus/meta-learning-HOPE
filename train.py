@@ -10,8 +10,9 @@
 Meta-Train HOPE-Net or its individual parts.
 """
 
-from algorithm.wrappers import HOPETrainer, ResnetTrainer, GraphUNetTrainer
+from algorithm.wrappers import MAML_HOPETrainer, MAML_ResnetTrainer, MAML_GraphUNetTrainer
 from HOPE.utils.options import parse_args_function
+from data.factory import DatasetFactory
 
 
 def main(args):
@@ -30,17 +31,19 @@ def main(args):
     else:
         raise Exception(f"Unrecognized dataset in {args.input_file}")
 
+    k_shots = 15
+    dataset = DatasetFactory.make_data_loader(
+        dataset_name, args.input_file, args.batch_size, args.test, True, k_shots
+    )
     # hope_trainer = HOPETrainer(dataset_name, args.input_file, args.batch_size, use_cuda=args.gpu,
     # gpu_number=args.gpu_number)
     # hope_trainer.train(meta_batch_size=1, iterations=10)
     # resnet_trainer = ResnetTrainer(dataset_name, args.input_file, args.batch_size,
     # use_cuda=args.gpu, gpu_number=args.gpu_number)
     # resnet_trainer.train(meta_batch_size=1, iterations=10)
-    graphunet_trainer = GraphUNetTrainer(
-        dataset_name,
-        args.input_file,
-        args.batch_size,
-        5,
+    graphunet_trainer = MAML_GraphUNetTrainer(
+        dataset,
+        k_shots,
         use_cuda=args.gpu,
         gpu_number=args.gpu_number,
         test_mode=args.test,

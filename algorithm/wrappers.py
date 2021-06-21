@@ -15,17 +15,16 @@ import torch.nn as nn
 import numpy as np
 import torch
 
+from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.maml import MAMLTrainer
 
 from abc import ABC
 
 
-class HOPETrainer(MAMLTrainer):
+class MAML_HOPETrainer(MAMLTrainer):
     def __init__(
         self,
-        dataset_name: str,
-        dataset_root: str,
-        batch_size: int,
+        dataset: BaseDatasetTaskLoader,
         k_shots: int,
         use_cuda: int = False,
         gpu_number: int = 0,
@@ -33,9 +32,7 @@ class HOPETrainer(MAMLTrainer):
     ):
         super().__init__(
             "hopenet",
-            dataset_name,
-            dataset_root,
-            batch_size,
+            dataset,
             k_shots,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
@@ -72,12 +69,10 @@ class HOPETrainer(MAMLTrainer):
         return query_loss
 
 
-class ResnetTrainer(MAMLTrainer):
+class MAML_ResnetTrainer(MAMLTrainer):
     def __init__(
         self,
-        dataset_name: str,
-        dataset_root: str,
-        batch_size: int,
+        dataset: BaseDatasetTaskLoader,
         k_shots: int,
         use_cuda: int = False,
         gpu_number: int = 0,
@@ -85,9 +80,7 @@ class ResnetTrainer(MAMLTrainer):
     ):
         super().__init__(
             "resnet10",
-            dataset_name,
-            dataset_root,
-            batch_size,
+            dataset,
             k_shots,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
@@ -110,12 +103,10 @@ class ResnetTrainer(MAMLTrainer):
         return query_loss
 
 
-class GraphUNetTrainer(MAMLTrainer):
+class MAML_GraphUNetTrainer(MAMLTrainer):
     def __init__(
         self,
-        dataset_name: str,
-        dataset_root: str,
-        batch_size: int,
+        dataset: BaseDatasetTaskLoader,
         k_shots: int,
         use_cuda: int = False,
         gpu_number: int = 0,
@@ -123,9 +114,7 @@ class GraphUNetTrainer(MAMLTrainer):
     ):
         super().__init__(
             "graphunet",
-            dataset_name,
-            dataset_root,
-            batch_size,
+            dataset,
             k_shots,
             use_cuda=use_cuda,
             gpu_number=gpu_number,

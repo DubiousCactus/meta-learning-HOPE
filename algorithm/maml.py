@@ -10,7 +10,7 @@
 Meta-Training.
 """
 
-from data.factory import DatasetFactory
+from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
 
 import matplotlib.pyplot as plt
@@ -22,22 +22,16 @@ class MAMLTrainer(BaseTrainer):
     def __init__(
         self,
         model_name: str,
-        dataset_name: str,
-        dataset_root: str,
-        batch_size: int,
+        dataset: BaseDatasetTaskLoader,
         k_shots: int,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
         object_as_task: bool = True,
     ):
-        dataset = DatasetFactory.make_data_loader(
-            dataset_name, dataset_root, batch_size, test_mode, True, k_shots
-        )
         super().__init__(
             model_name,
             dataset,
-            batch_size,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
