@@ -14,7 +14,7 @@ from algorithm.wrappers import HOPETrainer, ResnetTrainer, GraphUNetTrainer
 from HOPE.utils.options import parse_args_function
 
 # TODO:
-# [ ] Implement the right data loader such that one task = one object (several sequences per
+# [x] Implement the right data loader such that one task = one object (several sequences per
 # object!)
 # [x] Implement MAML learning for the entire HOPENet
 # [x] Implement MAML learning for the feature extractor only (ResNet)

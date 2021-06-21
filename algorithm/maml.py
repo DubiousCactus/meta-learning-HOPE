@@ -10,8 +10,8 @@
 Meta-Training.
 """
 
+from data.factory import DatasetFactory
 from algorithm.base import BaseTrainer
-from data.utils import DatasetFactory
 
 import matplotlib.pyplot as plt
 import learn2learn as l2l

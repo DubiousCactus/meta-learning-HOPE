@@ -8,7 +8,7 @@
 
 """
 Load datasets (ObMan, FPHAD, HO-3D) as sets of tasks, where each task is a set of manipulation
-frames for one unique object.
+frames for one object class.
 """
 
 import torchvision.transforms as transforms
@@ -21,6 +21,7 @@ import os
 
 from data.custom import CustomDataset, CompatDataLoader
 from HOPE.utils.dataset import Dataset
+from data.util import fast_load_obj
 
 from typing import Tuple, Dict, List, Union
 from abc import abstractmethod, ABC
@@ -86,6 +87,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
     def __init__(
         self,
         root: str,
+        shapenet_root: str,
         batch_size: int,
         k_shots,
         test: bool = False,
@@ -93,8 +95,68 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
+        # Taken from https://github.com/hassony2/obman
+        if shapenet_root[-1] == "/":
+            shapenet_root = shapenet_root[:-1]
+        self._shapenet_template = shapenet_root + "/{}/{}/models/model_normalized.pkl"
+        self._cam_intr = np.array(
+            [[480.0, 0.0, 128.0], [0.0, 480.0, 128.0], [0.0, 0.0, 1.0]]
+        ).astype(np.float32)
+
+        self._cam_extr = np.array(
+            [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0]]
+        ).astype(np.float32)
         super().__init__(
             root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number
+        )
+
+    def _load_mesh(self, model_path: str) -> trimesh.Trimesh:
+        """
+        Directly copied from: https://github.com/hassony2/obman
+        """
+        model_path_obj = model_path.replace(".pkl", ".obj")
+        if os.path.exists(model_path):
+            with open(model_path, "rb") as obj_f:
+                mesh = pickle.load(obj_f)
+        elif os.path.exists(model_path_obj):
+            with open(model_path_obj, "r") as m_f:
+                mesh = fast_load_obj(m_f)[0]
+        else:
+            raise ValueError(
+                "Could not find model pkl or obj file at {}".format(
+                    model_path.split(".")[-2]
+                )
+            )
+        return trimesh.load(mesh)
+
+    def _compute_labels(self, meta_info: dict) -> tuple:
+        # Get the hand coordinates
+        hand_coords_2d, hand_coords_3d = (
+            torch.Tensor(meta_info["coords_2d"]),
+            torch.Tensor(meta_info["coords_3d"]),
+        )
+        # 1. Load the mesh (see obman.py)
+        obj_path = self._shapenet_template.format(
+            meta_info["class_id"], meta_info["sample_id"]
+        )
+        mesh = self._load_mesh(obj_path)
+        # 2. Load the transform
+        transform = meta_info["affine_transform"]
+        # 3. Obtain the oriented bounding box vertices (x1000?)
+        verts = np.array(mesh.bounding_box_oriented.vertices) * 1000
+        # 4. Apply the transform to the vertices
+        hom_verts = np.concatenate([verts, np.ones([verts.shape[0], 1])], axis=1)
+        trans_verts = transform.dot(hom_verts.T).T[:, :3]
+        # 5. Apply the camera extrinsic to the transformed vertices: these are the 3D vertices
+        trans_verts = self._cam_extr[:3, :3].dot(trans_verts.transpose()).transpose()
+        vertices_3d = np.array(trans_verts).astype(np.float32)
+        # 6. Project using camera intrinsics: these are the 2D vertices
+        hom_2d_verts = np.dot(self._cam_intr, vertices_3d.transpose())
+        vertices_2d = hom_2d_verts / hom_2d_verts[2, :]
+        vertices_2d = vertices_2d[:2, :].transpose()
+        return (
+            torch.cat([hand_coords_2d, torch.Tensor(vertices_2d)]),
+            torch.cat([hand_coords_3d, torch.Tensor(vertices_3d)]),
         )
 
     def _make_dataset(self, root, object_as_task=False) -> CustomDataset:
@@ -108,23 +170,20 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             with open(meta, "rb") as meta_file:
                 meta_obj = pickle.load(meta_file)
                 img_path = os.path.join(root, "rgb", f"{idx}.jpg")
-                hand_coords_2d, hand_coords_3d = torch.Tensor(
-                    meta_obj["coords_2d"]
-                ), torch.Tensor(meta_obj["coords_3d"])
-                # TODO:
-                obj_coords_2d, obj_coords_3d = torch.zeros((8, 2)), torch.zeros((8, 3))
-                p_2d, p_3d = torch.cat([hand_coords_2d, obj_coords_2d]), torch.cat(
-                    [hand_coords_3d, obj_coords_3d]
-                )
+                coord_2d, coord_3d = self._compute_labels(meta_obj)
                 if object_as_task:
                     obj_id = meta_obj["class_id"]
                     if obj_id in class_ids:
-                        samples[class_ids.index(obj_id)].append((img_path, p_2d, p_3d))
+                        samples[class_ids.index(obj_id)].append(
+                            (img_path, coord_2d, coord_3d)
+                        )
                     else:
                         class_ids.append(obj_id)
-                        samples[class_ids.index(obj_id)] = [(img_path, p_2d, p_3d)]
+                        samples[class_ids.index(obj_id)] = [
+                            (img_path, coord_2d, coord_3d)
+                        ]
                 else:
-                    samples.append((img_path, p_2d, p_3d))
+                    samples.append((img_path, coord_2d, coord_3d))
         return CustomDataset(
             samples,
             self._transform,
@@ -142,18 +201,21 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
-        # Pickling doesn't improve the speed, might remove:
-        # pickle_path = os.path.join(split_path, f"{split}_task_pickle.pkl" if object_as_task else f"{split}_pickle.pkl")
-        # if os.path.isfile(pickle_path):
-        # with open(pickle_path, "rb") as pickle_file:
-        # print(f"[*] Loading {split} split from {pickle_path}...")
-        #   split_task_set = pickle.load(pickle_file)
-        # else:
-        # split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
-        # with open(pickle_path, "wb") as pickle_file:
-        # print(f"[*] Saving {split} split into {pickle_path}...")
-        #     pickle.dump(split_task_set, pickle_file)
-        split_task_set = self._make_dataset(split_path, object_as_task=object_as_task)
+        pickle_path = os.path.join(
+            split_path,
+            f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",
+        )
+        if os.path.isfile(pickle_path):
+            with open(pickle_path, "rb") as pickle_file:
+                print(f"[*] Loading {split} split from {pickle_path}...")
+                split_task_set = pickle.load(pickle_file)
+        else:
+            split_task_set = self._make_dataset(
+                split_path, object_as_task=object_as_task
+            )
+            with open(pickle_path, "wb") as pickle_file:
+                print(f"[*] Saving {split} split into {pickle_path}...")
+                pickle.dump(split_task_set, pickle_file)
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels
@@ -198,6 +260,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
+        # Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/fhad/make_data.py.
         self._object_infos = self._load_objects(os.path.join(root, "Object_models"))
         self._obj_trans_root = os.path.join(root, "Object_6D_pose_annotation_v1_1")
         self._file_root = os.path.join(root, "Video_files")
@@ -269,7 +332,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         subject: str,
         action_name: str,
         seq_idx: str,
-    ):
+    ) -> tuple:
         frame_idx = int(file_name.split(".")[0].split("_")[1])
         sample = {
             "subject": subject,
@@ -358,12 +421,16 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool
     ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
-        pickle_path = os.path.join(self._root, f"fphad_{split}_task_pickle.pkl" if object_as_task else f"fphad_{split}_pickle.pkl")
+        pickle_path = os.path.join(
+            self._root,
+            f"fphad_{split}_task.pkl" if object_as_task else f"fphad_{split}.pkl",
+        )
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading {split} split from {pickle_path}...")
                 split_task_set = pickle.load(pickle_file)
         else:
+            print(f"[*] Building {split} split...")
             split_task_set = self._make_dataset(split, object_as_task=object_as_task)
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
