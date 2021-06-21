@@ -152,7 +152,9 @@ class CompatDataLoader(TorchDataLoader):
                 [
                     to_cuda(
                         [
-                            Variable(Tensor(e)).float() if (type(e) is not Tensor or not e.is_cuda) else e
+                            Variable(Tensor(e)).float()
+                            if (type(e) is not Tensor or not e.is_cuda)
+                            else e
                             for e in next(self.dataset_iter)
                         ]
                     )
