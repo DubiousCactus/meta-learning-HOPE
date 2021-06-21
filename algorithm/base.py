@@ -10,7 +10,7 @@
 Base training class.
 """
 
-from data.dataset import BaseDatasetTaskLoader
+from data.dataset.base import BaseDatasetTaskLoader
 from HOPE.utils.model import select_model
 from abc import ABC
 

@@ -11,8 +11,8 @@ First-Person Hand Dataset (task) loader
 """
 from data.custom import CustomDataset, CompatDataLoader
 from data.dataset.base import BaseDatasetTaskLoader
-from typing import Tuple, Dict, List, Union
 from functools import reduce
+from typing import Union
 
 import learn2learn as l2l
 import numpy as np

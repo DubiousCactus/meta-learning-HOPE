@@ -12,6 +12,7 @@ ObMan Dataset (task) loader
 from data.custom import CustomDataset, CompatDataLoader
 from data.dataset.base import BaseDatasetTaskLoader
 from data.util import fast_load_obj
+from typing import Union
 from tqdm import tqdm
 
 import learn2learn as l2l
