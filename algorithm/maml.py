@@ -105,6 +105,8 @@ class MAMLTrainer(BaseTrainer):
             images = batch[0]
             for i in range(images.shape[0]):
                 image = images[i, :].permute(1, 2, 0).cpu().numpy()
+                print("2D coordinates: ", batch[1][i].shape, batch[1][i])
+                print("3D coordinates: ", batch[2][i].shape, batch[2][i])
                 plt.imshow(image)
                 plt.show()
 

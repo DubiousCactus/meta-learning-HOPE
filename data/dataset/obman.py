@@ -9,9 +9,11 @@
 """
 ObMan Dataset (task) loader
 """
+
+from data.util import fast_load_obj, compute_obman_labels, mp_process_meta_file
 from data.custom import CustomDataset, CompatDataLoader
 from data.dataset.base import BaseDatasetTaskLoader
-from data.util import fast_load_obj
+from multiprocessing import Pool, Queue, cpu_count
 from typing import Union
 from tqdm import tqdm
 
@@ -89,8 +91,12 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
     def _compute_labels(self, meta_info: dict) -> tuple:
         # Get the hand coordinates
         hand_coords_2d, hand_coords_3d = (
-            torch.Tensor(meta_info["coords_2d"]),
-            torch.Tensor(meta_info["coords_3d"]),
+            torch.Tensor(meta_info["coords_2d"].astype(np.float32)),
+            torch.Tensor(
+                self._cam_extr[:3, :3]
+                .dot(meta_info["coords_3d"].transpose())
+                .transpose()
+            ),
         )
         # 1. Load the mesh (see obman.py)
         obj_path = self._shapenet_template.format(
@@ -100,7 +106,9 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         # 2. Load the transform
         transform = meta_info["affine_transform"]
         # 3. Obtain the oriented bounding box vertices (x1000?)
-        verts = np.array(mesh.bounding_box_oriented.vertices) * 1000
+        verts = np.array(mesh.bounding_box_oriented.vertices)  # * 1000
+        # transformed_mesh = mesh.apply_transform(transform)
+        # vertices_3d = transformed_mesh.bounding_box_oriented.vertices
         # 4. Apply the transform to the vertices
         hom_verts = np.concatenate([verts, np.ones([verts.shape[0], 1])], axis=1)
         trans_verts = transform.dot(hom_verts.T).T[:, :3]
@@ -114,6 +122,51 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         return (
             torch.cat([hand_coords_2d, torch.Tensor(vertices_2d)]),
             torch.cat([hand_coords_3d, torch.Tensor(vertices_3d)]),
+        )
+
+    def _make_dataset_mp(self, root, object_as_task=False) -> CustomDataset:
+        """
+        Make a dataset using a multiprocessing pool.
+        """
+        samples = {} if object_as_task else []
+        class_ids = []
+        indices = {
+            x.split(".")[0]: os.path.join(root, "meta", x)
+            for x in sorted(os.listdir(os.path.join(root, "meta")))
+        }
+        inputs = zip(
+                    indices.items(),
+                    [root] * len(indices.items()),
+                    [self._cam_intr] * len(indices.items()),
+                    [self._cam_extr] * len(indices.items()),
+                    [self._shapenet_template] * len(indices.items()),
+                )
+        with Pool(processes=cpu_count()-2) as pool:
+            results = pool.starmap(
+                mp_process_meta_file,
+                tqdm(inputs, total=len(indices.items())),
+                chunksize=4,
+            )
+            for obj_id, sample in results:
+                img_path, coord_2d, coord_3d = sample
+                if object_as_task:
+                    if obj_id in class_ids:
+                        samples[class_ids.index(obj_id)].append(
+                            (img_path, coord_2d, coord_3d)
+                        )
+                    else:
+                        class_ids.append(obj_id)
+                        samples[class_ids.index(obj_id)] = [
+                            (img_path, coord_2d, coord_3d)
+                        ]
+                else:
+                    samples.append((img_path, coord_2d, coord_3d))
+        return CustomDataset(
+            samples,
+            self._transform,
+            object_as_task=object_as_task,
+            use_cuda=self._use_cuda,
+            gpu_number=self._gpu_number,
         )
 
     def _make_dataset(self, root, object_as_task=False) -> CustomDataset:
@@ -162,12 +215,12 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             split_path,
             f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",
         )
-        if os.path.isfile(pickle_path):
+        if False:#os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading {split} split from {pickle_path}...")
                 split_task_set = pickle.load(pickle_file)
         else:
-            split_task_set = self._make_dataset(
+            split_task_set = self._make_dataset_mp(
                 split_path, object_as_task=object_as_task
             )
             with open(pickle_path, "wb") as pickle_file:
@@ -195,4 +248,3 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 gpu_number=self._gpu_number,
             )
         return split_dataset_loader
-

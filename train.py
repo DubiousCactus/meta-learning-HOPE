@@ -10,7 +10,11 @@
 Meta-Train HOPE-Net or its individual parts.
 """
 
-from algorithm.wrappers import MAML_HOPETrainer, MAML_ResnetTrainer, MAML_GraphUNetTrainer
+from algorithm.wrappers import (
+    MAML_HOPETrainer,
+    MAML_ResnetTrainer,
+    MAML_GraphUNetTrainer,
+)
 from HOPE.utils.options import parse_args_function
 from data.factory import DatasetFactory
 
@@ -49,10 +53,10 @@ def main(args):
         test_mode=args.test,
     )
     if args.test:
-        graphunet_trainer.test(meta_batch_size=32, fast_lr=1e-6, meta_lr=1e-5)
+        graphunet_trainer.test(meta_batch_size=4, fast_lr=1e-6, meta_lr=1e-5)
     else:
         graphunet_trainer.train(
-            meta_batch_size=32, iterations=1000, fast_lr=1e-6, meta_lr=1e-5
+            meta_batch_size=4, iterations=1000, fast_lr=1e-8, meta_lr=1e-7
         )
 
 

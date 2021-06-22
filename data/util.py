@@ -9,7 +9,12 @@
 """
 Utility functions for data loading and processing.
 """
+
 import numpy as np
+import trimesh
+import pickle
+import torch
+import os
 
 
 def fast_load_obj(file_obj, **kwargs):
@@ -136,3 +141,75 @@ def fast_load_obj(file_obj, **kwargs):
         append_mesh()
 
     return meshes
+
+
+def load_mesh(model_path: str) -> trimesh.Trimesh:
+    """
+    Directly copied from: https://github.com/hassony2/obman
+    """
+    model_path_obj = model_path.replace(".pkl", ".obj")
+    if os.path.exists(model_path):
+        with open(model_path, "rb") as obj_f:
+            mesh = pickle.load(obj_f)
+    elif os.path.exists(model_path_obj):
+        with open(model_path_obj, "r") as m_f:
+            mesh = fast_load_obj(m_f)[0]
+    else:
+        raise ValueError(
+            "Could not find model pkl or obj file at {}".format(
+                model_path.split(".")[-2]
+            )
+        )
+    return trimesh.load(mesh)
+
+
+def compute_obman_labels(
+    meta_info: dict, cam_intr: np.ndarray, cam_extr: np.ndarray, shapenet_template: str
+) -> tuple:
+    # Get the hand coordinates
+    hand_coords_2d, hand_coords_3d = (
+        torch.Tensor(meta_info["coords_2d"].astype(np.float32)),
+        torch.Tensor(
+            cam_extr[:3, :3].dot(meta_info["coords_3d"].transpose()).transpose()
+        ),
+    )
+    # 1. Load the mesh (see obman.py)
+    obj_path = shapenet_template.format(meta_info["class_id"], meta_info["sample_id"])
+    mesh = load_mesh(obj_path)
+    # 2. Load the transform
+    transform = meta_info["affine_transform"]
+    # 3. Obtain the oriented bounding box vertices (x1000?)
+    verts = np.array(mesh.bounding_box_oriented.vertices)  # * 1000
+    # transformed_mesh = mesh.apply_transform(transform)
+    # vertices_3d = transformed_mesh.bounding_box_oriented.vertices
+    # 4. Apply the transform to the vertices
+    hom_verts = np.concatenate([verts, np.ones([verts.shape[0], 1])], axis=1)
+    trans_verts = transform.dot(hom_verts.T).T[:, :3]
+    # 5. Apply the camera extrinsic to the transformed vertices: these are the 3D vertices
+    trans_verts = cam_extr[:3, :3].dot(trans_verts.transpose()).transpose()
+    vertices_3d = np.array(trans_verts).astype(np.float32)
+    # 6. Project using camera intrinsics: these are the 2D vertices
+    hom_2d_verts = np.dot(cam_intr, vertices_3d.transpose())
+    vertices_2d = hom_2d_verts / hom_2d_verts[2, :]
+    vertices_2d = vertices_2d[:2, :].transpose()
+    return (
+        torch.cat([hand_coords_2d, torch.Tensor(vertices_2d)]),
+        torch.cat([hand_coords_3d, torch.Tensor(vertices_3d)]),
+    )
+
+
+def mp_process_meta_file(idx_meta, root, cam_intr, cam_extr, shapenet_template):
+    '''
+    Process a meta-info file for ObMan. Useful for multiprocessing.
+    '''
+    idx, meta = idx_meta
+    obj_id, sample = None, None
+    with open(meta, "rb") as meta_file:
+        meta_obj = pickle.load(meta_file)
+        img_path = os.path.join(root, "rgb", f"{idx}.jpg")
+        coord_2d, coord_3d = compute_obman_labels(
+            meta_obj, cam_intr, cam_extr, shapenet_template
+        )
+        obj_id = meta_obj["class_id"]
+        sample = (img_path, coord_2d, coord_3d)
+    return obj_id, sample

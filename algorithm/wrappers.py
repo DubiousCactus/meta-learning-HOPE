@@ -123,6 +123,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
 
     def _training_step(self, batch: tuple, learner, steps: int, shots: int):
         _, labels2d, labels3d = batch
+        # TODO: Split into support and query sets!
 
         # Separate data into adaptation/evalutation sets
         # adaptation_indices = np.zeros(labels2d.size(0), dtype=bool)
