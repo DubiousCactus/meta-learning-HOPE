@@ -145,7 +145,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             results = pool.starmap(
                 mp_process_meta_file,
                 tqdm(inputs, total=len(indices.items())),
-                chunksize=4,
+                chunksize=2,
             )
             for obj_id, sample in results:
                 img_path, coord_2d, coord_3d = sample
@@ -215,7 +215,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             split_path,
             f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",
         )
-        if False:#os.path.isfile(pickle_path):
+        if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading {split} split from {pickle_path}...")
                 split_task_set = pickle.load(pickle_file)
