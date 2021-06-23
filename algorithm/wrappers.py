@@ -42,9 +42,7 @@ class MAML_HOPETrainer(MAMLTrainer):
             test_mode=test_mode,
         )
 
-    def _training_step(
-            self, batch: MetaBatch, learner, steps: int, shots: int
-    ):
+    def _training_step(self, batch: MetaBatch, learner, steps: int, shots: int):
         s_inputs, s_labels2d, s_labels3d = batch.support
         q_inputs, q_labels2d, q_labels3d = batch.query
 
@@ -95,9 +93,7 @@ class MAML_ResnetTrainer(MAMLTrainer):
             test_mode=test_mode,
         )
 
-    def _training_step(
-            self, batch: MetaBatch, learner, steps: int, shots: int
-    ):
+    def _training_step(self, batch: MetaBatch, learner, steps: int, shots: int):
         s_inputs, s_labels2d, _ = batch.support
         q_inputs, q_labels2d, _ = batch.query
 
@@ -134,9 +130,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             test_mode=test_mode,
         )
 
-    def _training_step(
-            self, batch: MetaBatch, learner, steps: int, shots: int
-    ):
+    def _training_step(self, batch: MetaBatch, learner, steps: int, shots: int):
         _, s_labels2d, s_labels3d = batch.support
         _, q_labels2d, q_labels3d = batch.query
 

@@ -65,7 +65,14 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         )
         # Only call super() last, because the base class's init() calls the _load() function!
         super().__init__(
-            root, batch_size, k_shots, n_querries, test, object_as_task, use_cuda, gpu_number
+            root,
+            batch_size,
+            k_shots,
+            n_querries,
+            test,
+            object_as_task,
+            use_cuda,
+            gpu_number,
         )
 
     def _load_objects(self, root):

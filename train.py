@@ -35,9 +35,15 @@ def main(args):
     else:
         raise Exception(f"Unrecognized dataset in {args.input_file}")
 
-    k_shots, n_querries = 10, 30
+    k_shots, n_querries = 5, 10
     dataset = DatasetFactory.make_data_loader(
-        dataset_name, args.input_file, args.batch_size, args.test, True, k_shots, n_querries
+        dataset_name,
+        args.input_file,
+        args.batch_size,
+        args.test,
+        True,
+        k_shots,
+        n_querries,
     )
     # hope_trainer = HOPETrainer(dataset_name, args.input_file, args.batch_size, use_cuda=args.gpu,
     # gpu_number=args.gpu_number)

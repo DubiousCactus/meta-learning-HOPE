@@ -67,7 +67,14 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0]]
         ).astype(np.float32)
         super().__init__(
-            root, batch_size, k_shots, n_querries, test, object_as_task, use_cuda, gpu_number
+            root,
+            batch_size,
+            k_shots,
+            n_querries,
+            test,
+            object_as_task,
+            use_cuda,
+            gpu_number,
         )
 
     def _load_mesh(self, model_path: str) -> trimesh.Trimesh:

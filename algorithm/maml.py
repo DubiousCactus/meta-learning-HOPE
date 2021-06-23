@@ -20,7 +20,7 @@ import numpy as np
 import torch
 
 
-MetaBatch = namedtuple('MetaBatch', 'support query')
+MetaBatch = namedtuple("MetaBatch", "support query")
 
 
 class MAMLTrainer(BaseTrainer):
@@ -63,10 +63,16 @@ class MAMLTrainer(BaseTrainer):
         images, labels_2d, labels_3d = batch
         batch_size = self._k_shots + self._n_querries
         indices = torch.randperm(batch_size)
-        support_indices = indices[:self._k_shots]
-        query_indices = indices[self._k_shots:]
-        return MetaBatch((images[support_indices], labels_2d[support_indices],
-            labels_3d[support_indices]), (images[query_indices], labels_2d[query_indices], labels_3d[query_indices]))
+        support_indices = indices[: self._k_shots]
+        query_indices = indices[self._k_shots :]
+        return MetaBatch(
+            (
+                images[support_indices],
+                labels_2d[support_indices],
+                labels_3d[support_indices],
+            ),
+            (images[query_indices], labels_2d[query_indices], labels_3d[query_indices]),
+        )
 
     def train(
         self,
@@ -127,17 +133,27 @@ class MAMLTrainer(BaseTrainer):
         meta_test_loss = 0.0
         for task in range(meta_batch_size):
             learner = maml.clone()
-            batch = self.dataset.test.sample()
+            meta_batch = self._split_batch(self.dataset.test.sample())
 
-            images = batch[0]
+            print("Support")
+            images = meta_batch.support[0]
             for i in range(images.shape[0]):
                 image = images[i, :].permute(1, 2, 0).cpu().numpy()
-                print("2D coordinates: ", batch[1][i].shape, batch[1][i])
-                print("3D coordinates: ", batch[2][i].shape, batch[2][i])
+                print("2D coordinates: ", meta_batch.support[1][i].shape, meta_batch.support[1][i])
+                print("3D coordinates: ", meta_batch.support[2][i].shape, meta_batch.support[2][i])
                 plt.imshow(image)
                 plt.show()
 
-            inner_loss = self._training_step(batch, learner, steps, shots)
+            print("Query")
+            images = meta_batch.query[0]
+            for i in range(images.shape[0]):
+                image = images[i, :].permute(1, 2, 0).cpu().numpy()
+                print("2D coordinates: ", meta_batch.query[1][i].shape, meta_batch.query[1][i])
+                print("3D coordinates: ", meta_batch.query[2][i].shape, meta_batch.query[2][i])
+                plt.imshow(image)
+                plt.show()
+
+            inner_loss = self._training_step(meta_batch, learner, steps, shots)
             meta_test_loss += inner_loss.item()
         print("==========[Test Error]==========")
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")
