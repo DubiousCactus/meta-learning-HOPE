@@ -155,8 +155,8 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 for x in sorted(os.listdir(os.path.join(root, "meta")))
             }
             chunk_sz = 1000
-            for chunk_no in range(0, len(indices.items()), chunk_sz):
-                print(f"\t -> Processing chunk {chunk_no//chunk_sz}...")
+            for chunk_no in range(0, len(indices), chunk_sz):
+                print(f"\t -> Processing chunk {chunk_no//chunk_sz}/{int(len(indices)/chunk_sz)+1}...")
                 idx_chunk = dict(
                     itertools.islice(indices.items(), chunk_no, chunk_no + chunk_sz)
                 )
