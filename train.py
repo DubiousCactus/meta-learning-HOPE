@@ -41,9 +41,9 @@ def main(args):
         args.input_file,
         args.batch_size,
         args.test,
-        True,
         k_shots,
         n_querries,
+        object_as_task=True,
     )
     # TODO: Add a model part arg and create a factory for the trainer
     graphunet_trainer = MAML_GraphUNetTrainer(

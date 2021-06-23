@@ -16,7 +16,6 @@ from collections import namedtuple
 
 import matplotlib.pyplot as plt
 import learn2learn as l2l
-import numpy as np
 import torch
 
 
@@ -139,8 +138,16 @@ class MAMLTrainer(BaseTrainer):
             images = meta_batch.support[0]
             for i in range(images.shape[0]):
                 image = images[i, :].permute(1, 2, 0).cpu().numpy()
-                print("2D coordinates: ", meta_batch.support[1][i].shape, meta_batch.support[1][i])
-                print("3D coordinates: ", meta_batch.support[2][i].shape, meta_batch.support[2][i])
+                print(
+                    "2D coordinates: ",
+                    meta_batch.support[1][i].shape,
+                    meta_batch.support[1][i],
+                )
+                print(
+                    "3D coordinates: ",
+                    meta_batch.support[2][i].shape,
+                    meta_batch.support[2][i],
+                )
                 plt.imshow(image)
                 plt.show()
 
@@ -148,8 +155,16 @@ class MAMLTrainer(BaseTrainer):
             images = meta_batch.query[0]
             for i in range(images.shape[0]):
                 image = images[i, :].permute(1, 2, 0).cpu().numpy()
-                print("2D coordinates: ", meta_batch.query[1][i].shape, meta_batch.query[1][i])
-                print("3D coordinates: ", meta_batch.query[2][i].shape, meta_batch.query[2][i])
+                print(
+                    "2D coordinates: ",
+                    meta_batch.query[1][i].shape,
+                    meta_batch.query[1][i],
+                )
+                print(
+                    "3D coordinates: ",
+                    meta_batch.query[2][i].shape,
+                    meta_batch.query[2][i],
+                )
                 plt.imshow(image)
                 plt.show()
 

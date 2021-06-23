@@ -11,7 +11,7 @@ Custom dataset classes and interfaces.
 """
 
 from torch.utils.data import Dataset as TorchDataset, DataLoader as TorchDataLoader
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union
 from torch.autograd import Variable
 from torch import Tensor
 from PIL import Image
@@ -28,13 +28,15 @@ class CustomDataset(TorchDataset):
         lazy=True,
         use_cuda=True,
         gpu_number=0,
+        pin_memory=False,
     ):
         self._gpu_number = gpu_number
         self._use_cuda = use_cuda
         self._lazy = lazy
+        self._pin_memory = pin_memory
         self.transform = transform if transform is not None else lambda i: i
-        self.images, self.points2d, self.points3d, self.class_labels = (
-            self._load_as_tasks(samples) if object_as_task else self._load(samples)
+        self.images, self.points2d, self.points3d, self.class_labels = self._load(
+            samples, object_as_task
         )
         if not self._lazy:
             self.images = [
@@ -49,29 +51,37 @@ class CustomDataset(TorchDataset):
             v = v.float().cuda(device=self._gpu_number)
         return v
 
-    def _load_as_tasks(self, image_paths: Dict[int, List[tuple]]) -> tuple:
-        images, labels, i = [], {}, 0
-        points2d, points3d = [], []
-        for k, v in image_paths.items():
-            for img_path, c_2d, c_3d in v:
-                images.append(
-                    img_path if self._lazy else self.transform(Image.open(img_path))
-                )
-                points2d.append(c_2d)
-                points3d.append(c_3d)
-                labels[i] = k
-                i += 1
-        return images, points2d, points3d, labels
+    def _load(
+        self, samples: Union[Dict[int, List[tuple]], List[tuple]], object_as_task: bool
+    ) -> tuple:
+        def load_sample(img_path, p_2d, p_3d) -> tuple:
+            img = img_path
+            if self._pin_memory:
+                if not self._lazy:
+                    img = self.transform(Image.open(img_path))
+                    img.pin_memory()
+                p_2d.pin_memory()
+                p_3d.pin_memory()
+            return img, p_2d, p_3d
 
-    def _load(self, samples: List[tuple]) -> tuple:
         images, points2d, points3d = [], [], []
-        for img_path, p_2d, p_3d in samples:
-            images.append(
-                img_path if self._lazy else self.transform(Image.open(img_path))
-            )
-            points2d.append(p_2d)
-            points3d.append(p_3d)
-        return images, points2d, points3d, {}
+        labels, i = {}, 0
+        if object_as_task:
+            for k, v in samples.items():
+                for img_path, p_2d, p_3d in v:
+                    img, p_2d, p_3d = load_sample(img_path, p_2d, p_3d)
+                    images.append(img)
+                    points2d.append(p_2d)
+                    points3d.append(p_3d)
+                    labels[i] = k
+                    i += 1
+        else:
+            for img_path, p_2d, p_3d in samples:
+                img, p_2d, p_3d = load_sample(img_path, p_2d, p_3d)
+                images.append(img)
+                points2d.append(p_2d)
+                points3d.append(p_3d)
+        return images, points2d, points3d, labels
 
     def __len__(self):
         return len(self.images)

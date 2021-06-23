@@ -27,9 +27,9 @@ class DatasetFactory:
         dataset_root: str,
         batch_size: int,
         test: bool,
-        object_as_task: bool,
         k_shots: int,
         n_querries: int,
+        object_as_task: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):

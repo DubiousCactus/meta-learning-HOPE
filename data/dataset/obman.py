@@ -132,83 +132,116 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             torch.cat([hand_coords_3d, torch.Tensor(vertices_3d)]),
         )
 
-    def _make_dataset_mp(self, root, object_as_task=False) -> CustomDataset:
+    def _make_dataset_mp(self, split: str, root: str, object_as_task=False) -> CustomDataset:
         """
         Make a dataset using a multiprocessing pool.
         """
-        samples = {} if object_as_task else []
-        class_ids = []
-        indices = {
-            x.split(".")[0]: os.path.join(root, "meta", x)
-            for x in sorted(os.listdir(os.path.join(root, "meta")))
-        }
-        inputs = zip(
-            indices.items(),
-            [root] * len(indices.items()),
-            [self._cam_intr] * len(indices.items()),
-            [self._cam_extr] * len(indices.items()),
-            [self._shapenet_template] * len(indices.items()),
+        pickle_path = os.path.join(
+            root,
+            f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",
         )
-        with Pool(processes=cpu_count() - 2) as pool:
-            results = pool.starmap(
-                mp_process_meta_file,
-                tqdm(inputs, total=len(indices.items())),
-                chunksize=2,
+        if os.path.isfile(pickle_path):
+            with open(pickle_path, "rb") as pickle_file:
+                print(f"[*] Loading {split} split from {pickle_path}...")
+                samples = pickle.load(pickle_file)
+        else:
+            print(f"[*] Building {split} split...")
+            samples = {} if object_as_task else []
+            class_ids = []
+            indices = {
+                x.split(".")[0]: os.path.join(root, "meta", x)
+                for x in sorted(os.listdir(os.path.join(root, "meta")))
+            }
+            inputs = zip(
+                indices.items(),
+                [root] * len(indices.items()),
+                [self._cam_intr] * len(indices.items()),
+                [self._cam_extr] * len(indices.items()),
+                [self._shapenet_template] * len(indices.items()),
             )
-            for obj_id, sample in results:
-                img_path, coord_2d, coord_3d = sample
-                if object_as_task:
-                    if obj_id in class_ids:
-                        samples[class_ids.index(obj_id)].append(
-                            (img_path, coord_2d, coord_3d)
-                        )
+            torch.multiprocessing.set_sharing_strategy('file_system')
+            with torch.multiprocessing.Pool(torch.multiprocessing.cpu_count()) as pool:
+                results = pool.starmap(
+                    mp_process_meta_file,
+                    tqdm(inputs, total=len(indices.items())),
+                    chunksize=5,
+                )
+                for obj_id, sample in results:
+                    img_path, coord_2d, coord_3d = sample
+                    if object_as_task:
+                        if obj_id in class_ids:
+                            samples[class_ids.index(obj_id)].append(
+                                (img_path, coord_2d, coord_3d)
+                            )
+                        else:
+                            class_ids.append(obj_id)
+                            samples[class_ids.index(obj_id)] = [
+                                (img_path, coord_2d, coord_3d)
+                            ]
                     else:
-                        class_ids.append(obj_id)
-                        samples[class_ids.index(obj_id)] = [
-                            (img_path, coord_2d, coord_3d)
-                        ]
-                else:
-                    samples.append((img_path, coord_2d, coord_3d))
-        return CustomDataset(
+                        samples.append((img_path, coord_2d, coord_3d))
+            with open(pickle_path, "wb") as pickle_file:
+                print(f"[*] Saving {split} split into {pickle_path}...")
+                pickle.dump(samples, pickle_file)
+        print(f"[*] Generating dataset in pinned memory...")
+        dataset = CustomDataset(
             samples,
             self._transform,
             object_as_task=object_as_task,
             use_cuda=self._use_cuda,
             gpu_number=self._gpu_number,
+            pin_memory=True,
         )
+        return dataset
 
-    def _make_dataset(self, root, object_as_task=False) -> CustomDataset:
-        samples = {} if object_as_task else []
-        class_ids = []
-        indices = {
-            x.split(".")[0]: os.path.join(root, "meta", x)
-            for x in sorted(os.listdir(os.path.join(root, "meta")))
-        }
-        for idx, meta in tqdm(indices.items()):
-            with open(meta, "rb") as meta_file:
-                meta_obj = pickle.load(meta_file)
-                img_path = os.path.join(root, "rgb", f"{idx}.jpg")
-                coord_2d, coord_3d = self._compute_labels(meta_obj)
-                if object_as_task:
-                    obj_id = meta_obj["class_id"]
-                    if obj_id in class_ids:
-                        samples[class_ids.index(obj_id)].append(
-                            (img_path, coord_2d, coord_3d)
-                        )
+    def _make_dataset(self, split: str, root: str, object_as_task=False) -> CustomDataset:
+        pickle_path = os.path.join(
+            root,
+            f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",
+        )
+        if os.path.isfile(pickle_path):
+            with open(pickle_path, "rb") as pickle_file:
+                print(f"[*] Loading {split} split from {pickle_path}...")
+                samples = pickle.load(pickle_file)
+        else:
+            print(f"[*] Building {split} split...")
+            samples = {} if object_as_task else []
+            class_ids = []
+            indices = {
+                x.split(".")[0]: os.path.join(root, "meta", x)
+                for x in sorted(os.listdir(os.path.join(root, "meta")))
+            }
+            for idx, meta in tqdm(indices.items()):
+                with open(meta, "rb") as meta_file:
+                    meta_obj = pickle.load(meta_file)
+                    img_path = os.path.join(root, "rgb", f"{idx}.jpg")
+                    coord_2d, coord_3d = self._compute_labels(meta_obj)
+                    if object_as_task:
+                        obj_id = meta_obj["class_id"]
+                        if obj_id in class_ids:
+                            samples[class_ids.index(obj_id)].append(
+                                (img_path, coord_2d, coord_3d)
+                            )
+                        else:
+                            class_ids.append(obj_id)
+                            samples[class_ids.index(obj_id)] = [
+                                (img_path, coord_2d, coord_3d)
+                            ]
                     else:
-                        class_ids.append(obj_id)
-                        samples[class_ids.index(obj_id)] = [
-                            (img_path, coord_2d, coord_3d)
-                        ]
-                else:
-                    samples.append((img_path, coord_2d, coord_3d))
-        return CustomDataset(
+                        samples.append((img_path, coord_2d, coord_3d))
+            with open(pickle_path, "wb") as pickle_file:
+                print(f"[*] Saving {split} split into {pickle_path}...")
+                pickle.dump(samples, pickle_file)
+        print(f"[*] Generating dataset in pinned memory...")
+        dataset = CustomDataset(
             samples,
             self._transform,
             object_as_task=object_as_task,
             use_cuda=self._use_cuda,
             gpu_number=self._gpu_number,
+            pin_memory=True,
         )
+        return dataset
 
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool
@@ -219,21 +252,9 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
-        pickle_path = os.path.join(
-            split_path,
-            f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",
+        split_task_set = self._make_dataset_mp(
+            split, split_path, object_as_task=object_as_task
         )
-        if os.path.isfile(pickle_path):
-            with open(pickle_path, "rb") as pickle_file:
-                print(f"[*] Loading {split} split from {pickle_path}...")
-                split_task_set = pickle.load(pickle_file)
-        else:
-            split_task_set = self._make_dataset_mp(
-                split_path, object_as_task=object_as_task
-            )
-            with open(pickle_path, "wb") as pickle_file:
-                print(f"[*] Saving {split} split into {pickle_path}...")
-                pickle.dump(split_task_set, pickle_file)
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels
@@ -256,5 +277,6 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 num_workers=8,
                 use_cuda=self._use_cuda,
                 gpu_number=self._gpu_number,
+                pin_memory=True,
             )
         return split_dataset_loader

@@ -165,52 +165,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         """
         Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/fhad/make_data.py.
         """
-        samples = {} if object_as_task else []
-        for root, dirs, files in os.walk(self._obj_trans_root):
-            if "object_pose.txt" in files:
-                path = root.split(os.sep)
-                subject, action_name, seq_idx = path[-3], path[-2], path[-1]
-                if (
-                    self._seq_splits[split] is not None
-                    and int(seq_idx) != self._seq_splits[split]
-                ):
-                    continue
-                obj_name = "_".join(action_name.split("_")[1:])
-                video_seq = os.path.join(
-                    self._file_root, subject, action_name, seq_idx, "color"
-                )
-                if not os.path.isdir(video_seq):
-                    # print(f"[!] {video_seq} is missing!")
-                    continue
-                for file_name in os.listdir(video_seq):
-                    img_path = os.path.join(video_seq, file_name)
-                    points_2d, points_3d = self._compute_labels(
-                        file_name, obj_name, subject, action_name, seq_idx
-                    )
-                    if object_as_task:
-                        obj_class_id = self._object_class.index(obj_name)
-                        if obj_class_id not in samples.keys():
-                            samples[obj_class_id] = []
-                        samples[obj_class_id].append((img_path, points_2d, points_3d))
-                    else:
-                        samples.append((img_path, points_2d, points_3d))
-        if object_as_task:
-            print(
-                f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
-            )
-        else:
-            print(f"[*] Loaded {len(samples)} samples from the {split} split.")
-        return CustomDataset(
-            samples,
-            self._transform,
-            object_as_task=object_as_task,
-            use_cuda=self._use_cuda,
-            gpu_number=self._gpu_number,
-        )
-
-    def _load(
-        self, object_as_task: bool, split: str, shuffle: bool
-    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
         pickle_path = os.path.join(
             self._root,
             f"fphad_{split}_task.pkl" if object_as_task else f"fphad_{split}.pkl",
@@ -218,13 +172,64 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading {split} split from {pickle_path}...")
-                split_task_set = pickle.load(pickle_file)
+                samples = pickle.load(pickle_file)
         else:
             print(f"[*] Building {split} split...")
-            split_task_set = self._make_dataset(split, object_as_task=object_as_task)
+            samples = {} if object_as_task else []
+            for root, dirs, files in os.walk(self._obj_trans_root):
+                if "object_pose.txt" in files:
+                    path = root.split(os.sep)
+                    subject, action_name, seq_idx = path[-3], path[-2], path[-1]
+                    if (
+                        self._seq_splits[split] is not None
+                        and int(seq_idx) != self._seq_splits[split]
+                    ):
+                        continue
+                    obj_name = "_".join(action_name.split("_")[1:])
+                    video_seq = os.path.join(
+                        self._file_root, subject, action_name, seq_idx, "color"
+                    )
+                    if not os.path.isdir(video_seq):
+                        # print(f"[!] {video_seq} is missing!")
+                        continue
+                    for file_name in os.listdir(video_seq):
+                        img_path = os.path.join(video_seq, file_name)
+                        points_2d, points_3d = self._compute_labels(
+                            file_name, obj_name, subject, action_name, seq_idx
+                        )
+                        if object_as_task:
+                            obj_class_id = self._object_class.index(obj_name)
+                            if obj_class_id not in samples.keys():
+                                samples[obj_class_id] = []
+                            samples[obj_class_id].append(
+                                (img_path, points_2d, points_3d)
+                            )
+                        else:
+                            samples.append((img_path, points_2d, points_3d))
+            if object_as_task:
+                print(
+                    f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
+                )
+            else:
+                print(f"[*] Loaded {len(samples)} samples from the {split} split.")
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
-                pickle.dump(split_task_set, pickle_file)
+                pickle.dump(samples, pickle_file)
+        print(f"[*] Generating dataset in pinned memory...")
+        dataset = CustomDataset(
+            samples,
+            self._transform,
+            object_as_task=object_as_task,
+            use_cuda=self._use_cuda,
+            gpu_number=self._gpu_number,
+            pin_memory=True,
+        )
+        return dataset
+
+    def _load(
+        self, object_as_task: bool, split: str, shuffle: bool
+    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
+        split_task_set = self._make_dataset(split, object_as_task=object_as_task)
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels
@@ -247,5 +252,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                 num_workers=8,
                 use_cuda=self._use_cuda,
                 gpu_number=self._gpu_number,
+                pin_memory=True,
             )
         return split_dataset_loader

@@ -140,6 +140,9 @@ def fast_load_obj(file_obj, **kwargs):
     if next_idx > 0:
         append_mesh()
 
+    del text
+    file_obj.close()
+
     return meshes
 
 
@@ -148,19 +151,22 @@ def load_mesh(model_path: str) -> trimesh.Trimesh:
     Directly copied from: https://github.com/hassony2/obman
     """
     model_path_obj = model_path.replace(".pkl", ".obj")
+    trimesh_obj = None
     if os.path.exists(model_path):
         with open(model_path, "rb") as obj_f:
             mesh = pickle.load(obj_f)
+            trimesh_obj = trimesh.load(mesh)
     elif os.path.exists(model_path_obj):
         with open(model_path_obj, "r") as m_f:
             mesh = fast_load_obj(m_f)[0]
+            trimesh_obj = trimesh.load(mesh)
     else:
         raise ValueError(
             "Could not find model pkl or obj file at {}".format(
                 model_path.split(".")[-2]
             )
         )
-    return trimesh.load(mesh)
+    return trimesh_obj
 
 
 def compute_obman_labels(
@@ -212,4 +218,5 @@ def mp_process_meta_file(idx_meta, root, cam_intr, cam_extr, shapenet_template):
         )
         obj_id = meta_obj["class_id"]
         sample = (img_path, coord_2d, coord_3d)
+        meta_file.close()
     return obj_id, sample
