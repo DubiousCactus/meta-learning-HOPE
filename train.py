@@ -35,9 +35,9 @@ def main(args):
     else:
         raise Exception(f"Unrecognized dataset in {args.input_file}")
 
-    k_shots = 15
+    k_shots, n_querries = 10, 30
     dataset = DatasetFactory.make_data_loader(
-        dataset_name, args.input_file, args.batch_size, args.test, True, k_shots
+        dataset_name, args.input_file, args.batch_size, args.test, True, k_shots, n_querries
     )
     # hope_trainer = HOPETrainer(dataset_name, args.input_file, args.batch_size, use_cuda=args.gpu,
     # gpu_number=args.gpu_number)
@@ -45,9 +45,11 @@ def main(args):
     # resnet_trainer = ResnetTrainer(dataset_name, args.input_file, args.batch_size,
     # use_cuda=args.gpu, gpu_number=args.gpu_number)
     # resnet_trainer.train(meta_batch_size=1, iterations=10)
+    # TODO: Pass in a simple function to MAML instead of this useless inheritance!
     graphunet_trainer = MAML_GraphUNetTrainer(
         dataset,
         k_shots,
+        n_querries,
         use_cuda=args.gpu,
         gpu_number=args.gpu_number,
         test_mode=args.test,

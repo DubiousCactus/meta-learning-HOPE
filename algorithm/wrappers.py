@@ -16,16 +16,18 @@ import numpy as np
 import torch
 
 from data.dataset.base import BaseDatasetTaskLoader
-from algorithm.maml import MAMLTrainer
+from algorithm.maml import MAMLTrainer, MetaBatch
 
 from abc import ABC
 
 
+# TODO: Pass in a simple function to MAML instead of this useless inheritance!
 class MAML_HOPETrainer(MAMLTrainer):
     def __init__(
         self,
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
+        n_querries,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -34,21 +36,25 @@ class MAML_HOPETrainer(MAMLTrainer):
             "hopenet",
             dataset,
             k_shots,
+            n_querries,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
         )
 
-    def _training_step(self, batch: tuple, learner, steps: int, shots: int):
-        inputs, labels2d, labels3d = batch
+    def _training_step(
+            self, batch: MetaBatch, learner, steps: int, shots: int
+    ):
+        s_inputs, s_labels2d, s_labels3d = batch.support
+        q_inputs, q_labels2d, q_labels3d = batch.query
 
         # Adapt the model on the support set
         for step in range(steps):
             # forward + backward + optimize
-            outputs2d_init, outputs2d, outputs3d = learner(inputs)
-            loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
-            loss2d = self.inner_criterion(outputs2d, labels2d)
-            loss3d = self.inner_criterion(outputs3d, labels3d)
+            outputs2d_init, outputs2d, outputs3d = learner(s_inputs)
+            loss2d_init = self.inner_criterion(outputs2d_init, s_labels2d)
+            loss2d = self.inner_criterion(outputs2d, s_labels2d)
+            loss3d = self.inner_criterion(outputs3d, s_labels3d)
             support_loss = (
                 (self._lambda1) * loss2d_init
                 + (self._lambda1) * loss2d
@@ -57,10 +63,10 @@ class MAML_HOPETrainer(MAMLTrainer):
             learner.adapt(support_loss)
 
         # Evaluate the adapted model on the query set
-        e_outputs2d_init, e_outputs2d, e_outputs3d = learner(inputs)
-        e_loss2d_init = self.inner_criterion(e_outputs2d_init, labels2d)
-        e_loss2d = self.inner_criterion(e_outputs2d, labels2d)
-        e_loss3d = self.inner_criterion(e_outputs3d, labels3d)
+        e_outputs2d_init, e_outputs2d, e_outputs3d = learner(q_inputs)
+        e_loss2d_init = self.inner_criterion(e_outputs2d_init, q_labels2d)
+        e_loss2d = self.inner_criterion(e_outputs2d, q_labels2d)
+        e_loss3d = self.inner_criterion(e_outputs3d, q_labels3d)
         query_loss = (
             (self._lambda1) * e_loss2d_init
             + (self._lambda1) * e_loss2d
@@ -74,6 +80,7 @@ class MAML_ResnetTrainer(MAMLTrainer):
         self,
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
+        n_querries,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -82,24 +89,28 @@ class MAML_ResnetTrainer(MAMLTrainer):
             "resnet10",
             dataset,
             k_shots,
+            n_querries,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
         )
 
-    def _training_step(self, batch: tuple, learner, steps: int, shots: int):
-        inputs, labels2d, _ = batch
+    def _training_step(
+            self, batch: MetaBatch, learner, steps: int, shots: int
+    ):
+        s_inputs, s_labels2d, _ = batch.support
+        q_inputs, q_labels2d, _ = batch.query
 
         # Adapt the model on the support set
         for step in range(steps):
             # forward + backward + optimize
-            outputs2d_init, _ = learner(inputs)
-            support_loss = self.inner_criterion(outputs2d_init, labels2d)
+            outputs2d_init, _ = learner(s_inputs)
+            support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
             learner.adapt(support_loss)
 
         # Evaluate the adapted model on the query set
-        e_outputs2d_init, _ = learner(inputs)
-        query_loss = self.inner_criterion(e_outputs2d_init, labels2d)
+        e_outputs2d_init, _ = learner(q_inputs)
+        query_loss = self.inner_criterion(e_outputs2d_init, q_labels2d)
         return query_loss
 
 
@@ -108,6 +119,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         self,
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
+        n_querries: int,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -116,31 +128,26 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             "graphunet",
             dataset,
             k_shots,
+            n_querries,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
         )
 
-    def _training_step(self, batch: tuple, learner, steps: int, shots: int):
-        _, labels2d, labels3d = batch
-        # TODO: Split into support and query sets!
-
-        # Separate data into adaptation/evalutation sets
-        # adaptation_indices = np.zeros(labels2d.size(0), dtype=bool)
-        # adaptation_indices[np.arange(self._k_shots*1) * 2] = True
-        # evaluation_indices = torch.from_numpy(~adaptation_indices)
-        # adaptation_indices = torch.from_numpy(adaptation_indices)
-        # adaptation_data, adaptation_labels = labels2d[adaptation_indices], labels3d[adaptation_indices]
-        # evaluation_data, evaluation_labels = labels2d[evaluation_indices], labels3d[evaluation_indices]
+    def _training_step(
+            self, batch: MetaBatch, learner, steps: int, shots: int
+    ):
+        _, s_labels2d, s_labels3d = batch.support
+        _, q_labels2d, q_labels3d = batch.query
 
         # Adapt the model on the support set
         for step in range(steps):
             # forward + backward + optimize
-            outputs3d = learner(labels2d)
-            support_loss = self.inner_criterion(outputs3d, labels3d)
+            outputs3d = learner(s_labels2d)
+            support_loss = self.inner_criterion(outputs3d, s_labels3d)
             learner.adapt(support_loss)
 
         # Evaluate the adapted model on the query set
-        outputs3d = learner(labels2d)
-        query_loss = self.inner_criterion(outputs3d, labels3d)
+        outputs3d = learner(q_labels2d)
+        query_loss = self.inner_criterion(outputs3d, q_labels3d)
         return query_loss

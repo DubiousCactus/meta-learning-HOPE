@@ -29,6 +29,9 @@ class DatasetFactory:
         test: bool,
         object_as_task: bool,
         k_shots: int,
+        n_querries: int,
+        use_cuda: bool = True,
+        gpu_number: int = 0,
     ):
         if not os.path.isdir(dataset_root):
             print(f"[!] {dataset_root} is not a valid directory!")
@@ -40,16 +43,22 @@ class DatasetFactory:
                 DatasetFactory._shapenet_root,
                 batch_size,
                 k_shots,
+                n_querries,
                 test=test,
                 object_as_task=object_as_task,
+                use_cuda=use_cuda,
+                gpu_number=gpu_number,
             )
         elif dataset == "fphad":
             return FPHADTaskLoader(
                 dataset_root,
                 batch_size,
                 k_shots,
+                n_querries,
                 test=test,
                 object_as_task=object_as_task,
+                use_cuda=use_cuda,
+                gpu_number=gpu_number,
             )
         elif dataset == "ho3d":
             raise NotImplementedError("HO-3D Dataset Loader not implemented!")

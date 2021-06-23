@@ -12,10 +12,15 @@ Meta-Training.
 
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
+from collections import namedtuple
 
 import matplotlib.pyplot as plt
 import learn2learn as l2l
+import numpy as np
 import torch
+
+
+MetaBatch = namedtuple('MetaBatch', 'support query')
 
 
 class MAMLTrainer(BaseTrainer):
@@ -24,11 +29,18 @@ class MAMLTrainer(BaseTrainer):
         model_name: str,
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
+        n_querries: int,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
         object_as_task: bool = True,
     ):
+        assert (
+            dataset.k_shots == k_shots
+        ), "Dataset's K-shots does not match MAML's K-shots!"
+        assert (
+            dataset.n_querries == n_querries
+        ), "Dataset's N-querries does not match MAML's N-querries!"
         super().__init__(
             model_name,
             dataset,
@@ -37,9 +49,24 @@ class MAMLTrainer(BaseTrainer):
             test_mode=test_mode,
         )
         self._k_shots = k_shots
+        self._n_querries = n_querries
 
-    def _training_step(self, batch: tuple, learner, steps: int, shots: int):
+    def _training_step(
+        self, support: tuple, query: tuple, learner, steps: int, shots: int
+    ):
         raise NotImplementedError("_training_step() not implemented!")
+
+    def _split_batch(self, batch: tuple) -> MetaBatch:
+        """
+        Separate data batch into adaptation/evalutation sets.
+        """
+        images, labels_2d, labels_3d = batch
+        batch_size = self._k_shots + self._n_querries
+        indices = torch.randperm(batch_size)
+        support_indices = indices[:self._k_shots]
+        query_indices = indices[self._k_shots:]
+        return MetaBatch((images[support_indices], labels_2d[support_indices],
+            labels_3d[support_indices]), (images[query_indices], labels_2d[query_indices], labels_3d[query_indices]))
 
     def train(
         self,
@@ -62,15 +89,15 @@ class MAMLTrainer(BaseTrainer):
             for task in range(meta_batch_size):
                 # Compute the meta-training loss
                 learner = maml.clone()
-                batch = self.dataset.train.sample()
-                inner_loss = self._training_step(batch, learner, steps, shots)
+                meta_batch = self._split_batch(self.dataset.train.sample())
+                inner_loss = self._training_step(meta_batch, learner, steps, shots)
                 inner_loss.backward()
                 meta_train_loss += inner_loss.item()
 
                 # Compute the meta-validation loss
                 leaner = maml.clone()
-                batch = self.dataset.val.sample()
-                inner_loss = self._training_step(batch, learner, steps, shots)
+                meta_batch = self._split_batch(self.dataset.val.sample())
+                inner_loss = self._training_step(meta_batch, learner, steps, shots)
                 meta_val_loss += inner_loss.item()
             print(f"==========[Iteration {iteration}]==========")
             print(f"Meta-training Loss: {meta_train_loss/meta_batch_size:.6f}")
@@ -94,7 +121,7 @@ class MAMLTrainer(BaseTrainer):
         shots: int = 10,
     ):
         maml = l2l.algorithms.MAML(
-            self.model, lr=fast_lr, first_order=True, allow_unused=True
+            self.model, lr=fast_lr, first_order=False, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         meta_test_loss = 0.0

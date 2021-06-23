@@ -48,7 +48,8 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         root: str,
         shapenet_root: str,
         batch_size: int,
-        k_shots,
+        k_shots: int,
+        n_querries: int,
         test: bool = False,
         object_as_task: bool = True,
         use_cuda: bool = True,
@@ -66,7 +67,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0]]
         ).astype(np.float32)
         super().__init__(
-            root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number
+            root, batch_size, k_shots, n_querries, test, object_as_task, use_cuda, gpu_number
         )
 
     def _load_mesh(self, model_path: str) -> trimesh.Trimesh:
@@ -135,13 +136,13 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             for x in sorted(os.listdir(os.path.join(root, "meta")))
         }
         inputs = zip(
-                    indices.items(),
-                    [root] * len(indices.items()),
-                    [self._cam_intr] * len(indices.items()),
-                    [self._cam_extr] * len(indices.items()),
-                    [self._shapenet_template] * len(indices.items()),
-                )
-        with Pool(processes=cpu_count()-2) as pool:
+            indices.items(),
+            [root] * len(indices.items()),
+            [self._cam_intr] * len(indices.items()),
+            [self._cam_extr] * len(indices.items()),
+            [self._shapenet_template] * len(indices.items()),
+        )
+        with Pool(processes=cpu_count() - 2) as pool:
             results = pool.starmap(
                 mp_process_meta_file,
                 tqdm(inputs, total=len(indices.items())),
@@ -234,7 +235,9 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 split_dataset,
                 [
                     l2l.data.transforms.NWays(split_dataset, n=1),
-                    l2l.data.transforms.KShots(split_dataset, k=self.k_shots),
+                    l2l.data.transforms.KShots(
+                        split_dataset, k=self.k_shots + self.n_querries
+                    ),
                     l2l.data.transforms.LoadData(split_dataset),
                 ],
             )

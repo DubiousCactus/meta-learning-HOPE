@@ -16,6 +16,7 @@ from typing import Union
 
 import learn2learn as l2l
 import numpy as np
+import trimesh
 import pickle
 import torch
 import os
@@ -36,6 +37,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         root: str,
         batch_size: int,
         k_shots: int,
+        n_querries: int,
         test: bool = False,
         object_as_task: bool = True,
         use_cuda: bool = True,
@@ -63,7 +65,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         )
         # Only call super() last, because the base class's init() calls the _load() function!
         super().__init__(
-            root, batch_size, k_shots, test, object_as_task, use_cuda, gpu_number
+            root, batch_size, k_shots, n_querries, test, object_as_task, use_cuda, gpu_number
         )
 
     def _load_objects(self, root):
@@ -224,7 +226,9 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                 split_dataset,
                 [
                     l2l.data.transforms.NWays(split_dataset, n=1),
-                    l2l.data.transforms.KShots(split_dataset, k=self.k_shots),
+                    l2l.data.transforms.KShots(
+                        split_dataset, k=self.k_shots + self.n_querries
+                    ),
                     l2l.data.transforms.LoadData(split_dataset),
                 ],
             )
