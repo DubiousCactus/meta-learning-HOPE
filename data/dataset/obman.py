@@ -19,6 +19,8 @@ from tqdm import tqdm
 
 import learn2learn as l2l
 import numpy as np
+import itertools
+import trimesh
 import trimesh
 import pickle
 import torch
@@ -152,20 +154,28 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 x.split(".")[0]: os.path.join(root, "meta", x)
                 for x in sorted(os.listdir(os.path.join(root, "meta")))
             }
-            inputs = zip(
-                indices.items(),
-                [root] * len(indices.items()),
-                [self._cam_intr] * len(indices.items()),
-                [self._cam_extr] * len(indices.items()),
-                [self._shapenet_template] * len(indices.items()),
-            )
-            torch.multiprocessing.set_sharing_strategy('file_system')
-            with torch.multiprocessing.Pool(torch.multiprocessing.cpu_count()) as pool:
-                results = pool.starmap(
-                    mp_process_meta_file,
-                    tqdm(inputs, total=len(indices.items())),
-                    chunksize=5,
+            chunk_sz = 1000
+            for chunk_no in range(0, len(indices.items()), chunk_sz):
+                print(f"\t -> Processing chunk {chunk_no//chunk_sz}...")
+                idx_chunk = dict(
+                    itertools.islice(indices.items(), chunk_no, chunk_no + chunk_sz)
                 )
+                inputs = zip(
+                    idx_chunk.items(),
+                    [root] * len(idx_chunk),
+                    [self._cam_intr] * len(idx_chunk),
+                    [self._cam_extr] * len(idx_chunk),
+                    [self._shapenet_template] * len(idx_chunk),
+                )
+                torch.multiprocessing.set_sharing_strategy('file_system')
+                with torch.multiprocessing.Pool(
+                        torch.multiprocessing.cpu_count()) as pool:
+                    results = pool.starmap(
+                        mp_process_meta_file,
+                        tqdm(inputs, total=len(idx_chunk)),
+                        chunksize=5,
+                    )
+                print(f"\t -> Merging data samples...")
                 for obj_id, sample in results:
                     img_path, coord_2d, coord_3d = sample
                     if object_as_task:
