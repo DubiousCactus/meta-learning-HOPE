@@ -91,7 +91,7 @@ class MAMLTrainer(BaseTrainer):
             opt.zero_grad()
             meta_train_loss = 0.0
             meta_val_loss = 0.0
-            # One task contains a batch (of arbitrary size) of samples for ONE object class
+            # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
             for task in range(meta_batch_size):
                 # Compute the meta-training loss
                 learner = maml.clone()

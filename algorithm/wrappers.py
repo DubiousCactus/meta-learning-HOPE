@@ -10,18 +10,10 @@
 Part-specific training wrappers.
 """
 
-import torch.optim as optim
-import torch.nn as nn
-import numpy as np
-import torch
-
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.maml import MAMLTrainer, MetaBatch
 
-from abc import ABC
 
-
-# TODO: Pass in a simple function to MAML instead of this useless inheritance!
 class MAML_HOPETrainer(MAMLTrainer):
     def __init__(
         self,
