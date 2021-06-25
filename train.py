@@ -58,7 +58,8 @@ def main(args):
         graphunet_trainer.test(meta_batch_size=4, fast_lr=1e-6, meta_lr=1e-5)
     else:
         graphunet_trainer.train(
-            meta_batch_size=12, iterations=1000, fast_lr=1e-6, meta_lr=1e-3
+            meta_batch_size=args.batch_size, iterations=args.num_iterations, fast_lr=1e-6,
+            meta_lr=1e-3
         )
 
 
