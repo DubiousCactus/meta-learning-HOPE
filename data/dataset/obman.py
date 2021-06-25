@@ -262,7 +262,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
-        split_task_set = self._make_dataset_mp(
+        split_task_set = self._make_dataset(
             split, split_path, object_as_task=object_as_task
         )
         if object_as_task:
