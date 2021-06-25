@@ -154,7 +154,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 x.split(".")[0]: os.path.join(root, "meta", x)
                 for x in sorted(os.listdir(os.path.join(root, "meta")))
             }
-            chunk_sz = 1000
+            chunk_sz = 500
             for chunk_no in range(0, len(indices), chunk_sz):
                 print(f"\t -> Processing chunk {chunk_no//chunk_sz}/{int(len(indices)/chunk_sz)+1}...")
                 idx_chunk = dict(
@@ -169,11 +169,11 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 )
                 torch.multiprocessing.set_sharing_strategy('file_system')
                 with torch.multiprocessing.Pool(
-                        torch.multiprocessing.cpu_count()) as pool:
+                        torch.multiprocessing.cpu_count()-1) as pool:
                     results = pool.starmap(
                         mp_process_meta_file,
                         tqdm(inputs, total=len(idx_chunk)),
-                        chunksize=5,
+                        chunksize=2,
                     )
                 print(f"\t -> Merging data samples...")
                 for obj_id, sample in results:
@@ -262,7 +262,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
-        split_task_set = self._make_dataset(
+        split_task_set = self._make_dataset_mp(
             split, split_path, object_as_task=object_as_task
         )
         if object_as_task:
