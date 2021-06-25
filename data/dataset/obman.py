@@ -21,7 +21,7 @@ import learn2learn as l2l
 import numpy as np
 import itertools
 import trimesh
-import trimesh
+import parmap
 import pickle
 import torch
 import os
@@ -68,6 +68,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         self._cam_extr = np.array(
             [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0]]
         ).astype(np.float32)
+        self._bboxes = {}
         super().__init__(
             root,
             batch_size,
@@ -116,7 +117,11 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         # 2. Load the transform
         transform = meta_info["affine_transform"]
         # 3. Obtain the oriented bounding box vertices (x1000?)
-        verts = np.array(mesh.bounding_box_oriented.vertices)  # * 1000
+        if hash(mesh) not in self._bboxes:
+            verts = np.array(mesh.bounding_box_oriented.vertices)  # * 1000
+            self._bboxes[hash(mesh)] = verts
+        else:
+            verts = self._bboxes[hash(mesh)]
         # transformed_mesh = mesh.apply_transform(transform)
         # vertices_3d = transformed_mesh.bounding_box_oriented.vertices
         # 4. Apply the transform to the vertices
@@ -150,46 +155,59 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             print(f"[*] Building {split} split...")
             samples = {} if object_as_task else []
             class_ids = []
+            def process_result(result):
+                img_path, coord_2d, coord_3d = sample
+                if object_as_task:
+                    if obj_id in class_ids:
+                        samples[class_ids.index(obj_id)].append(
+                            (img_path, coord_2d, coord_3d)
+                        )
+                    else:
+                        class_ids.append(obj_id)
+                        samples[class_ids.index(obj_id)] = [
+                            (img_path, coord_2d, coord_3d)
+                        ]
+                else:
+                    samples.append((img_path, coord_2d, coord_3d))
             indices = {
                 x.split(".")[0]: os.path.join(root, "meta", x)
                 for x in sorted(os.listdir(os.path.join(root, "meta")))
             }
-            chunk_sz = 500
-            for chunk_no in range(0, len(indices), chunk_sz):
-                print(f"\t -> Processing chunk {chunk_no//chunk_sz}/{int(len(indices)/chunk_sz)+1}...")
-                idx_chunk = dict(
-                    itertools.islice(indices.items(), chunk_no, chunk_no + chunk_sz)
-                )
-                inputs = zip(
-                    idx_chunk.items(),
-                    [root] * len(idx_chunk),
-                    [self._cam_intr] * len(idx_chunk),
-                    [self._cam_extr] * len(idx_chunk),
-                    [self._shapenet_template] * len(idx_chunk),
-                )
-                torch.multiprocessing.set_sharing_strategy('file_system')
-                with torch.multiprocessing.Pool(
-                        torch.multiprocessing.cpu_count()-1) as pool:
-                    results = pool.starmap(
-                        mp_process_meta_file,
-                        tqdm(inputs, total=len(idx_chunk)),
-                        chunksize=2,
-                    )
-                print(f"\t -> Merging data samples...")
-                for obj_id, sample in results:
-                    img_path, coord_2d, coord_3d = sample
-                    if object_as_task:
-                        if obj_id in class_ids:
-                            samples[class_ids.index(obj_id)].append(
-                                (img_path, coord_2d, coord_3d)
-                            )
-                        else:
-                            class_ids.append(obj_id)
-                            samples[class_ids.index(obj_id)] = [
-                                (img_path, coord_2d, coord_3d)
-                            ]
+            # inputs = zip(
+                # indices.items(),
+                # [root] * len(indices),
+                # [self._cam_intr] * len(indices),
+                # [self._cam_extr] * len(indices),
+                # [self._shapenet_template] * len(indices),
+            # )
+            results = parmap.starmap(mp_process_meta_file, indices.items(), root, self._cam_intr,
+                    self._cam_extr, self._shapenet_template, pm_pbar=True)
+            # torch.multiprocessing.set_sharing_strategy('file_system')
+            # with torch.multiprocessing.Pool(
+                    # torch.multiprocessing.cpu_count()-1) as pool:
+                # pool.starmap_async(
+                    # mp_process_meta_file,
+                    # tqdm(inputs, total=len(indices)),
+                    # chunksize=1,
+                    # callback=process_result
+                # )
+                # pool.close()
+            #     pool.join()
+            print(f"\t -> Merging data samples...")
+            for obj_id, sample in results:
+                img_path, coord_2d, coord_3d = sample
+                if object_as_task:
+                    if obj_id in class_ids:
+                        samples[class_ids.index(obj_id)].append(
+                            (img_path, coord_2d, coord_3d)
+                        )
                     else:
-                        samples.append((img_path, coord_2d, coord_3d))
+                        class_ids.append(obj_id)
+                        samples[class_ids.index(obj_id)] = [
+                            (img_path, coord_2d, coord_3d)
+                        ]
+                else:
+                    samples.append((img_path, coord_2d, coord_3d))
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
@@ -262,7 +280,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
-        split_task_set = self._make_dataset_mp(
+        split_task_set = self._make_dataset(
             split, split_path, object_as_task=object_as_task
         )
         if object_as_task:

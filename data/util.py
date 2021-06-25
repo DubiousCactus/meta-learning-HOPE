@@ -204,11 +204,11 @@ def compute_obman_labels(
     )
 
 
-def mp_process_meta_file(idx_meta, root, cam_intr, cam_extr, shapenet_template):
+def mp_process_meta_file(idx, meta, root, cam_intr, cam_extr, shapenet_template):
     """
     Process a meta-info file for ObMan. Useful for multiprocessing.
     """
-    idx, meta = idx_meta
+    # idx, meta = idx_meta
     obj_id, sample = None, None
     with open(meta, "rb") as meta_file:
         meta_obj = pickle.load(meta_file)
