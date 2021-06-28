@@ -80,13 +80,14 @@ class MAMLTrainer(BaseTrainer):
             (images[query_indices], labels_2d[query_indices], labels_3d[query_indices]),
         )
 
-    def _restore(self, maml, opt, resume_training: bool = True):
+    def _restore(self, maml, opt, scheduler, resume_training: bool = True):
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         maml.load_state_dict(checkpoint["maml_state_dict"])
         opt.load_state_dict(checkpoint["meta_opt_state_dict"])
         if resume_training:
             self._epoch = checkpoint["epoch"] + 1
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
             return checkpoint["val_meta_loss"]
 
     def train(
@@ -95,15 +96,20 @@ class MAMLTrainer(BaseTrainer):
         iterations: int = 1000,
         fast_lr: float = 0.001,
         meta_lr: float = 0.01,
+        lr_step: int = 100,
+        lr_step_gamma: float = 0.5,
         save_every: int = 100,
     ):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=lr_step, gamma=lr_step_gamma,
+                verbose=True)
+        scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         if self._model_path:
-            past_val_loss = self._restore(maml, opt, resume_training=True)
+            past_val_loss = self._restore(maml, opt, scheduler, resume_training=True)
         for iteration in range(self._epoch, iterations):
             opt.zero_grad()
             meta_train_loss = 0.0
@@ -136,6 +142,7 @@ class MAMLTrainer(BaseTrainer):
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / meta_batch_size)
             opt.step()
+            scheduler.step()
 
             # Model checkpointing
             if iteration % save_every == 0 and meta_val_loss < past_val_loss:
@@ -146,6 +153,7 @@ class MAMLTrainer(BaseTrainer):
                         "model_state_dict": self.model.state_dict(),
                         "maml_state_dict": maml.state_dict(),
                         "meta_opt_state_dict": opt.state_dict(),
+                        "scheduler_state_dict": scheduler.state_dict(),
                         "val_meta_loss": meta_val_loss,
                     },
                     os.path.join(
@@ -166,7 +174,7 @@ class MAMLTrainer(BaseTrainer):
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         if self._model_path:
-            self._restore(maml, opt, resume_training=False)
+            self._restore(maml, opt, None, resume_training=False)
         meta_test_loss = 0.0
         for task in range(meta_batch_size):
             learner = maml.clone()

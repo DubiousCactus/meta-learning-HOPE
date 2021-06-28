@@ -39,10 +39,6 @@ class BaseTrainer(ABC):
         if not os.path.isdir(self._checkpoint_path):
             os.makedirs(self._checkpoint_path)
         self.inner_criterion = torch.nn.MSELoss()
-        # TODO: Add a scheduler in the meta-training loop?
-        # self.scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step,
-        # gamma=lr_step_gamma)
-        # self.scheduler.last_epoch = start
         self._lambda1 = 0.01
         self._lambda2 = 1
 
