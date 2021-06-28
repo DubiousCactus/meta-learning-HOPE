@@ -1,7 +1,7 @@
 datasets/
 datasets
 checkpoints/
-config.yaml
+outputs/
 
 
 # ------------ Python-specific------------

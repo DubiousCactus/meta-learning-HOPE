@@ -11,67 +11,55 @@ Meta-Train HOPE-Net or its individual parts.
 """
 
 from data.factory import DatasetFactory, AlgorithmFactory
-from util.options import parse_args
+from omegaconf import DictConfig, OmegaConf
 
+import hydra
 import os
 
 
-def main(args):
-    # TODO: Parse from args instead
-    dataset_name = None
-    if "fphad" in args.dataset.lower() or "fhad" in args.dataset.lower():
-        dataset_name = "fphad"
-    elif "obman" in args.dataset.lower():
-        dataset_name = "obman"
-    elif (
-        "ho3d" in args.dataset.lower()
-        or "ho-3d" in args.dataset.lower()
-        or "ho_3d" in args.dataset.lower()
-    ):
-        dataset_name = "ho3d"
-    else:
-        raise Exception(f"Unrecognized dataset in {args.dataset}")
-
-    if not os.path.isfile('./config.yaml'):
-        raise Exception("Config file missing! Read README.md.")
+@hydra.main(config_path="conf", config_name="config")
+def main(cfg: DictConfig):
+    print(OmegaConf.to_yaml(cfg))
     dataset = DatasetFactory.make_data_loader(
-        dataset_name,
-        args.dataset,
-        args.meta_batch_size,
-        args.test,
-        args.k_shots,
-        args.n_queries,
+        cfg.shapenet_root,
+        cfg.experiment.dataset,
+        cfg.experiment.dataset_path,
+        cfg.experiment.meta_batch_size,
+        cfg.test_mode,
+        cfg.experiment.k_shots,
+        cfg.experiment.n_queries,
         object_as_task=True,
     )
     trainer = AlgorithmFactory.make_training_algorithm(
-        args.algorithm,
-        args.model_def,
+        cfg.experiment.algorithm,
+        cfg.experiment.model_def,
         dataset,
-        os.path.join("./checkpoints", args.checkpoint_name),
-        args.k_shots,
-        args.n_queries,
-        args.inner_steps,
-        model_path=args.load_ckpt,
-        test_mode=args.test,
-        use_cuda=True,
-        gpu_number=args.gpu_number,
+        cfg.experiment.k_shots,
+        cfg.experiment.n_queries,
+        cfg.experiment.steps,
+        cfg.experiment.checkpoint_path,
+        model_path=cfg.experiment.saved_model
+        if cfg.experiment.saved_model != ""
+        else None,
+        test_mode=cfg.test_mode,
+        use_cuda=cfg.use_cuda,
+        gpu_number=cfg.gpu_number,
     )
-    if args.test:
+    if cfg.test_mode:
         trainer.test(
-            meta_batch_size=args.meta_batch_size,
-            fast_lr=args.fast_lr,
-            meta_lr=args.meta_lr,
+            meta_batch_size=cfg.experiment.meta_batch_size,
+            fast_lr=cfg.experiment.fast_lr,
+            meta_lr=cfg.experiment.meta_lr,
         )
     else:
         trainer.train(
-            meta_batch_size=args.meta_batch_size,
-            iterations=args.num_iterations,
-            fast_lr=args.fast_lr,
-            meta_lr=args.meta_lr,
-            save_every=args.save_every,
+            meta_batch_size=cfg.experiment.meta_batch_size,
+            iterations=cfg.experiment.iterations,
+            fast_lr=cfg.experiment.fast_lr,
+            meta_lr=cfg.experiment.meta_lr,
+            save_every=cfg.save_every,
         )
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+    main()

@@ -21,14 +21,13 @@ from algorithm.wrappers import (
 from algorithm.base import BaseTrainer
 from abc import abstractmethod
 
-import yaml
 import os
 
 
 class DatasetFactory:
-
     @abstractmethod
     def make_data_loader(
+        shapenet_root,
         dataset: str,
         dataset_root: str,
         batch_size: int,
@@ -43,13 +42,11 @@ class DatasetFactory:
             print(f"[!] {dataset_root} is not a valid directory!")
             exit(1)
         dataset = dataset.lower()
-        with open('config.yaml', 'r') as config_file:
-            config = yaml.safe_load(config_file)
         print(f"[*] Loading dataset: {dataset}")
         if dataset == "obman":
             return ObManTaskLoader(
                 dataset_root,
-                config['shapenet_root'],
+                shapenet_root,
                 batch_size,
                 k_shots,
                 n_querries,
@@ -81,18 +78,18 @@ class AlgorithmFactory:
         algorithm: str,
         model_def: str,
         dataset: BaseDatasetTaskLoader,
-        checkpoint_path: str,
         k_shots: int,
         n_queries: int,
         inner_steps: int,
+        ckpt_path: str,
         model_path: str = None,
         test_mode: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
     ) -> BaseTrainer:
+        trainer = lambda x: Exception()
         algorithm = algorithm.lower()
         model_def = model_def.lower()
-        trainer = lambda x: Exception()
         print(f"[*] Loading training algorithm: {algorithm}")
         print(f"[*] Loading model definition: {model_def}")
         if algorithm in ["maml", "fomaml"]:
@@ -106,7 +103,7 @@ class AlgorithmFactory:
                 raise Exception(f"No training algorithm found for model {model_def}")
             return trainer(
                 dataset,
-                checkpoint_path,
+                ckpt_path,
                 k_shots,
                 n_queries,
                 inner_steps,
