@@ -1,4 +1,4 @@
-shapenet_root: /home/cactus/Code/ShapeNetCore.v2
+shapenet_root: /home/tmorales/ShapeNetCore.v2
 gpu_number: [0]
 use_cuda: True
 save_every: 100
