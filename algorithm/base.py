@@ -35,9 +35,9 @@ class BaseTrainer(ABC):
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_number)
         self.dataset = dataset
-        self._checkpoint_path = checkpoint_path
-        if not os.path.isdir(os.path.join(os.getcwd(), checkpoint_path)):
-            os.makedirs(checkpoint_path)
+        self._checkpoint_path = os.path.join(os.getcwd(), checkpoint_path)
+        if not os.path.isdir(self._checkpoint_path):
+            os.makedirs(self._checkpoint_path)
         self.inner_criterion = torch.nn.MSELoss()
         # TODO: Add a scheduler in the meta-training loop?
         # self.scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step,
