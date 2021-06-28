@@ -27,6 +27,6 @@ with open(pickle_path, "rb") as pickle_file:
                 print(f"{img_path} -> {new_path}")
                 shown = True
             new_v.append((new_path, p_2d, p_3d))
-        new_samples[k] = v
+        new_samples[k] = new_v
     with open(dest_path, "wb") as new_pickle:
         pickle.dump(new_samples, new_pickle)
