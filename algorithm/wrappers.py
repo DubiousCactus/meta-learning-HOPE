@@ -20,6 +20,8 @@ class MAML_HOPETrainer(MAMLTrainer):
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
         n_querries,
+        inner_steps: int,
+        first_order: bool = False,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -29,17 +31,19 @@ class MAML_HOPETrainer(MAMLTrainer):
             dataset,
             k_shots,
             n_querries,
+            inner_steps,
+            first_order=first_order,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
         )
 
-    def _training_step(self, batch: MetaBatch, learner, steps: int, shots: int):
+    def _training_step(self, batch: MetaBatch, learner):
         s_inputs, s_labels2d, s_labels3d = batch.support
         q_inputs, q_labels2d, q_labels3d = batch.query
 
         # Adapt the model on the support set
-        for step in range(steps):
+        for step in range(self._steps):
             # forward + backward + optimize
             outputs2d_init, outputs2d, outputs3d = learner(s_inputs)
             loss2d_init = self.inner_criterion(outputs2d_init, s_labels2d)
@@ -71,6 +75,8 @@ class MAML_ResnetTrainer(MAMLTrainer):
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
         n_querries,
+        inner_steps: int,
+        first_order: bool = False,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -80,17 +86,19 @@ class MAML_ResnetTrainer(MAMLTrainer):
             dataset,
             k_shots,
             n_querries,
+            inner_steps,
+            first_order=first_order,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
         )
 
-    def _training_step(self, batch: MetaBatch, learner, steps: int, shots: int):
+    def _training_step(self, batch: MetaBatch, learner):
         s_inputs, s_labels2d, _ = batch.support
         q_inputs, q_labels2d, _ = batch.query
 
         # Adapt the model on the support set
-        for step in range(steps):
+        for step in range(self._steps):
             # forward + backward + optimize
             outputs2d_init, _ = learner(s_inputs)
             support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
@@ -108,6 +116,8 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
         n_querries: int,
+        inner_steps: int,
+        first_order: bool = False,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -117,17 +127,19 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             dataset,
             k_shots,
             n_querries,
+            inner_steps,
+            first_order=first_order,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
         )
 
-    def _training_step(self, batch: MetaBatch, learner, steps: int, shots: int):
+    def _training_step(self, batch: MetaBatch, learner):
         _, s_labels2d, s_labels3d = batch.support
         _, q_labels2d, q_labels3d = batch.query
 
         # Adapt the model on the support set
-        for step in range(steps):
+        for step in range(self._steps):
             # forward + backward + optimize
             outputs3d = learner(s_labels2d)
             support_loss = self.inner_criterion(outputs3d, s_labels3d)

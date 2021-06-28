@@ -10,59 +10,60 @@
 Meta-Train HOPE-Net or its individual parts.
 """
 
-from algorithm.wrappers import (
-    MAML_HOPETrainer,
-    MAML_ResnetTrainer,
-    MAML_GraphUNetTrainer,
-)
-from HOPE.utils.options import parse_args_function
-from data.factory import DatasetFactory
+from data.factory import DatasetFactory, AlgorithmFactory
+from util.options import parse_args
 
 
 def main(args):
     # TODO: Parse from args instead
     dataset_name = None
-    if "fphad" in args.input_file.lower() or "fhad" in args.input_file.lower():
+    if "fphad" in args.dataset.lower() or "fhad" in args.dataset.lower():
         dataset_name = "fphad"
-    elif "obman" in args.input_file.lower():
+    elif "obman" in args.dataset.lower():
         dataset_name = "obman"
     elif (
-        "ho3d" in args.input_file.lower()
-        or "ho-3d" in args.input_file.lower()
-        or "ho_3d" in args.input_file.lower()
+        "ho3d" in args.dataset.lower()
+        or "ho-3d" in args.dataset.lower()
+        or "ho_3d" in args.dataset.lower()
     ):
         dataset_name = "ho3d"
     else:
-        raise Exception(f"Unrecognized dataset in {args.input_file}")
+        raise Exception(f"Unrecognized dataset in {args.dataset}")
 
-    k_shots, n_querries = 15, 30
     dataset = DatasetFactory.make_data_loader(
         dataset_name,
-        args.input_file,
-        args.batch_size,
+        args.dataset,
+        args.meta_batch_size,
         args.test,
-        k_shots,
-        n_querries,
+        args.k_shots,
+        args.n_queries,
         object_as_task=True,
     )
-    # TODO: Add a model part arg and create a factory for the trainer
-    graphunet_trainer = MAML_GraphUNetTrainer(
+    trainer = AlgorithmFactory.make_training_algorithm(
+        args.algorithm,
+        args.model_def,
         dataset,
-        k_shots,
-        n_querries,
-        use_cuda=args.gpu,
-        gpu_number=args.gpu_number,
+        args.k_shots,
+        args.n_queries,
+        args.inner_steps,
         test_mode=args.test,
+        gpu_number=args.gpu_number,
     )
     if args.test:
-        graphunet_trainer.test(meta_batch_size=4, fast_lr=1e-6, meta_lr=1e-5)
+        trainer.test(
+            meta_batch_size=args.meta_batch_size,
+            fast_lr=args.fast_lr,
+            meta_lr=args.meta_lr,
+        )
     else:
-        graphunet_trainer.train(
-            meta_batch_size=args.batch_size, iterations=args.num_iterations, fast_lr=1e-6,
-            meta_lr=1e-3
+        trainer.train(
+            meta_batch_size=args.meta_batch_size,
+            iterations=args.num_iterations,
+            fast_lr=args.fast_lr,
+            meta_lr=args.meta_lr,
         )
 
 
 if __name__ == "__main__":
-    args = parse_args_function()
+    args = parse_args()
     main(args)

@@ -139,7 +139,9 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             torch.cat([hand_coords_3d, torch.Tensor(vertices_3d)]),
         )
 
-    def _make_dataset_mp(self, split: str, root: str, object_as_task=False) -> CustomDataset:
+    def _make_dataset_mp(
+        self, split: str, root: str, object_as_task=False
+    ) -> CustomDataset:
         """
         Make a dataset using a multiprocessing pool.
         """
@@ -155,6 +157,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             print(f"[*] Building {split} split...")
             samples = {} if object_as_task else []
             class_ids = []
+
             def process_result(result):
                 img_path, coord_2d, coord_3d = sample
                 if object_as_task:
@@ -169,29 +172,37 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                         ]
                 else:
                     samples.append((img_path, coord_2d, coord_3d))
+
             indices = {
                 x.split(".")[0]: os.path.join(root, "meta", x)
                 for x in sorted(os.listdir(os.path.join(root, "meta")))
             }
             # inputs = zip(
-                # indices.items(),
-                # [root] * len(indices),
-                # [self._cam_intr] * len(indices),
-                # [self._cam_extr] * len(indices),
-                # [self._shapenet_template] * len(indices),
+            # indices.items(),
+            # [root] * len(indices),
+            # [self._cam_intr] * len(indices),
+            # [self._cam_extr] * len(indices),
+            # [self._shapenet_template] * len(indices),
             # )
-            results = parmap.starmap(mp_process_meta_file, indices.items(), root, self._cam_intr,
-                    self._cam_extr, self._shapenet_template, pm_pbar=True)
+            results = parmap.starmap(
+                mp_process_meta_file,
+                indices.items(),
+                root,
+                self._cam_intr,
+                self._cam_extr,
+                self._shapenet_template,
+                pm_pbar=True,
+            )
             # torch.multiprocessing.set_sharing_strategy('file_system')
             # with torch.multiprocessing.Pool(
-                    # torch.multiprocessing.cpu_count()-1) as pool:
-                # pool.starmap_async(
-                    # mp_process_meta_file,
-                    # tqdm(inputs, total=len(indices)),
-                    # chunksize=1,
-                    # callback=process_result
-                # )
-                # pool.close()
+            # torch.multiprocessing.cpu_count()-1) as pool:
+            # pool.starmap_async(
+            # mp_process_meta_file,
+            # tqdm(inputs, total=len(indices)),
+            # chunksize=1,
+            # callback=process_result
+            # )
+            # pool.close()
             #     pool.join()
             print(f"\t -> Merging data samples...")
             for obj_id, sample in results:
@@ -222,7 +233,9 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         )
         return dataset
 
-    def _make_dataset(self, split: str, root: str, object_as_task=False) -> CustomDataset:
+    def _make_dataset(
+        self, split: str, root: str, object_as_task=False
+    ) -> CustomDataset:
         pickle_path = os.path.join(
             root,
             f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",

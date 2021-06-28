@@ -29,6 +29,8 @@ class MAMLTrainer(BaseTrainer):
         dataset: BaseDatasetTaskLoader,
         k_shots: int,
         n_querries: int,
+        inner_steps: int,
+        first_order: bool = False,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -49,10 +51,10 @@ class MAMLTrainer(BaseTrainer):
         )
         self._k_shots = k_shots
         self._n_querries = n_querries
+        self._steps = inner_steps
+        self._first_order = first_order
 
-    def _training_step(
-        self, support: tuple, query: tuple, learner, steps: int, shots: int
-    ):
+    def _training_step(self, support: tuple, query: tuple, learner):
         raise NotImplementedError("_training_step() not implemented!")
 
     def _split_batch(self, batch: tuple) -> MetaBatch:
@@ -79,11 +81,9 @@ class MAMLTrainer(BaseTrainer):
         iterations: int = 1000,
         fast_lr: float = 0.001,
         meta_lr: float = 0.01,
-        steps: int = 5,
-        shots: int = 10,
     ):
         maml = l2l.algorithms.MAML(
-            self.model, lr=fast_lr, first_order=True, allow_unused=True
+            self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         for iteration in range(iterations):
@@ -95,14 +95,14 @@ class MAMLTrainer(BaseTrainer):
                 # Compute the meta-training loss
                 learner = maml.clone()
                 meta_batch = self._split_batch(self.dataset.train.sample())
-                inner_loss = self._training_step(meta_batch, learner, steps, shots)
+                inner_loss = self._training_step(meta_batch, learner)
                 inner_loss.backward()
                 meta_train_loss += inner_loss.item()
 
                 # Compute the meta-validation loss
                 leaner = maml.clone()
                 meta_batch = self._split_batch(self.dataset.val.sample())
-                inner_loss = self._training_step(meta_batch, learner, steps, shots)
+                inner_loss = self._training_step(meta_batch, learner)
                 meta_val_loss += inner_loss.item()
             print(f"==========[Iteration {iteration}]==========")
             print(f"Meta-training Loss: {meta_train_loss/meta_batch_size:.6f}")
@@ -122,11 +122,9 @@ class MAMLTrainer(BaseTrainer):
         meta_batch_size: int = 16,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
-        steps: int = 1,
-        shots: int = 10,
     ):
         maml = l2l.algorithms.MAML(
-            self.model, lr=fast_lr, first_order=False, allow_unused=True
+            self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
         meta_test_loss = 0.0
@@ -168,7 +166,7 @@ class MAMLTrainer(BaseTrainer):
                 plt.imshow(image)
                 plt.show()
 
-            inner_loss = self._training_step(meta_batch, learner, steps, shots)
+            inner_loss = self._training_step(meta_batch, learner)
             meta_test_loss += inner_loss.item()
         print("==========[Test Error]==========")
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")

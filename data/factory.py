@@ -10,8 +10,15 @@
 Utility classes.
 """
 
+from data.dataset.base import BaseDatasetTaskLoader
 from data.dataset.obman import ObManTaskLoader
 from data.dataset.fphad import FPHADTaskLoader
+from algorithm.wrappers import (
+    MAML_GraphUNetTrainer,
+    MAML_ResnetTrainer,
+    MAML_HOPETrainer,
+)
+from algorithm.base import BaseTrainer
 from abc import abstractmethod
 
 import os
@@ -37,6 +44,7 @@ class DatasetFactory:
             print(f"[!] {dataset_root} is not a valid directory!")
             exit(1)
         dataset = dataset.lower()
+        print(f"[*] Loading dataset: {dataset}")
         if dataset == "obman":
             return ObManTaskLoader(
                 dataset_root,
@@ -64,3 +72,45 @@ class DatasetFactory:
             raise NotImplementedError("HO-3D Dataset Loader not implemented!")
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
+
+
+class AlgorithmFactory:
+    @abstractmethod
+    def make_training_algorithm(
+        algorithm: str,
+        model_def: str,
+        dataset: BaseDatasetTaskLoader,
+        k_shots: int,
+        n_queries: int,
+        inner_steps: int,
+        test_mode: bool = False,
+        use_cuda: bool = True,
+        gpu_number: int = 0,
+    ) -> BaseTrainer:
+        algorithm = algorithm.lower()
+        model_def = model_def.lower()
+        trainer = lambda x: Exception()
+        print(f"[*] Loading training algorithm: {algorithm}")
+        print(f"[*] Loading model definition: {model_def}")
+        if algorithm in ["maml", "fomaml"]:
+            if model_def == "hopenet":
+                trainer = MAML_HOPETrainer
+            elif model_def == "resnet":
+                trainer = MAML_ResnetTrainer
+            elif model_def == "graphunet":
+                trainer = MAML_GraphUNetTrainer
+            else:
+                raise Exception(f"No training algorithm found for model {model_def}")
+            return trainer(
+                dataset,
+                k_shots,
+                n_queries,
+                inner_steps,
+                use_cuda=use_cuda,
+                gpu_number=gpu_number,
+                test_mode=test_mode,
+                first_order=(algorithm == "fomaml"),
+            )
+        else:
+            raise Exception(f"No training algorithm found: {algorithm}")
+        return trainer
