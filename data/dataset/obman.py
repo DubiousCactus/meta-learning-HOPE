@@ -60,6 +60,8 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         # Taken from https://github.com/hassony2/obman
         if shapenet_root[-1] == "/":
             shapenet_root = shapenet_root[:-1]
+            if not os.path.isdir(shapenet_root):
+                raise Exception(f"ShapeNet root not found: {shapenet_root}")
         self._shapenet_template = shapenet_root + "/{}/{}/models/model_normalized.pkl"
         self._cam_intr = np.array(
             [[480.0, 0.0, 128.0], [0.0, 480.0, 128.0], [0.0, 0.0, 1.0]]
