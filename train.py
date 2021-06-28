@@ -32,6 +32,8 @@ def main(args):
     else:
         raise Exception(f"Unrecognized dataset in {args.dataset}")
 
+    if not os.path.isfile('./config.yaml'):
+        raise Exception("Config file missing! Read README.md.")
     dataset = DatasetFactory.make_data_loader(
         dataset_name,
         args.dataset,

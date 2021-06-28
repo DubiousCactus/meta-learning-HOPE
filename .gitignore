@@ -1,6 +1,7 @@
 datasets/
 datasets
 checkpoints/
+config.yaml
 
 
 # ------------ Python-specific------------

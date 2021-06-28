@@ -21,12 +21,11 @@ from algorithm.wrappers import (
 from algorithm.base import BaseTrainer
 from abc import abstractmethod
 
+import yaml
 import os
 
 
 class DatasetFactory:
-    # TODO: Get this out of here
-    _shapenet_root = "/home/cactus/Code/ShapeNetCore.v2/"
 
     @abstractmethod
     def make_data_loader(
@@ -44,11 +43,13 @@ class DatasetFactory:
             print(f"[!] {dataset_root} is not a valid directory!")
             exit(1)
         dataset = dataset.lower()
+        with open('config.yaml', 'r') as config_file:
+            config = yaml.safe_load(config_file)
         print(f"[*] Loading dataset: {dataset}")
         if dataset == "obman":
             return ObManTaskLoader(
                 dataset_root,
-                DatasetFactory._shapenet_root,
+                config['shapenet_root'],
                 batch_size,
                 k_shots,
                 n_querries,
