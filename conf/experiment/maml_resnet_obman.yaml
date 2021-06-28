@@ -3,4 +3,4 @@ defaults:
 model_def: ResNet
 checkpoint_path: ./checkpoints/resnet_maml
 dataset: obman
-dataset_path: /home/cactus/Code/Obman
+dataset_path: /home/tmorales/Obman
