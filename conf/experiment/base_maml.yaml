@@ -7,4 +7,4 @@ steps: 5
 meta_batch_size: 6
 iterations: 15000
 saved_model: ''
-checkpoint_path: ./checkpoints/untitled
+checkpoint_path: checkpoints/untitled

@@ -36,7 +36,7 @@ class BaseTrainer(ABC):
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_number)
         self.dataset = dataset
         self._checkpoint_path = checkpoint_path
-        if not os.path.isdir(checkpoint_path):
+        if not os.path.isdir(os.path.join(os.getcwd(), checkpoint_path)):
             os.makedirs(checkpoint_path)
         self.inner_criterion = torch.nn.MSELoss()
         # TODO: Add a scheduler in the meta-training loop?
