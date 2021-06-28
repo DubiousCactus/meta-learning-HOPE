@@ -57,7 +57,6 @@ class MAMLTrainer(BaseTrainer):
         self._steps = inner_steps
         self._first_order = first_order
         self._model_path = model_path
-        self._epoch = 0
 
     def _training_step(self, support: tuple, query: tuple, learner):
         raise NotImplementedError("_training_step() not implemented!")

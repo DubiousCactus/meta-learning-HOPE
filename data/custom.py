@@ -40,7 +40,7 @@ class CustomDataset(TorchDataset):
         )
         if not self._lazy:
             self.images = [
-                self._preprocess(img, image_type=True) for img in self.images
+                self._preprocess(self.transform(Image.open(img)), image_type=True) for img in self.images
             ]
             self.points2d = [self._preprocess(p) for p in self.points2d]
             self.points3d = [self._preprocess(p) for p in self.points3d]

@@ -41,6 +41,7 @@ class BaseTrainer(ABC):
         self.inner_criterion = torch.nn.MSELoss()
         self._lambda1 = 0.01
         self._lambda2 = 1
+        self._epoch = 0
 
     def train(
         self,
