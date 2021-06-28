@@ -13,6 +13,8 @@ Meta-Train HOPE-Net or its individual parts.
 from data.factory import DatasetFactory, AlgorithmFactory
 from util.options import parse_args
 
+import os
+
 
 def main(args):
     # TODO: Parse from args instead
@@ -43,10 +45,13 @@ def main(args):
         args.algorithm,
         args.model_def,
         dataset,
+        os.path.join("./checkpoints", args.checkpoint_name),
         args.k_shots,
         args.n_queries,
         args.inner_steps,
+        model_path=args.load_ckpt,
         test_mode=args.test,
+        use_cuda=True,
         gpu_number=args.gpu_number,
     )
     if args.test:
@@ -61,6 +66,7 @@ def main(args):
             iterations=args.num_iterations,
             fast_lr=args.fast_lr,
             meta_lr=args.meta_lr,
+            save_every=args.save_every,
         )
 
 

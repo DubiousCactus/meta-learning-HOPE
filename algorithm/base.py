@@ -15,6 +15,7 @@ from HOPE.utils.model import select_model
 from abc import ABC
 
 import torch
+import os
 
 
 class BaseTrainer(ABC):
@@ -22,6 +23,7 @@ class BaseTrainer(ABC):
         self,
         model_name: str,
         dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
@@ -33,6 +35,9 @@ class BaseTrainer(ABC):
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_number)
         self.dataset = dataset
+        self._checkpoint_path = checkpoint_path
+        if not os.path.isdir(checkpoint_path):
+            os.makedirs(checkpoint_path)
         self.inner_criterion = torch.nn.MSELoss()
         # TODO: Add a scheduler in the meta-training loop?
         # self.scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step,

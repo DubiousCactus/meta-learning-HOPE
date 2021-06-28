@@ -80,9 +80,11 @@ class AlgorithmFactory:
         algorithm: str,
         model_def: str,
         dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
         k_shots: int,
         n_queries: int,
         inner_steps: int,
+        model_path: str = None,
         test_mode: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
@@ -103,9 +105,11 @@ class AlgorithmFactory:
                 raise Exception(f"No training algorithm found for model {model_def}")
             return trainer(
                 dataset,
+                checkpoint_path,
                 k_shots,
                 n_queries,
                 inner_steps,
+                model_path=model_path,
                 use_cuda=use_cuda,
                 gpu_number=gpu_number,
                 test_mode=test_mode,

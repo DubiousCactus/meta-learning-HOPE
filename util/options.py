@@ -20,9 +20,9 @@ def parse_args():
         "--dataset", default="./datasets/obman/", help="Input directory", required=True
     )
     parser.add_argument(
-        "--checkpoint",
-        default="./checkpoints/model-",
-        help="Prefix of output pkl filename",
+        "--checkpoint-name",
+        default="log",
+        help="Name of checkpointing folder",
         required=True,
     )
     # Optional arguments.
@@ -41,7 +41,9 @@ def parse_args():
         help="Name of the model 'HopeNet', 'ResNet', 'GraphUNet' or 'GraphNet'",
         choices=["HopeNet", "ResNet", "GraphUNet", "GraphNet"],
     )
-    parser.add_argument("--load-ckpt", type=str, help="Load trained model file")
+    parser.add_argument(
+        "--load-ckpt", type=str, default=None, help="Load trained model file"
+    )
     parser.add_argument(
         "--gpu-number",
         type=int,
@@ -88,6 +90,12 @@ def parse_args():
         type=int,
         default=1,
         help="Number of inner-loop trianing steps for Meta-Training.",
+    )
+    parser.add_argument(
+        "--save-every",
+        type=int,
+        default=100,
+        help="Number of epochs to skip for every model checkpoint.",
     )
     args = parser.parse_args()
     return args

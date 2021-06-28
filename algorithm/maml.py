@@ -17,7 +17,7 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 import learn2learn as l2l
 import torch
-
+import os
 
 MetaBatch = namedtuple("MetaBatch", "support query")
 
@@ -27,9 +27,11 @@ class MAMLTrainer(BaseTrainer):
         self,
         model_name: str,
         dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
         k_shots: int,
         n_querries: int,
         inner_steps: int,
+        model_path: str = None,
         first_order: bool = False,
         use_cuda: int = False,
         gpu_number: int = 0,
@@ -45,6 +47,7 @@ class MAMLTrainer(BaseTrainer):
         super().__init__(
             model_name,
             dataset,
+            checkpoint_path,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
@@ -53,6 +56,8 @@ class MAMLTrainer(BaseTrainer):
         self._n_querries = n_querries
         self._steps = inner_steps
         self._first_order = first_order
+        self._model_path = model_path
+        self._epoch = 0
 
     def _training_step(self, support: tuple, query: tuple, learner):
         raise NotImplementedError("_training_step() not implemented!")
@@ -75,18 +80,32 @@ class MAMLTrainer(BaseTrainer):
             (images[query_indices], labels_2d[query_indices], labels_3d[query_indices]),
         )
 
+    def _restore(self, maml, opt, resume_training: bool = True):
+        checkpoint = torch.load(self._model_path)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        maml.load_state_dict(checkpoint['maml_state_dict'])
+        opt.load_state_dict(checkpoint['meta_opt_state_dict'])
+        if resume_training:
+            self._epoch = checkpoint['epoch'] + 1
+            return checkpoint['val_meta_loss']
+
+
     def train(
         self,
         meta_batch_size: int = 32,
         iterations: int = 1000,
         fast_lr: float = 0.001,
         meta_lr: float = 0.01,
+        save_every: int = 100,
     ):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
-        for iteration in range(iterations):
+        past_val_loss = float("+inf")
+        if self._model_path:
+            past_val_loss = self._restore(maml, opt, resume_training=True)
+        for iteration in range(self._epoch, iterations):
             opt.zero_grad()
             meta_train_loss = 0.0
             meta_val_loss = 0.0
@@ -104,9 +123,11 @@ class MAMLTrainer(BaseTrainer):
                 meta_batch = self._split_batch(self.dataset.val.sample())
                 inner_loss = self._training_step(meta_batch, learner)
                 meta_val_loss += inner_loss.item()
+            meta_train_loss = meta_train_loss / meta_batch_size
+            meta_val_loss = meta_val_loss / meta_batch_size
             print(f"==========[Iteration {iteration}]==========")
-            print(f"Meta-training Loss: {meta_train_loss/meta_batch_size:.6f}")
-            print(f"Meta-validation Loss: {meta_val_loss/meta_batch_size:.6f}")
+            print(f"Meta-training Loss: {meta_train_loss:.6f}")
+            print(f"Meta-validation Loss: {meta_val_loss:.6f}")
             print("============================================")
 
             # Average the accumulated gradients and optimize
@@ -116,6 +137,24 @@ class MAMLTrainer(BaseTrainer):
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / meta_batch_size)
             opt.step()
+
+            # Model checkpointing
+            if iteration % save_every == 0 and meta_val_loss < past_val_loss:
+                print(f"-> Saving model to {self._checkpoint_path}...")
+                torch.save(
+                    {
+                        "epoch": iteration,
+                        "model_state_dict": self.model.state_dict(),
+                        "maml_state_dict": maml.state_dict(),
+                        "meta_opt_state_dict": opt.state_dict(),
+                        "val_meta_loss": meta_val_loss,
+                    },
+                    os.path.join(
+                        self._checkpoint_path,
+                        f"epoch_{iteration}_train_loss-{meta_train_loss:.6f}_val_loss-{meta_val_loss:.6f}.tar",
+                    ),
+                )
+                past_val_loss = meta_val_loss
 
     def test(
         self,
@@ -127,6 +166,8 @@ class MAMLTrainer(BaseTrainer):
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        if self._model_path:
+            self._restore(maml, opt, resume_training=False)
         meta_test_loss = 0.0
         for task in range(meta_batch_size):
             learner = maml.clone()
