@@ -4,4 +4,4 @@ use_cuda: True
 save_every: 100
 test_mode: False
 defaults:
-    - experiment: maml_resnet_fphad
+    - experiment: maml_resnet_obman

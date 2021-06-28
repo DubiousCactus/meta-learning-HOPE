@@ -4,7 +4,7 @@ meta_lr: 0.01
 k_shots: 15
 n_queries: 30
 steps: 5
-meta_batch_size: 6
+meta_batch_size: 8
 iterations: 15000
 saved_model: ''
 checkpoint_path: checkpoints/untitled
