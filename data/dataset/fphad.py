@@ -9,8 +9,10 @@
 """
 First-Person Hand Dataset (task) loader
 """
-from data.custom import CustomDataset, CompatDataLoader
+
 from data.dataset.base import BaseDatasetTaskLoader
+from torch.utils.data import DataLoader
+from data.custom import CustomDataset
 from functools import reduce
 from typing import Union
 
@@ -220,15 +222,12 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             samples,
             self._transform,
             object_as_task=object_as_task,
-            use_cuda=self._use_cuda,
-            gpu_number=self._gpu_number,
-            pin_memory=True,
         )
         return dataset
 
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool
-    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
+    ) -> Union[DataLoader, l2l.data.TaskDataset]:
         split_task_set = self._make_dataset(split, object_as_task=object_as_task)
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
@@ -245,13 +244,10 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                 ],
             )
         else:
-            split_dataset_loader = CompatDataLoader(
-                split_dataset,
+            split_dataset_loader = DataLoader(
+                split_task_set,
                 batch_size=self._batch_size,
                 shuffle=shuffle,
-                num_workers=8,
-                use_cuda=self._use_cuda,
-                gpu_number=self._gpu_number,
-                pin_memory=True,
+                num_workers=os.cpu_count()-1,
             )
         return split_dataset_loader

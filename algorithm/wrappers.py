@@ -12,6 +12,7 @@ Part-specific training wrappers.
 
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.maml import MAMLTrainer, MetaBatch
+from algorithm.regular import RegularTrainer
 
 
 class MAML_HOPETrainer(MAMLTrainer):
@@ -45,6 +46,13 @@ class MAML_HOPETrainer(MAMLTrainer):
     def _training_step(self, batch: MetaBatch, learner):
         s_inputs, s_labels2d, s_labels3d = batch.support
         q_inputs, q_labels2d, q_labels3d = batch.query
+        if self._use_cuda:
+            s_inputs = s_inputs.float().cuda(device=self._gpu_number[0])
+            s_labels2d = s_labels2d.float().cuda(device=self._gpu_number[0])
+            s_labels3d = s_labels3d.float().cuda(device=self._gpu_number[0])
+            q_inputs = q_inputs.float().cuda(device=self._gpu_number[0])
+            q_labels2d = q_labels2d.float().cuda(device=self._gpu_number[0])
+            q_labels3d = q_labels3d.float().cuda(device=self._gpu_number[0])
 
         # Adapt the model on the support set
         for step in range(self._steps):
@@ -104,6 +112,11 @@ class MAML_ResnetTrainer(MAMLTrainer):
     def _training_step(self, batch: MetaBatch, learner):
         s_inputs, s_labels2d, _ = batch.support
         q_inputs, q_labels2d, _ = batch.query
+        if self._use_cuda:
+            s_inputs = s_inputs.float().cuda(device=self._gpu_number[0])
+            s_labels2d = s_labels2d.float().cuda(device=self._gpu_number[0])
+            q_inputs = q_inputs.float().cuda(device=self._gpu_number[0])
+            q_labels2d = q_labels2d.float().cuda(device=self._gpu_number[0])
 
         # Adapt the model on the support set
         for step in range(self._steps):
@@ -149,6 +162,11 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
     def _training_step(self, batch: MetaBatch, learner):
         _, s_labels2d, s_labels3d = batch.support
         _, q_labels2d, q_labels3d = batch.query
+        if self._use_cuda:
+            s_labels2d = s_labels2d.float().cuda(device=self._gpu_number[0])
+            s_labels3d = s_labels3d.float().cuda(device=self._gpu_number[0])
+            q_labels2d = q_labels2d.float().cuda(device=self._gpu_number[0])
+            q_labels3d = q_labels3d.float().cuda(device=self._gpu_number[0])
 
         # Adapt the model on the support set
         for step in range(self._steps):
@@ -161,3 +179,68 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         outputs3d = learner(q_labels2d)
         query_loss = self.inner_criterion(outputs3d, q_labels3d)
         return query_loss
+
+
+class Regular_ResnetTrainer(RegularTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        model_path: str = None,
+        use_cuda: int = False,
+        gpu_number: int = 0,
+        test_mode: bool = False,
+    ):
+        super().__init__(
+            "resnet10",
+            dataset,
+            checkpoint_path,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_number=gpu_number,
+            test_mode=test_mode,
+        )
+
+    def _training_step(self, batch: tuple, backward: bool = True):
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number[0])
+            labels2d = labels2d.float().cuda(device=self._gpu_number[0])
+        outputs2d_init, _ = self.model(inputs)
+        loss = self.inner_criterion(outputs2d_init, labels2d)
+        if backward:
+            loss.backward()
+        return loss
+
+
+class Regular_GraphUNetTrainer(RegularTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        model_path: str = None,
+        use_cuda: int = False,
+        gpu_number: int = 0,
+        test_mode: bool = False,
+    ):
+        super().__init__(
+            "graphunet",
+            dataset,
+            checkpoint_path,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_number=gpu_number,
+            test_mode=test_mode,
+        )
+
+    def _training_step(self, batch: tuple, backward: bool = True):
+        _, labels2d, labels3d = batch
+        if self._use_cuda:
+            labels2d = labels2d.float().cuda(device=self._gpu_number[0])
+            labels3d = labels3d.float().cuda(device=self._gpu_number[0])
+        outputs3d = self.model(labels2d)
+        loss = self.inner_criterion(outputs3d, labels3d)
+        if backward:
+            loss.backward()
+        return loss
+

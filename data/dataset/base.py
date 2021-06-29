@@ -14,7 +14,8 @@ frames for one object class.
 import torchvision.transforms as transforms
 import learn2learn as l2l
 
-from data.custom import CustomDataset, CompatDataLoader
+from torch.utils.data import DataLoader
+from data.custom import CustomDataset
 from typing import Union
 from abc import ABC
 
@@ -54,5 +55,5 @@ class BaseDatasetTaskLoader(ABC):
 
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool
-    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
+    ) -> Union[DataLoader, l2l.data.TaskDataset]:
         raise NotImplementedError

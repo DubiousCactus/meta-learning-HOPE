@@ -24,11 +24,11 @@ def main(cfg: DictConfig):
         cfg.shapenet_root,
         cfg.experiment.dataset,
         cfg.experiment.dataset_path,
-        cfg.experiment.meta_batch_size,
+        cfg.experiment.batch_size,
         cfg.test_mode,
         cfg.experiment.k_shots,
         cfg.experiment.n_queries,
-        object_as_task=True,
+        object_as_task=cfg.experiment.object_as_task,
     )
     trainer = AlgorithmFactory.make_training_algorithm(
         cfg.experiment.algorithm,
@@ -38,22 +38,20 @@ def main(cfg: DictConfig):
         cfg.experiment.n_queries,
         cfg.experiment.steps,
         cfg.experiment.checkpoint_path,
-        model_path=cfg.experiment.saved_model
-        if cfg.experiment.saved_model != ""
-        else None,
+        model_path=cfg.experiment.saved_model,
         test_mode=cfg.test_mode,
         use_cuda=cfg.use_cuda,
         gpu_number=cfg.gpu_number,
     )
     if cfg.test_mode:
         trainer.test(
-            meta_batch_size=cfg.experiment.meta_batch_size,
+            batch_size=cfg.experiment.batch_size,
             fast_lr=cfg.experiment.fast_lr,
             meta_lr=cfg.experiment.meta_lr,
         )
     else:
         trainer.train(
-            meta_batch_size=cfg.experiment.meta_batch_size,
+            batch_size=cfg.experiment.batch_size,
             iterations=cfg.experiment.iterations,
             fast_lr=cfg.experiment.fast_lr,
             meta_lr=cfg.experiment.meta_lr,

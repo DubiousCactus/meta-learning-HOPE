@@ -11,9 +11,10 @@ ObMan Dataset (task) loader
 """
 
 from data.util import fast_load_obj, compute_obman_labels, mp_process_meta_file
-from data.custom import CustomDataset, CompatDataLoader
 from data.dataset.base import BaseDatasetTaskLoader
 from multiprocessing import Pool, Queue, cpu_count
+from torch.utils.data import DataLoader
+from data.custom import CustomDataset
 from typing import Union
 from tqdm import tqdm
 
@@ -280,15 +281,12 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             samples,
             self._transform,
             object_as_task=object_as_task,
-            use_cuda=self._use_cuda,
-            gpu_number=self._gpu_number,
-            pin_memory=True,
         )
         return dataset
 
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool
-    ) -> Union[CompatDataLoader, l2l.data.TaskDataset]:
+    ) -> Union[DataLoader, l2l.data.TaskDataset]:
         if split in os.listdir(self._root):
             split_path = os.path.join(self._root, split)
         else:
@@ -313,13 +311,9 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 ],
             )
         else:
-            split_dataset_loader = CompatDataLoader(
+            split_dataset_loader = DataLoader(
                 split_task_set,
-                self._batch_size,
+                batch_size=self._batch_size,
                 shuffle=shuffle,
-                num_workers=8,
-                use_cuda=self._use_cuda,
-                gpu_number=self._gpu_number,
-                pin_memory=True,
             )
         return split_dataset_loader

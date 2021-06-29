@@ -13,6 +13,7 @@ Meta-Training.
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
 from collections import namedtuple
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import learn2learn as l2l
@@ -91,7 +92,7 @@ class MAMLTrainer(BaseTrainer):
 
     def train(
         self,
-        meta_batch_size: int = 32,
+        batch_size: int = 32,
         iterations: int = 1000,
         fast_lr: float = 0.001,
         meta_lr: float = 0.01,
@@ -114,12 +115,12 @@ class MAMLTrainer(BaseTrainer):
             saved_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
             if resume:
                 past_val_loss = saved_val_loss
-        for iteration in range(self._epoch, iterations):
+        for epoch in range(self._epoch, iterations):
             opt.zero_grad()
             meta_train_loss = 0.0
             meta_val_loss = 0.0
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
-            for task in range(meta_batch_size):
+            for task in tqdm(range(batch_size)):
                 # Compute the meta-training loss
                 learner = maml.clone()
                 meta_batch = self._split_batch(self.dataset.train.sample())
@@ -127,18 +128,18 @@ class MAMLTrainer(BaseTrainer):
                 inner_loss.backward()
                 meta_train_loss += inner_loss.item()
 
-                if iteration % val_every == 0:
+                if (epoch + 1) % val_every == 0:
                     # Compute the meta-validation loss
                     leaner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.val.sample())
                     inner_loss = self._training_step(meta_batch, learner)
                     meta_val_loss += inner_loss.item()
-            meta_train_loss = meta_train_loss / meta_batch_size
-            if iteration % val_every == 0:
-                meta_val_loss = meta_val_loss / meta_batch_size
-            print(f"==========[Iteration {iteration}]==========")
+            meta_train_loss = meta_train_loss / batch_size
+            if epoch % val_every == 0:
+                meta_val_loss = meta_val_loss / batch_size
+            print(f"==========[Epoch {epoch}]==========")
             print(f"Meta-training Loss: {meta_train_loss:.6f}")
-            if iteration % val_every == 0:
+            if epoch % val_every == 0:
                 print(f"Meta-validation Loss: {meta_val_loss:.6f}")
             print("============================================")
 
@@ -147,16 +148,16 @@ class MAMLTrainer(BaseTrainer):
                 # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
                 # instead of modifying the original code, this simple check will do).
                 if p.grad is not None:
-                    p.grad.data.mul_(1.0 / meta_batch_size)
+                    p.grad.data.mul_(1.0 / batch_size)
             opt.step()
             scheduler.step()
 
             # Model checkpointing
-            if iteration % save_every == 0 and meta_val_loss < past_val_loss:
+            if epoch % save_every == 0 and meta_val_loss < past_val_loss:
                 print(f"-> Saving model to {self._checkpoint_path}...")
                 torch.save(
                     {
-                        "epoch": iteration,
+                        "epoch": epoch,
                         "model_state_dict": self.model.state_dict(),
                         "maml_state_dict": maml.state_dict(),
                         "meta_opt_state_dict": opt.state_dict(),
@@ -165,14 +166,14 @@ class MAMLTrainer(BaseTrainer):
                     },
                     os.path.join(
                         self._checkpoint_path,
-                        f"epoch_{iteration}_train_loss-{meta_train_loss:.6f}_val_loss-{meta_val_loss:.6f}.tar",
+                        f"epoch_{epoch}_train_loss-{meta_train_loss:.6f}_val_loss-{meta_val_loss:.6f}.tar",
                     ),
                 )
                 past_val_loss = meta_val_loss
 
     def test(
         self,
-        meta_batch_size: int = 16,
+        batch_size: int = 16,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
     ):
@@ -183,7 +184,7 @@ class MAMLTrainer(BaseTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
         meta_test_loss = 0.0
-        for task in range(meta_batch_size):
+        for task in range(batch_size):
             learner = maml.clone()
             meta_batch = self._split_batch(self.dataset.test.sample())
 

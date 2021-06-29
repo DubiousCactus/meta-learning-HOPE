@@ -14,6 +14,8 @@ from data.dataset.base import BaseDatasetTaskLoader
 from data.dataset.obman import ObManTaskLoader
 from data.dataset.fphad import FPHADTaskLoader
 from algorithm.wrappers import (
+    Regular_GraphUNetTrainer,
+    Regular_ResnetTrainer,
     MAML_GraphUNetTrainer,
     MAML_ResnetTrainer,
     MAML_HOPETrainer,
@@ -113,6 +115,24 @@ class AlgorithmFactory:
                 test_mode=test_mode,
                 first_order=(algorithm == "fomaml"),
             )
+        elif algorithm == "regular":
+            if model_def == "hopenet":
+                raise Exception(f"No training algorithm found for model {model_def}")
+            elif model_def == "resnet":
+                trainer = Regular_ResnetTrainer
+            elif model_def == "graphunet":
+                trainer = Regular_GraphUNetTrainer
+            else:
+                raise Exception(f"No training algorithm found for model {model_def}")
+            return trainer(
+                dataset,
+                ckpt_path,
+                model_path=model_path,
+                use_cuda=use_cuda,
+                gpu_number=gpu_number,
+                test_mode=test_mode,
+            )
+
         else:
             raise Exception(f"No training algorithm found: {algorithm}")
         return trainer

@@ -40,14 +40,14 @@ class BaseTrainer(ABC):
         self._checkpoint_path = os.path.join(os.getcwd(), checkpoint_path)
         if not os.path.isdir(self._checkpoint_path):
             os.makedirs(self._checkpoint_path)
-        self.inner_criterion = torch.nn.MSELoss()
+        self.inner_criterion = torch.nn.MSELoss(reduction='mean')
         self._lambda1 = 0.01
         self._lambda2 = 1
         self._epoch = 0
 
     def train(
         self,
-        meta_batch_size: int = 16,
+        batch_size: int = 16,
         iterations: int = 1000,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
@@ -61,7 +61,7 @@ class BaseTrainer(ABC):
 
     def test(
         self,
-        meta_batch_size: int = 16,
+        batch_size: int = 16,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
     ):
