@@ -57,8 +57,7 @@ def main(cfg: DictConfig):
             meta_lr=cfg.experiment.meta_lr,
             lr_step=cfg.experiment.lr_step,
             lr_step_gamma=cfg.experiment.lr_step_gamma,
-            save_every=cfg.save_every,
-            val_every=cfg.val_every,
+            val_every=cfg.experiment.val_every,
             resume=cfg.resume_training,
         )
 

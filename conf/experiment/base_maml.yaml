@@ -1,6 +1,7 @@
 defaults:
     - base
 algorithm: maml
+val_every: 100
 fast_lr: 0.001
 meta_lr: 0.01
 lr_step: 100

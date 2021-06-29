@@ -3,6 +3,6 @@ defaults:
 iterations: 5000
 algorithm: regular
 model_def: ResNet
-checkpoint_path: checkpoints/resnet_regular
+checkpoint_path: checkpoints_resnet_regular
 dataset: obman
 dataset_path: /home/tmorales/Obman

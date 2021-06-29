@@ -1,11 +1,10 @@
 defaults:
     - base
+val_every: 10
 algorithm: regular
 fast_lr: 0.001
 lr_step: 100
 lr_step_gamma: 0.9
 batch_size: 64
 iterations: 5000
-val_every: 10
 object_as_task: False
-save_every: 10

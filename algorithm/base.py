@@ -37,7 +37,7 @@ class BaseTrainer(ABC):
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_number)
         self.dataset = dataset
-        self._checkpoint_path = os.path.join(os.getcwd(), checkpoint_path)
+        self._checkpoint_path = checkpoint_path
         if not os.path.isdir(self._checkpoint_path):
             os.makedirs(self._checkpoint_path)
         self.inner_criterion = torch.nn.MSELoss(reduction='mean')
@@ -53,7 +53,6 @@ class BaseTrainer(ABC):
         meta_lr: float = 0.001,
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
-        save_every: int = 100,
         val_every: int = 100,
         resume: bool = True,
     ):

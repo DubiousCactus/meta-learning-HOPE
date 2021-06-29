@@ -98,7 +98,6 @@ class MAMLTrainer(BaseTrainer):
         meta_lr: float = 0.01,
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
-        save_every: int = 100,
         val_every: int = 100,
         resume: bool = True,
     ):
@@ -153,7 +152,7 @@ class MAMLTrainer(BaseTrainer):
             scheduler.step()
 
             # Model checkpointing
-            if epoch % save_every == 0 and meta_val_loss < past_val_loss:
+            if epoch % val_every == 0 and meta_val_loss < past_val_loss:
                 print(f"-> Saving model to {self._checkpoint_path}...")
                 torch.save(
                     {

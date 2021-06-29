@@ -10,19 +10,16 @@
 ObMan Dataset (task) loader
 """
 
-from data.util import fast_load_obj, compute_obman_labels, mp_process_meta_file
 from data.dataset.base import BaseDatasetTaskLoader
-from multiprocessing import Pool, Queue, cpu_count
 from torch.utils.data import DataLoader
 from data.custom import CustomDataset
+from data.util import fast_load_obj
 from typing import Union
 from tqdm import tqdm
 
 import learn2learn as l2l
 import numpy as np
-import itertools
 import trimesh
-import parmap
 import pickle
 import torch
 import os
@@ -141,100 +138,6 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             torch.cat([hand_coords_2d, torch.Tensor(vertices_2d)]),
             torch.cat([hand_coords_3d, torch.Tensor(vertices_3d)]),
         )
-
-    def _make_dataset_mp(
-        self, split: str, root: str, object_as_task=False
-    ) -> CustomDataset:
-        """
-        Make a dataset using a multiprocessing pool.
-        """
-        pickle_path = os.path.join(
-            root,
-            f"obman_{split}_task.pkl" if object_as_task else f"obman_{split}.pkl",
-        )
-        if os.path.isfile(pickle_path):
-            with open(pickle_path, "rb") as pickle_file:
-                print(f"[*] Loading {split} split from {pickle_path}...")
-                samples = pickle.load(pickle_file)
-        else:
-            print(f"[*] Building {split} split...")
-            samples = {} if object_as_task else []
-            class_ids = []
-
-            def process_result(result):
-                img_path, coord_2d, coord_3d = sample
-                if object_as_task:
-                    if obj_id in class_ids:
-                        samples[class_ids.index(obj_id)].append(
-                            (img_path, coord_2d, coord_3d)
-                        )
-                    else:
-                        class_ids.append(obj_id)
-                        samples[class_ids.index(obj_id)] = [
-                            (img_path, coord_2d, coord_3d)
-                        ]
-                else:
-                    samples.append((img_path, coord_2d, coord_3d))
-
-            indices = {
-                x.split(".")[0]: os.path.join(root, "meta", x)
-                for x in sorted(os.listdir(os.path.join(root, "meta")))
-            }
-            # inputs = zip(
-            # indices.items(),
-            # [root] * len(indices),
-            # [self._cam_intr] * len(indices),
-            # [self._cam_extr] * len(indices),
-            # [self._shapenet_template] * len(indices),
-            # )
-            results = parmap.starmap(
-                mp_process_meta_file,
-                indices.items(),
-                root,
-                self._cam_intr,
-                self._cam_extr,
-                self._shapenet_template,
-                pm_pbar=True,
-            )
-            # torch.multiprocessing.set_sharing_strategy('file_system')
-            # with torch.multiprocessing.Pool(
-            # torch.multiprocessing.cpu_count()-1) as pool:
-            # pool.starmap_async(
-            # mp_process_meta_file,
-            # tqdm(inputs, total=len(indices)),
-            # chunksize=1,
-            # callback=process_result
-            # )
-            # pool.close()
-            #     pool.join()
-            print(f"\t -> Merging data samples...")
-            for obj_id, sample in results:
-                img_path, coord_2d, coord_3d = sample
-                if object_as_task:
-                    if obj_id in class_ids:
-                        samples[class_ids.index(obj_id)].append(
-                            (img_path, coord_2d, coord_3d)
-                        )
-                    else:
-                        class_ids.append(obj_id)
-                        samples[class_ids.index(obj_id)] = [
-                            (img_path, coord_2d, coord_3d)
-                        ]
-                else:
-                    samples.append((img_path, coord_2d, coord_3d))
-            with open(pickle_path, "wb") as pickle_file:
-                print(f"[*] Saving {split} split into {pickle_path}...")
-                pickle.dump(samples, pickle_file)
-        print(f"[*] Generating dataset in pinned memory...")
-        dataset = CustomDataset(
-            samples,
-            self._transform,
-            object_as_task=object_as_task,
-            use_cuda=self._use_cuda,
-            gpu_number=self._gpu_number,
-            pin_memory=True,
-        )
-        return dataset
 
     def _make_dataset(
         self, split: str, root: str, object_as_task=False

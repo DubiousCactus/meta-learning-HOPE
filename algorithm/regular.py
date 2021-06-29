@@ -42,6 +42,16 @@ class RegularTrainer(BaseTrainer):
             test_mode=test_mode,
         )
 
+    def _restore(self, opt, scheduler, resume_training: bool = True):
+        checkpoint = torch.load(self._model_path)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        opt.load_state_dict(checkpoint["opt_state_dict"])
+        if resume_training:
+            self._epoch = checkpoint["epoch"] + 1
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            return checkpoint["val_loss"]
+
+
     def train(
         self,
         batch_size: int = 32,
@@ -50,7 +60,6 @@ class RegularTrainer(BaseTrainer):
         meta_lr: float = None,
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
-        save_every: int = 100,
         val_every: int = 100,
         resume: bool = True,
     ):
@@ -84,6 +93,23 @@ class RegularTrainer(BaseTrainer):
                 print(f"Validation Loss: {avg_val_loss:.6f}")
             print("============================================")
             scheduler.step()
+            # Model checkpointing
+            if (epoch + 1) % val_every == 0 and avg_val_loss < past_val_loss:
+                print(f"-> Saving model to {self._checkpoint_path}...")
+                torch.save(
+                    {
+                        "epoch": epoch,
+                        "model_state_dict": self.model.state_dict(),
+                        "opt_state_dict": opt.state_dict(),
+                        "scheduler_state_dict": scheduler.state_dict(),
+                        "val_loss": avg_val_loss,
+                    },
+                    os.path.join(
+                        self._checkpoint_path,
+                        f"epoch_{epoch}_train_loss-{avg_train_loss:.6f}_val_loss-{avg_val_loss:.6f}.tar",
+                    ),
+                )
+                past_val_loss = avg_val_loss
 
 
     def test(

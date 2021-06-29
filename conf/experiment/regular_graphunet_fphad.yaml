@@ -3,6 +3,6 @@ defaults:
 iterations: 15000
 algorithm: regular
 model_def: GraphUNet
-checkpoint_path: checkpoints/graphunet_regular
+checkpoint_path: checkpoints_graphunet_regular
 dataset: fphad
 dataset_path: /home/cactus/Code/FPHAD

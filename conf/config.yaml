@@ -1,8 +1,6 @@
 shapenet_root: /home/tmorales/ShapeNetCore.v2
 gpu_number: [0]
 use_cuda: True
-save_every: 100
-val_every: 100
 test_mode: False
 resume_training: True
 defaults:
