@@ -72,21 +72,21 @@ class RegularTrainer(BaseTrainer):
         if self._model_path:
             past_val_loss = self._restore(opt, scheduler, resume_training=resume)
         for epoch in range(self._epoch, iterations):
-            train_loss = 0
+            train_losses = []
             for batch in tqdm(self.dataset.train):
                 opt.zero_grad()
                 loss = self._training_step(batch)
-                train_loss += loss.detach()
+                train_losses.append(loss.detach())
                 opt.step()
 
             if (epoch + 1) % val_every == 0:
-                val_loss = 0
+                val_losses = []
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val):
-                    val_loss += self._training_step(batch, backward=False).detach()
-                avg_val_loss = val_loss.mean().item()
+                    val_losses.append(self._training_step(batch, backward=False).detach())
+                avg_val_loss = torch.Tensor(val_losses).mean().item()
 
-            avg_train_loss = train_loss.mean().item()
+            avg_train_loss = torch.Tensor(train_losses).mean().item()
             print(f"==========[Epoch {epoch}]==========")
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:

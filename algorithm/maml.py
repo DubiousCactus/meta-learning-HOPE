@@ -116,7 +116,7 @@ class MAMLTrainer(BaseTrainer):
                 past_val_loss = saved_val_loss
         for epoch in range(self._epoch, iterations):
             opt.zero_grad()
-            meta_train_loss = 0.0
+            meta_train_losses, meta_val_losses = []
             meta_val_loss = 0.0
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
             for task in tqdm(range(batch_size)):
@@ -125,17 +125,17 @@ class MAMLTrainer(BaseTrainer):
                 meta_batch = self._split_batch(self.dataset.train.sample())
                 inner_loss = self._training_step(meta_batch, learner)
                 inner_loss.backward()
-                meta_train_loss += inner_loss.item()
+                meta_train_losses.append(inner_loss.detach())
 
                 if (epoch + 1) % val_every == 0:
                     # Compute the meta-validation loss
                     leaner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.val.sample())
                     inner_loss = self._training_step(meta_batch, learner)
-                    meta_val_loss += inner_loss.item()
-            meta_train_loss = meta_train_loss / batch_size
+                    meta_val_losses.append(inner_loss.detach())
+            meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
             if epoch % val_every == 0:
-                meta_val_loss = meta_val_loss / batch_size
+                meta_val_loss = torch.Tensor(meta_val_losses).mean().item()
             print(f"==========[Epoch {epoch}]==========")
             print(f"Meta-training Loss: {meta_train_loss:.6f}")
             if epoch % val_every == 0:
