@@ -111,7 +111,9 @@ class MAMLTrainer(BaseTrainer):
         scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         if self._model_path:
-            past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+            saved_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+            if resume_training:
+                past_val_loss = saved_val_loss
         for iteration in range(self._epoch, iterations):
             opt.zero_grad()
             meta_train_loss = 0.0
