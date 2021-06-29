@@ -112,7 +112,7 @@ class MAMLTrainer(BaseTrainer):
         past_val_loss = float("+inf")
         if self._model_path:
             saved_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
-            if resume_training:
+            if resume:
                 past_val_loss = saved_val_loss
         for iteration in range(self._epoch, iterations):
             opt.zero_grad()
