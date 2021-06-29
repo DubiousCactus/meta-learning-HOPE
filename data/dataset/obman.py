@@ -315,5 +315,6 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 split_task_set,
                 batch_size=self._batch_size,
                 shuffle=shuffle,
+                num_workers=os.cpu_count()-1,
             )
         return split_dataset_loader

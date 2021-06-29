@@ -9,4 +9,3 @@ iterations: 5000
 val_every: 10
 object_as_task: False
 save_every: 10
-val_every: 10
