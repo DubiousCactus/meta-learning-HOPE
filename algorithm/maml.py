@@ -98,6 +98,7 @@ class MAMLTrainer(BaseTrainer):
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
         save_every: int = 100,
+        resume: bool = True,
     ):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
@@ -108,7 +109,7 @@ class MAMLTrainer(BaseTrainer):
         scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         if self._model_path:
-            past_val_loss = self._restore(maml, opt, scheduler, resume_training=True)
+            past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
         for iteration in range(self._epoch, iterations):
             opt.zero_grad()
             meta_train_loss = 0.0

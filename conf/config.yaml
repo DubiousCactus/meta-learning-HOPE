@@ -3,5 +3,6 @@ gpu_number: [0]
 use_cuda: True
 save_every: 100
 test_mode: False
+resume_training: True
 defaults:
     - experiment: maml_resnet_obman
