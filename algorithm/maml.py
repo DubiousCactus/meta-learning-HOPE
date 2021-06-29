@@ -48,6 +48,7 @@ class MAMLTrainer(BaseTrainer):
             model_name,
             dataset,
             checkpoint_path,
+            model_path=model_path,
             use_cuda=use_cuda,
             gpu_number=gpu_number,
             test_mode=test_mode,
@@ -56,7 +57,6 @@ class MAMLTrainer(BaseTrainer):
         self._n_querries = n_querries
         self._steps = inner_steps
         self._first_order = first_order
-        self._model_path = model_path
 
     def _training_step(self, support: tuple, query: tuple, learner):
         raise NotImplementedError("_training_step() not implemented!")
@@ -98,14 +98,16 @@ class MAMLTrainer(BaseTrainer):
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
         save_every: int = 100,
+        val_every: int = 100,
         resume: bool = True,
     ):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
         opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=lr_step, gamma=lr_step_gamma,
-                verbose=True)
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
+        )
         scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         if self._model_path:
@@ -123,16 +125,19 @@ class MAMLTrainer(BaseTrainer):
                 inner_loss.backward()
                 meta_train_loss += inner_loss.item()
 
-                # Compute the meta-validation loss
-                leaner = maml.clone()
-                meta_batch = self._split_batch(self.dataset.val.sample())
-                inner_loss = self._training_step(meta_batch, learner)
-                meta_val_loss += inner_loss.item()
+                if iteration % val_every == 0:
+                    # Compute the meta-validation loss
+                    leaner = maml.clone()
+                    meta_batch = self._split_batch(self.dataset.val.sample())
+                    inner_loss = self._training_step(meta_batch, learner)
+                    meta_val_loss += inner_loss.item()
             meta_train_loss = meta_train_loss / meta_batch_size
-            meta_val_loss = meta_val_loss / meta_batch_size
+            if iteration % val_every == 0:
+                meta_val_loss = meta_val_loss / meta_batch_size
             print(f"==========[Iteration {iteration}]==========")
             print(f"Meta-training Loss: {meta_train_loss:.6f}")
-            print(f"Meta-validation Loss: {meta_val_loss:.6f}")
+            if iteration % val_every == 0:
+                print(f"Meta-validation Loss: {meta_val_loss:.6f}")
             print("============================================")
 
             # Average the accumulated gradients and optimize

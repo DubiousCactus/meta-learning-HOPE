@@ -60,6 +60,7 @@ def main(cfg: DictConfig):
             lr_step=cfg.experiment.lr_step,
             lr_step_gamma=cfg.experiment.lr_step_gamma,
             save_every=cfg.save_every,
+            val_every=cfg.val_every,
             resume=cfg.resume_training,
         )
 

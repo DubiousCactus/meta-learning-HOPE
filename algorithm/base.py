@@ -24,12 +24,14 @@ class BaseTrainer(ABC):
         model_name: str,
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
+        model_path: str = None,
         use_cuda: int = False,
         gpu_number: int = 0,
         test_mode: bool = False,
     ):
         self._use_cuda = use_cuda
         self._gpu_number = gpu_number
+        self._model_path = model_path
         self.model = select_model(model_name)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
@@ -49,8 +51,11 @@ class BaseTrainer(ABC):
         iterations: int = 1000,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
-        steps: int = 1,
-        shots: int = 10,
+        lr_step: int = 100,
+        lr_step_gamma: float = 0.5,
+        save_every: int = 100,
+        val_every: int = 100,
+        resume: bool = True,
     ):
         raise NotImplementedError
 
@@ -59,7 +64,5 @@ class BaseTrainer(ABC):
         meta_batch_size: int = 16,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
-        steps: int = 1,
-        shots: int = 10,
     ):
         raise NotImplementedError
