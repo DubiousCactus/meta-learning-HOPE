@@ -13,7 +13,7 @@ ObMan Dataset (task) loader
 from data.dataset.base import BaseDatasetTaskLoader
 from torch.utils.data import DataLoader
 from data.custom import CustomDataset
-from data.util import fast_load_obj
+from util.utils import fast_load_obj
 from typing import Union
 from tqdm import tqdm
 

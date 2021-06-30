@@ -96,7 +96,7 @@ class MAML_ResnetTrainer(MAMLTrainer):
         test_mode: bool = False,
     ):
         super().__init__(
-            "resnet10",
+            "resnet50",
             dataset,
             checkpoint_path,
             k_shots,
@@ -192,7 +192,7 @@ class Regular_ResnetTrainer(RegularTrainer):
         test_mode: bool = False,
     ):
         super().__init__(
-            "resnet10",
+            "resnet50",
             dataset,
             checkpoint_path,
             model_path=model_path,

@@ -10,7 +10,7 @@
 Meta-Train HOPE-Net or its individual parts.
 """
 
-from data.factory import DatasetFactory, AlgorithmFactory
+from util.factory import DatasetFactory, AlgorithmFactory
 from omegaconf import DictConfig, OmegaConf
 
 import hydra
