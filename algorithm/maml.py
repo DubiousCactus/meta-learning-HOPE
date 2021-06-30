@@ -13,6 +13,7 @@ Meta-Training.
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
 from collections import namedtuple
+from typing import List
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
@@ -35,7 +36,7 @@ class MAMLTrainer(BaseTrainer):
         model_path: str = None,
         first_order: bool = False,
         use_cuda: int = False,
-        gpu_number: int = 0,
+        gpu_numbers: List = [0],
         test_mode: bool = False,
         object_as_task: bool = True,
     ):
@@ -51,7 +52,7 @@ class MAMLTrainer(BaseTrainer):
             checkpoint_path,
             model_path=model_path,
             use_cuda=use_cuda,
-            gpu_number=gpu_number,
+            gpu_numbers=gpu_numbers,
             test_mode=test_mode,
         )
         self._k_shots = k_shots

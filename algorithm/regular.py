@@ -13,6 +13,7 @@ Typical one-objective training.
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
 from collections import namedtuple
+from typing import List
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
@@ -29,7 +30,7 @@ class RegularTrainer(BaseTrainer):
         checkpoint_path: str,
         model_path: str = None,
         use_cuda: int = False,
-        gpu_number: int = 0,
+        gpu_numbers: List = [0],
         test_mode: bool = False,
     ):
         super().__init__(
@@ -38,7 +39,7 @@ class RegularTrainer(BaseTrainer):
             checkpoint_path,
             model_path=model_path,
             use_cuda=use_cuda,
-            gpu_number=gpu_number,
+            gpu_numbers=gpu_numbers,
             test_mode=test_mode,
         )
 

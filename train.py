@@ -41,7 +41,7 @@ def main(cfg: DictConfig):
         model_path=cfg.experiment.saved_model,
         test_mode=cfg.test_mode,
         use_cuda=cfg.use_cuda,
-        gpu_number=cfg.gpu_number,
+        gpu_numbers=cfg.gpu_numbers,
     )
     if cfg.test_mode:
         trainer.test(

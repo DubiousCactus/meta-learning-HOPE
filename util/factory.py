@@ -22,6 +22,7 @@ from algorithm.wrappers import (
 )
 from algorithm.base import BaseTrainer
 from abc import abstractmethod
+from typing import List
 
 import os
 
@@ -38,7 +39,7 @@ class DatasetFactory:
         n_querries: int,
         object_as_task: bool = False,
         use_cuda: bool = True,
-        gpu_number: int = 0,
+        gpu_numbers: List = [0],
     ):
         if not os.path.isdir(dataset_root):
             print(f"[!] {dataset_root} is not a valid directory!")
@@ -55,7 +56,7 @@ class DatasetFactory:
                 test=test,
                 object_as_task=object_as_task,
                 use_cuda=use_cuda,
-                gpu_number=gpu_number,
+                gpu_number=gpu_numbers[0],
             )
         elif dataset == "fphad":
             return FPHADTaskLoader(
@@ -66,7 +67,7 @@ class DatasetFactory:
                 test=test,
                 object_as_task=object_as_task,
                 use_cuda=use_cuda,
-                gpu_number=gpu_number,
+                gpu_number=gpu_numbers[0],
             )
         elif dataset == "ho3d":
             raise NotImplementedError("HO-3D Dataset Loader not implemented!")
@@ -87,7 +88,7 @@ class AlgorithmFactory:
         model_path: str = None,
         test_mode: bool = False,
         use_cuda: bool = True,
-        gpu_number: int = 0,
+        gpu_numbers: List = [0],
     ) -> BaseTrainer:
         trainer = lambda x: Exception()
         algorithm = algorithm.lower()
@@ -111,7 +112,7 @@ class AlgorithmFactory:
                 inner_steps,
                 model_path=model_path,
                 use_cuda=use_cuda,
-                gpu_number=gpu_number,
+                gpu_numbers=gpu_numbers,
                 test_mode=test_mode,
                 first_order=(algorithm == "fomaml"),
             )
@@ -129,7 +130,7 @@ class AlgorithmFactory:
                 ckpt_path,
                 model_path=model_path,
                 use_cuda=use_cuda,
-                gpu_number=gpu_number,
+                gpu_numbers=gpu_numbers,
                 test_mode=test_mode,
             )
 

@@ -12,6 +12,7 @@ Base training class.
 
 from data.dataset.base import BaseDatasetTaskLoader
 from HOPE.utils.model import select_model
+from typing import List
 from abc import ABC
 
 import torch
@@ -26,16 +27,16 @@ class BaseTrainer(ABC):
         checkpoint_path: str,
         model_path: str = None,
         use_cuda: int = False,
-        gpu_number: int = 0,
+        gpu_numbers: List = [0],
         test_mode: bool = False,
     ):
         self._use_cuda = use_cuda
-        self._gpu_number = gpu_number
+        self._gpu_number = gpu_numbers[0]
         self._model_path = model_path
         self.model = select_model(model_name)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
-            self.model = torch.nn.DataParallel(self.model, device_ids=gpu_number)
+            self.model = torch.nn.DataParallel(self.model, device_ids=gpu_numbers)
         self.dataset = dataset
         self._checkpoint_path = checkpoint_path
         if not os.path.isdir(self._checkpoint_path):
