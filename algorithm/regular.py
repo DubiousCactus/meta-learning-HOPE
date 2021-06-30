@@ -72,6 +72,7 @@ class RegularTrainer(BaseTrainer):
         if self._model_path:
             past_val_loss = self._restore(opt, scheduler, resume_training=resume)
         for epoch in range(self._epoch, iterations):
+            self.model.train()
             train_losses = []
             for batch in tqdm(self.dataset.train):
                 opt.zero_grad()
@@ -80,6 +81,7 @@ class RegularTrainer(BaseTrainer):
                 opt.step()
 
             if (epoch + 1) % val_every == 0:
+                self.model.eval()
                 val_losses = []
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val):
