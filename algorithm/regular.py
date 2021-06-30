@@ -44,6 +44,7 @@ class RegularTrainer(BaseTrainer):
         )
 
     def _restore(self, opt, scheduler, resume_training: bool = True):
+        print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         opt.load_state_dict(checkpoint["opt_state_dict"])
