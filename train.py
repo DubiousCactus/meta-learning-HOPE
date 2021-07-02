@@ -10,6 +10,7 @@
 Meta-Train HOPE-Net or its individual parts.
 """
 
+from hydra.utils import get_original_cwd, to_absolute_path
 from util.factory import DatasetFactory, AlgorithmFactory
 from omegaconf import DictConfig, OmegaConf
 
@@ -21,9 +22,9 @@ import os
 def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     dataset = DatasetFactory.make_data_loader(
-        cfg.shapenet_root,
+        to_absolute_path(cfg.shapenet_root),
         cfg.experiment.dataset,
-        cfg.experiment.dataset_path,
+        to_absolute_path(cfg.experiment.dataset_path),
         cfg.experiment.batch_size,
         cfg.test_mode,
         cfg.experiment.k_shots,
@@ -38,7 +39,7 @@ def main(cfg: DictConfig):
         cfg.experiment.n_queries,
         cfg.experiment.steps,
         cfg.experiment.checkpoint_path,
-        model_path=cfg.experiment.saved_model,
+        model_path=to_absolute_path(cfg.experiment.saved_model),
         test_mode=cfg.test_mode,
         use_cuda=cfg.use_cuda,
         gpu_numbers=cfg.gpu_numbers,
