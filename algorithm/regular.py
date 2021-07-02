@@ -76,7 +76,9 @@ class RegularTrainer(BaseTrainer):
         scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         if self._model_path:
-            past_val_loss = self._restore(opt, scheduler, resume_training=resume)
+            saved_val_loss = self._restore(opt, scheduler, resume_training=resume)
+            if resume:
+                past_val_loss = saved_val_loss
         for epoch in range(self._epoch, iterations):
             self.model.train()
             train_losses = []
