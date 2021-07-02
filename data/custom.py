@@ -36,30 +36,26 @@ class CustomDataset(TorchDataset):
     def _load(
         self, samples: Union[Dict[int, List[tuple]], List[tuple]], object_as_task: bool
     ) -> tuple:
+        images, points2d, points3d = [], [], []
+        labels, i = {}, 0
+
         def load_sample(img_path, p_2d, p_3d) -> tuple:
-            img = img_path
+            images.append(img_path)
             if self._pin_memory:
                 p_2d.pin_memory()
                 p_3d.pin_memory()
-            return img, p_2d, p_3d
+            points2d.append(p_2d)
+            points3d.append(p_3d)
 
-        images, points2d, points3d = [], [], []
-        labels, i = {}, 0
         if object_as_task:
             for k, v in samples.items():
                 for img_path, p_2d, p_3d in v:
-                    img, p_2d, p_3d = load_sample(img_path, p_2d, p_3d)
-                    images.append(img)
-                    points2d.append(p_2d)
-                    points3d.append(p_3d)
+                    load_sample(img_path, p_2d, p_3d)
                     labels[i] = k
                     i += 1
         else:
             for img_path, p_2d, p_3d in samples:
-                img, p_2d, p_3d = load_sample(img_path, p_2d, p_3d)
-                images.append(img)
-                points2d.append(p_2d)
-                points3d.append(p_3d)
+                load_sample(img_path, p_2d, p_3d)
         return images, points2d, points3d, labels
 
     def __len__(self):

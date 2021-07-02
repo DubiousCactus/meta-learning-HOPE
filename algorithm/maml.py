@@ -85,10 +85,10 @@ class MAMLTrainer(BaseTrainer):
     def _restore(self, maml, opt, scheduler, resume_training: bool = True):
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
-        maml.load_state_dict(checkpoint["maml_state_dict"])
-        opt.load_state_dict(checkpoint["meta_opt_state_dict"])
         if resume_training:
             self._epoch = checkpoint["epoch"] + 1
+            maml.load_state_dict(checkpoint["maml_state_dict"])
+            opt.load_state_dict(checkpoint["meta_opt_state_dict"])
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
             return checkpoint["val_meta_loss"]
 
