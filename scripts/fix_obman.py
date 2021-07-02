@@ -10,9 +10,9 @@ import os
 import pickle
 
 pickle_path, dest_path, root_path = (
-        "/home/tmorales/Obman/train/obman_train_task.pkl.bak",
-        "/home/tmorales/Obman/train/obman_train_task.pkl",
-        "/home/tmorales/"
+    "/home/tmorales/Obman/train/obman_train_task.pkl.bak",
+    "/home/tmorales/Obman/train/obman_train_task.pkl",
+    "/home/tmorales/",
 )
 with open(pickle_path, "rb") as pickle_file:
     samples = pickle.load(pickle_file)

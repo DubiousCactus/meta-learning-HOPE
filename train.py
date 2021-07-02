@@ -39,7 +39,9 @@ def main(cfg: DictConfig):
         cfg.experiment.n_queries,
         cfg.experiment.steps,
         cfg.experiment.checkpoint_path,
-        model_path=to_absolute_path(cfg.experiment.saved_model),
+        model_path=to_absolute_path(cfg.experiment.saved_model)
+        if cfg.experiment.saved_model
+        else None,
         test_mode=cfg.test_mode,
         use_cuda=cfg.use_cuda,
         gpu_numbers=cfg.gpu_numbers,

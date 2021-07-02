@@ -6,3 +6,4 @@ model_def: ResNet
 checkpoint_path: checkpoints_resnet_regular
 dataset: fphad
 dataset_path: ../FPHAD
+name: regular_resnet_fphad

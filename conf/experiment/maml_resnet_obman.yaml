@@ -8,3 +8,4 @@ model_def: ResNet
 checkpoint_path: checkpoints_resnet_maml
 dataset: obman
 dataset_path: ../Obman
+name: maml_resnet_obman

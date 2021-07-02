@@ -18,6 +18,7 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import learn2learn as l2l
+import logging
 import torch
 import os
 
@@ -102,6 +103,12 @@ class MAMLTrainer(BaseTrainer):
         val_every: int = 100,
         resume: bool = True,
     ):
+        log = logging.getLogger(__name__)
+        log.info(f"=====================================")
+        log.info(
+            f"fast_lr={fast_lr} - meta_lr={meta_lr} - batch_size={batch_size} - K={self._k_shots} - Q={self._n_querries}"
+        )
+        log.info(f"=====================================")
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
@@ -137,10 +144,12 @@ class MAMLTrainer(BaseTrainer):
             meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
             if epoch % val_every == 0:
                 meta_val_loss = torch.Tensor(meta_val_losses).mean().item()
+            log.info(f"[Epoch {epoch}]: Meta-Training Loss: {meta_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Meta-training Loss: {meta_train_loss:.6f}")
             if epoch % val_every == 0:
                 print(f"Meta-validation Loss: {meta_val_loss:.6f}")
+                log.info(f"[Epoch {epoch}]: Meta-validation Loss: {meta_val_loss:.6f}")
             print("============================================")
 
             # Average the accumulated gradients and optimize

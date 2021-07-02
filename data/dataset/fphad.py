@@ -248,6 +248,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                 split_task_set,
                 batch_size=self._batch_size,
                 shuffle=shuffle,
-                num_workers=min(os.cpu_count()-1, 20),
+                num_workers=min(os.cpu_count() - 1, 20),
             )
         return split_dataset_loader

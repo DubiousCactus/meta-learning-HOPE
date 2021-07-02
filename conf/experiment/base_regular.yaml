@@ -8,3 +8,4 @@ lr_step_gamma: 0.9
 batch_size: 64
 iterations: 5000
 object_as_task: False
+name: regular_training

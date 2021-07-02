@@ -5,3 +5,6 @@ test_mode: False
 resume_training: True
 defaults:
     - experiment: maml_resnet_obman
+hydra:
+    run:
+        dir: outputs/${experiment.name}/lr:${experiment.fast_lr}_batchsz:${experiment.batch_size}

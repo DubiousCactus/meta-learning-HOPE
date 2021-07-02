@@ -244,4 +244,3 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         if backward:
             loss.backward()
         return loss
-

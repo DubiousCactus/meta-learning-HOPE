@@ -12,3 +12,7 @@ steps: 5
 batch_size: 8
 iterations: 15000
 object_as_task: True
+hydra:
+    run:
+        dir: outputs/${hydra.job.config_name}/fast_lr:${fast_lr}_meta_lr:${meta_lr}_steps:${steps}_k:${k_shots}_q:${n_queries}_batchsz:${batch_size}
+name: maml_training

@@ -41,7 +41,7 @@ class BaseTrainer(ABC):
         self._checkpoint_path = checkpoint_path
         if not os.path.isdir(self._checkpoint_path):
             os.makedirs(self._checkpoint_path)
-        self.inner_criterion = torch.nn.MSELoss(reduction='mean')
+        self.inner_criterion = torch.nn.MSELoss(reduction="mean")
         self._lambda1 = 0.01
         self._lambda2 = 1
         self._epoch = 0

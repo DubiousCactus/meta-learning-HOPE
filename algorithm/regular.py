@@ -18,6 +18,7 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import learn2learn as l2l
+import logging
 import torch
 import os
 
@@ -53,7 +54,6 @@ class RegularTrainer(BaseTrainer):
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
             return checkpoint["val_loss"]
 
-
     def train(
         self,
         batch_size: int = 32,
@@ -65,6 +65,10 @@ class RegularTrainer(BaseTrainer):
         val_every: int = 100,
         resume: bool = True,
     ):
+        log = logging.getLogger(__name__)
+        log.info(f"=====================================")
+        log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
+        log.info(f"=====================================")
         opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
@@ -87,14 +91,18 @@ class RegularTrainer(BaseTrainer):
                 val_losses = []
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val):
-                    val_losses.append(self._training_step(batch, backward=False).detach())
+                    val_losses.append(
+                        self._training_step(batch, backward=False).detach()
+                    )
                 avg_val_loss = torch.Tensor(val_losses).mean().item()
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
+            log.info(f"[Epoch {epoch}]: Training Loss: {avg_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
+                log.info(f"[Epoch {epoch}]: Validation Loss: {avg_val_loss:.6f}")
             print("============================================")
             scheduler.step()
             # Model checkpointing
@@ -114,7 +122,6 @@ class RegularTrainer(BaseTrainer):
                     ),
                 )
                 past_val_loss = avg_val_loss
-
 
     def test(
         self,

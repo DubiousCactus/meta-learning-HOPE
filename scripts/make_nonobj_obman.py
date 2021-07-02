@@ -11,8 +11,8 @@ import os
 import pickle
 
 pickle_path, dest_path = (
-        "/home/tmorales/Obman/train/obman_train_task.pkl",
-        "/home/tmorales/Obman/train/obman_train.pkl",
+    "/home/tmorales/Obman/train/obman_train_task.pkl",
+    "/home/tmorales/Obman/train/obman_train.pkl",
 )
 with open(pickle_path, "rb") as pickle_file:
     samples = pickle.load(pickle_file)
