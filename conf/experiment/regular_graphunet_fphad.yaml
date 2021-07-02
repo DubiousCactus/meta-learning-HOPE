@@ -5,4 +5,4 @@ algorithm: regular
 model_def: GraphUNet
 checkpoint_path: checkpoints_graphunet_regular
 dataset: fphad
-dataset_path: /home/cactus/Code/FPHAD
+dataset_path: ../FPHAD

@@ -3,4 +3,4 @@ defaults:
 model_def: GraphUNet
 checkpoint_path: checkpoints/graphunet_maml
 dataset: fphad
-dataset_path: /home/cactus/Code/FPHAD
+dataset_path: ../FPHAD

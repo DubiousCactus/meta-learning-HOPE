@@ -1,4 +1,4 @@
-shapenet_root: /home/tmorales/ShapeNetCore.v2
+shapenet_root: ../ShapeNetCore.v2
 gpu_numbers: [0]
 use_cuda: True
 test_mode: False
