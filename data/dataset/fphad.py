@@ -27,7 +27,7 @@ import os
 class FPHADTaskLoader(BaseDatasetTaskLoader):
     # TODO:
     """
-    REMEMBER:
+    REMEMBER (for the graph training only!):
         "In addition to the samples in the FPHA dataset, we augment the 2D points with Gaussian noise
         (μ = 0, σ = 10) to help improve robustness to errors."
     """
