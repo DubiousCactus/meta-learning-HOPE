@@ -15,6 +15,7 @@ from HOPE.utils.model import select_model
 from typing import List
 from abc import ABC
 
+import signal
 import torch
 import os
 
@@ -45,6 +46,11 @@ class BaseTrainer(ABC):
         self._lambda1 = 0.01
         self._lambda2 = 1
         self._epoch = 0
+        self._exit = False
+        signal.signal(signal.SIGINT, self._exit_gracefully)
+
+    def _exit_gracefully(self, *args):
+        raise NotImplementedError
 
     def train(
         self,

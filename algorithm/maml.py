@@ -85,7 +85,7 @@ class MAMLTrainer(BaseTrainer):
     def _restore(self, maml, opt, scheduler, resume_training: bool = True):
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
-        if resume_training:
+        if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
             maml.load_state_dict(checkpoint["maml_state_dict"])
             opt.load_state_dict(checkpoint["meta_opt_state_dict"])
@@ -128,6 +128,9 @@ class MAMLTrainer(BaseTrainer):
             meta_val_loss = 0.0
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
             for task in tqdm(range(batch_size)):
+                if self._exit:
+                    self._backup()
+                    return
                 # Compute the meta-training loss
                 learner = maml.clone()
                 meta_batch = self._split_batch(self.dataset.train.sample())
@@ -235,3 +238,20 @@ class MAMLTrainer(BaseTrainer):
             meta_test_loss += inner_loss.item()
         print("==========[Test Error]==========")
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")
+
+    def _exit_gracefully(self, *args):
+        self._exit = True
+
+    def _backup(self):
+        print(f"-> Saving model to {self._checkpoint_path}...")
+        torch.save(
+            {
+                "backup": True,
+                "model_state_dict": self.model.state_dict(),
+            },
+            os.path.join(
+                self._checkpoint_path,
+                f"backup_weights.tar",
+            ),
+        )
+

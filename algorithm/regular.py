@@ -48,7 +48,7 @@ class RegularTrainer(BaseTrainer):
         print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
-        if resume_training:
+        if resume_training and 'backup' not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
             opt.load_state_dict(checkpoint["opt_state_dict"])
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
@@ -83,6 +83,9 @@ class RegularTrainer(BaseTrainer):
             self.model.train()
             train_losses = []
             for batch in tqdm(self.dataset.train):
+                if self._exit:
+                    self._backup()
+                    return
                 opt.zero_grad()
                 loss = self._training_step(batch)
                 train_losses.append(loss.detach())
@@ -124,6 +127,22 @@ class RegularTrainer(BaseTrainer):
                     ),
                 )
                 past_val_loss = avg_val_loss
+
+    def _exit_gracefully(self, *args):
+        self._exit = True
+
+    def _backup(self):
+        print(f"-> Saving model to {self._checkpoint_path}...")
+        torch.save(
+            {
+                "backup": True,
+                "model_state_dict": self.model.state_dict(),
+            },
+            os.path.join(
+                self._checkpoint_path,
+                f"backup_weights.tar",
+            ),
+        )
 
     def test(
         self,
