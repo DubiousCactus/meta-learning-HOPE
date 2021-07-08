@@ -56,7 +56,7 @@ class MAML_HOPETrainer(MAMLTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         # Adapt the model on the support set
-        for step in range(self._steps):
+        for _ in range(self._steps):
             # forward + backward + optimize
             outputs2d_init, outputs2d, outputs3d = learner(s_inputs)
             loss2d_init = self.inner_criterion(outputs2d_init, s_labels2d)
@@ -120,7 +120,7 @@ class MAML_ResnetTrainer(MAMLTrainer):
             q_labels2d = q_labels2d.float().cuda(device=self._gpu_number)
 
         # Adapt the model on the support set
-        for step in range(self._steps):
+        for _ in range(self._steps):
             # forward + backward + optimize
             outputs2d_init, _ = learner(s_inputs)
             support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
