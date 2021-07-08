@@ -2,6 +2,7 @@ datasets/
 datasets
 checkpoints/
 outputs/
+saved_models/
 
 
 # ------------ Python-specific------------
