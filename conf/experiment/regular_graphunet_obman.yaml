@@ -1,0 +1,9 @@
+defaults:
+    - base_regular
+iterations: 3000
+algorithm: regular
+model_def: GraphUNet
+checkpoint_path: checkpoints_graphunet_regular
+dataset: obman
+dataset_path: ../Obman
+name: regular_graphunet_obman
