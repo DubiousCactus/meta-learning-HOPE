@@ -1,6 +1,6 @@
 defaults:
     - base_regular
-iterations: 15000
+iterations: 3000
 algorithm: regular
 model_def: GraphUNet
 checkpoint_path: checkpoints_graphunet_regular
