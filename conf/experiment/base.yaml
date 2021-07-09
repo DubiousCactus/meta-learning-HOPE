@@ -12,3 +12,4 @@ saved_model: null
 checkpoint_path: checkpoints_untitled
 object_as_task: False
 name: training
+augment: null

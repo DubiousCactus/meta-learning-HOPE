@@ -9,3 +9,4 @@ dataset_path: ../FPHAD
 name: regular_graphunet_fphad
 lr_step: 4000
 lr_step_gamma: 0.1
+augment: True

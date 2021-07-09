@@ -21,7 +21,7 @@ from abc import ABC
 
 
 class BaseDatasetTaskLoader(ABC):
-    _transform = transforms.Compose(
+    _img_transform = transforms.Compose(
         [transforms.Resize((224, 224)), transforms.ToTensor()]
     )
 

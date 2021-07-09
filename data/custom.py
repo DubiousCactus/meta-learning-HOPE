@@ -23,12 +23,14 @@ class CustomDataset(TorchDataset):
     def __init__(
         self,
         samples: any,
-        transform=None,
+        img_transform=None,
+        kp2d_transform=None,
         object_as_task: bool = False,
         pin_memory=True,
     ):
         self._pin_memory = pin_memory
-        self.transform = transform if transform is not None else lambda i: i
+        self._img_transform = img_transform if img_transform is not None else lambda i: i
+        self._kp2d_transform = kp2d_transform if kp2d_transform is not None else lambda i: i
         self.images, self.points2d, self.points3d, self.class_labels = self._load(
             samples, object_as_task
         )
@@ -62,9 +64,9 @@ class CustomDataset(TorchDataset):
         return len(self.images)
 
     def __getitem__(self, index):
-        img = self.transform(Image.open(self.images[index]))
+        img = self._img_transform(Image.open(self.images[index]))
         labels_2d, labels_3d = (
-            self.points2d[index],
+            self._kp2d_transform(self.points2d[index]),
             self.points3d[index],
         )
         return img, labels_2d, labels_3d

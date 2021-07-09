@@ -24,13 +24,16 @@ import torch
 import os
 
 
-class FPHADTaskLoader(BaseDatasetTaskLoader):
-    # TODO:
+def kp2d_transform(keypoints):
     """
-    REMEMBER (for the graph training only!):
         "In addition to the samples in the FPHA dataset, we augment the 2D points with Gaussian noise
         (μ = 0, σ = 10) to help improve robustness to errors."
     """
+    std = 10
+    return keypoints + (std * torch.randn(keypoints.shape))
+
+
+class FPHADTaskLoader(BaseDatasetTaskLoader):
 
     _object_class = ["juice_bottle", "liquid_soap", "milk", "salt"]
 
@@ -44,6 +47,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         object_as_task: bool = True,
         use_cuda: bool = True,
         gpu_number: int = 0,
+        augment_2d: bool = True,
     ):
         # Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/fhad/make_data.py.
         self._object_infos = self._load_objects(os.path.join(root, "Object_models"))
@@ -51,6 +55,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         self._file_root = os.path.join(root, "Video_files")
         self._seq_splits = {"train": None, "val": 1, "test": 3}
         self._skeleton_root = os.path.join(root, "Hand_pose_annotation_v1")
+        self._augment_2d = augment_2d
         self._reorder_idx = np.array(
             [0, 1, 6, 7, 8, 2, 9, 10, 11, 3, 12, 13, 14, 4, 15, 16, 17, 5, 18, 19, 20]
         )
@@ -171,6 +176,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             self._root,
             f"fphad_{split}_task.pkl" if object_as_task else f"fphad_{split}.pkl",
         )
+        samples = []
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading {split} split from {pickle_path}...")
@@ -178,7 +184,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         else:
             print(f"[*] Building {split} split...")
             samples = {} if object_as_task else []
-            for root, dirs, files in os.walk(self._obj_trans_root):
+            for root, _, files in os.walk(self._obj_trans_root):
                 if "object_pose.txt" in files:
                     path = root.split(os.sep)
                     subject, action_name, seq_idx = path[-3], path[-2], path[-1]
@@ -220,7 +226,8 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,
-            self._transform,
+            img_transform=self._img_transform,
+            kp2d_transform=kp2d_transform if split == "train" and self._augment_2d else None,
             object_as_task=object_as_task,
         )
         return dataset

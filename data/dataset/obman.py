@@ -182,7 +182,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,
-            self._transform,
+            img_transform=self._img_transform,
             object_as_task=object_as_task,
         )
         return dataset

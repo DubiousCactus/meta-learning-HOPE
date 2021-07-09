@@ -40,6 +40,7 @@ class DatasetFactory:
         object_as_task: bool = False,
         use_cuda: bool = True,
         gpu_numbers: List = [0],
+        augment_fphad: bool = True,
     ):
         if not os.path.isdir(dataset_root):
             print(f"[!] {dataset_root} is not a valid directory!")
@@ -68,6 +69,7 @@ class DatasetFactory:
                 object_as_task=object_as_task,
                 use_cuda=use_cuda,
                 gpu_number=gpu_numbers[0],
+                augment_2d=augment_fphad,
             )
         elif dataset == "ho3d":
             raise NotImplementedError("HO-3D Dataset Loader not implemented!")
