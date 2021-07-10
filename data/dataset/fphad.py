@@ -164,9 +164,10 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             np.array(self._cam_intr).dot(skel_camcoords.transpose()).transpose()
         )
         skel_proj = (skel_hom2d / skel_hom2d[:, 2:])[:, :2]
-        points = torch.Tensor(np.concatenate((skel_camcoords, verts_camcoords)))
-        projected_points = torch.Tensor(np.concatenate((skel_proj, verts_proj)))
-        return projected_points, points
+        return (
+            torch.cat([skel_proj, verts_proj]),
+            torch.cat([skel_camcoords, verts_camcoords]),
+        )
 
     def _make_dataset(self, split: str, object_as_task=False) -> CustomDataset:
         """

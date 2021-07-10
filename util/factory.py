@@ -88,7 +88,6 @@ class AlgorithmFactory:
         inner_steps: int,
         ckpt_path: str,
         model_path: str = None,
-        test_mode: bool = False,
         use_cuda: bool = True,
         gpu_numbers: List = [0],
     ) -> BaseTrainer:
@@ -115,7 +114,6 @@ class AlgorithmFactory:
                 model_path=model_path,
                 use_cuda=use_cuda,
                 gpu_numbers=gpu_numbers,
-                test_mode=test_mode,
                 first_order=(algorithm == "fomaml"),
             )
         elif algorithm == "regular":
@@ -133,7 +131,6 @@ class AlgorithmFactory:
                 model_path=model_path,
                 use_cuda=use_cuda,
                 gpu_numbers=gpu_numbers,
-                test_mode=test_mode,
             )
 
         else:

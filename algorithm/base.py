@@ -29,7 +29,6 @@ class BaseTrainer(ABC):
         model_path: str = None,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
     ):
         self._use_cuda = use_cuda
         self._gpu_number = gpu_numbers[0]
@@ -72,3 +71,7 @@ class BaseTrainer(ABC):
         meta_lr: float = 0.001,
     ):
         raise NotImplementedError
+
+    def _training_step(self, *args, **kargs):
+        raise NotImplementedError("_training_step() not implemented!")
+

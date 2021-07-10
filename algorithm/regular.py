@@ -32,7 +32,6 @@ class RegularTrainer(BaseTrainer):
         model_path: str = None,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
     ):
         super().__init__(
             model_name,
@@ -41,7 +40,6 @@ class RegularTrainer(BaseTrainer):
             model_path=model_path,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
-            test_mode=test_mode,
         )
 
     def _restore(self, opt, scheduler, resume_training: bool = True):
@@ -79,6 +77,7 @@ class RegularTrainer(BaseTrainer):
             saved_val_loss = self._restore(opt, scheduler, resume_training=resume)
             if resume:
                 past_val_loss = saved_val_loss
+        avg_val_loss = .0
         for epoch in range(self._epoch, iterations):
             self.model.train()
             train_losses = []
@@ -150,4 +149,12 @@ class RegularTrainer(BaseTrainer):
         fast_lr: float = 0.01,
         meta_lr: float = None,
     ):
-        raise NotImplementedError
+        self.model.eval()
+        avg_loss, losses = .0, []
+        with torch.no_grad():
+            for batch in tqdm(self.dataset.test):
+                losses.append(
+                    self._training_step(batch, backward=False).detach()
+                )
+            avg_loss = torch.Tensor(losses).mean().item()
+        print(f"[*] Average test loss: {avg_loss:.6f}")

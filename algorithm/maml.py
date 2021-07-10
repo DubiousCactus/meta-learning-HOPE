@@ -38,7 +38,6 @@ class MAMLTrainer(BaseTrainer):
         first_order: bool = False,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
         object_as_task: bool = True,
     ):
         assert (
@@ -54,15 +53,11 @@ class MAMLTrainer(BaseTrainer):
             model_path=model_path,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
-            test_mode=test_mode,
         )
         self._k_shots = k_shots
         self._n_querries = n_querries
         self._steps = inner_steps
         self._first_order = first_order
-
-    def _training_step(self, support: tuple, query: tuple, learner):
-        raise NotImplementedError("_training_step() not implemented!")
 
     def _split_batch(self, batch: tuple) -> MetaBatch:
         """
@@ -127,7 +122,7 @@ class MAMLTrainer(BaseTrainer):
             meta_train_losses, meta_val_losses = []
             meta_val_loss = 0.0
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
-            for task in tqdm(range(batch_size)):
+            for _ in tqdm(range(batch_size)):
                 if self._exit:
                     self._backup()
                     return
@@ -140,7 +135,7 @@ class MAMLTrainer(BaseTrainer):
 
                 if (epoch + 1) % val_every == 0:
                     # Compute the meta-validation loss
-                    leaner = maml.clone()
+                    learner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.val.sample())
                     inner_loss = self._training_step(meta_batch, learner)
                     meta_val_losses.append(inner_loss.detach())
