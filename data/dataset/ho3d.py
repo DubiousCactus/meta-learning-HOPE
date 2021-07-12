@@ -96,11 +96,9 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                     file_no = img_path.split('.')[0]
                     meta_file = os.path.join(meta_dir, f"{file_no}.pkl")
                     meta = np.load(meta_file, allow_pickle=True)
-                    print(list(meta.keys()))
                     points_2d, points_3d = self._compute_labels(split, meta)
-                    obj_name = "lol"
+                    obj_class_id = meta['objLabel']
                     if object_as_task:
-                        obj_class_id = self._object_class.index(obj_name)
                         if obj_class_id not in samples.keys():
                             samples[obj_class_id] = []
                         samples[obj_class_id].append(
