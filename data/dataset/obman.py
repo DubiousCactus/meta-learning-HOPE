@@ -46,10 +46,10 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
     def __init__(
         self,
         root: str,
-        shapenet_root: str,
         batch_size: int,
         k_shots: int,
         n_querries: int,
+        shapenet_root: str,
         test: bool = False,
         object_as_task: bool = True,
         use_cuda: bool = True,

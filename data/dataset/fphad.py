@@ -47,7 +47,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         object_as_task: bool = True,
         use_cuda: bool = True,
         gpu_number: int = 0,
-        augment_2d: bool = True,
+        augment_2d: bool = False,
     ):
         # Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/fhad/make_data.py.
         self._object_infos = self._load_objects(os.path.join(root, "Object_models"))

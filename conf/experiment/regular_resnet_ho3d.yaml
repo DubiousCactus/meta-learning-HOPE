@@ -1,0 +1,5 @@
+defaults:
+    - base_regular_resnet
+dataset: ho3d
+dataset_path: ../HO3D
+name: regular_resnet_ho3d

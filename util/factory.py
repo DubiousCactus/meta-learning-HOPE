@@ -13,6 +13,7 @@ Utility classes.
 from data.dataset.base import BaseDatasetTaskLoader
 from data.dataset.obman import ObManTaskLoader
 from data.dataset.fphad import FPHADTaskLoader
+from data.dataset.ho3d import HO3DTaskLoader
 from hydra.utils import to_absolute_path
 from algorithm.wrappers import (
     Regular_GraphUNetTrainer,
@@ -42,41 +43,36 @@ class DatasetFactory:
         object_as_task: bool = False,
         use_cuda: bool = True,
         gpu_numbers: List = [0],
-        augment_fphad: bool = True,
-    ):
+        augment_fphad: bool = False,
+    ) -> BaseDatasetTaskLoader:
         if not os.path.isdir(dataset_root):
             print(f"[!] {dataset_root} is not a valid directory!")
             exit(1)
         dataset = dataset.lower()
         print(f"[*] Loading dataset: {dataset}")
+        args, kargs = [], {}
         if dataset == "obman":
-            return ObManTaskLoader(
-                dataset_root,
-                shapenet_root,
-                batch_size,
-                k_shots,
-                n_querries,
-                test=test,
-                object_as_task=object_as_task,
-                use_cuda=use_cuda,
-                gpu_number=gpu_numbers[0],
-            )
+            datasetClass = ObManTaskLoader
+            args = [shapenet_root]
         elif dataset == "fphad":
-            return FPHADTaskLoader(
-                dataset_root,
-                batch_size,
-                k_shots,
-                n_querries,
-                test=test,
-                object_as_task=object_as_task,
-                use_cuda=use_cuda,
-                gpu_number=gpu_numbers[0],
-                augment_2d=augment_fphad,
-            )
+            datasetClass = FPHADTaskLoader
+            kargs = {'augment_2d': augment_fphad}
         elif dataset == "ho3d":
-            raise NotImplementedError("HO-3D Dataset Loader not implemented!")
+            datasetClass = HO3DTaskLoader
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
+        return datasetClass(
+            dataset_root,
+            batch_size,
+            k_shots,
+            n_querries,
+            *args,
+            test=test,
+            object_as_task=object_as_task,
+            use_cuda=use_cuda,
+            gpu_number=gpu_numbers[0],
+            **kargs
+        )
 
 
 class AlgorithmFactory:
@@ -99,6 +95,8 @@ class AlgorithmFactory:
         model_def = model_def.lower()
         print(f"[*] Loading training algorithm: {algorithm}")
         print(f"[*] Loading model definition: {model_def}")
+        args, kargs = [], {}
+        trainer = None
         if algorithm in ["maml", "fomaml"]:
             if model_def == "hopenet":
                 trainer = MAML_HOPETrainer
@@ -108,19 +106,9 @@ class AlgorithmFactory:
                 trainer = MAML_GraphUNetTrainer
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
-            return trainer(
-                dataset,
-                ckpt_path,
-                k_shots,
-                n_queries,
-                inner_steps,
-                model_path=model_path,
-                use_cuda=use_cuda,
-                gpu_numbers=gpu_numbers,
-                first_order=(algorithm == "fomaml"),
-            )
+            args = [k_shots, n_queries, inner_steps]
+            kargs = {'first_order': algorithm == "fomaml"}
         elif algorithm == "regular":
-            args = []
             if model_def == "hopenet":
                 raise Exception(f"No training algorithm found for model {model_def}")
             elif model_def == "resnet":
@@ -133,13 +121,14 @@ class AlgorithmFactory:
                 args = [to_absolute_path(resnet_path) if resnet_path else None]
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
-            return trainer(
+        else:
+            raise Exception(f"No training algorithm found: {algorithm}")
+        return trainer(
                 dataset,
                 ckpt_path,
                 *args,
                 model_path=model_path,
                 use_cuda=use_cuda,
                 gpu_numbers=gpu_numbers,
-            )
-        else:
-            raise Exception(f"No training algorithm found: {algorithm}")
+                **kargs
+                )

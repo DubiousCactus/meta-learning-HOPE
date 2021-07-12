@@ -70,11 +70,13 @@ class RegularTrainer(BaseTrainer):
         )
         scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
+        shown = False
         if self._model_path:
             saved_val_loss = self._restore(opt, scheduler, resume_training=resume)
             if resume:
                 past_val_loss = saved_val_loss
-        else:
+                shown = True
+        if not shown:
             log.info(f"=====================================")
             log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
             log.info(f"=====================================")
