@@ -9,7 +9,7 @@ batch_size: 8
 val_every: 1
 iterations: 15000
 saved_model: null
-checkpoint_path: checkpoints_untitled
+checkpoint_path: ckpt
 object_as_task: False
 name: training
 augment: null
