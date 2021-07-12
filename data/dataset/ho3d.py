@@ -92,7 +92,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                     continue
                 s_path = os.path.join(root, subject)
                 meta_dir = os.path.join(s_path, 'meta')
-                for img_path in os.path.join(s_path, 'rgb'):
+                for img_path in os.listdir(os.path.join(s_path, 'rgb')):
                     file_no = img_path.split('.')[0]
                     meta_file = os.path.join(meta_dir, f"{file_no}.pkl")
                     meta = np.load(meta_file, allow_pickle=True)
