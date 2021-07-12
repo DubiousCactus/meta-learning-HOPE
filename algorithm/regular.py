@@ -150,6 +150,12 @@ class RegularTrainer(BaseTrainer):
         fast_lr: float = 0.01,
         meta_lr: float = None,
     ):
+        if not self._model_path:
+            print(f"[!] Testing a randomly initialized model!")
+        else:
+            print(f"[*] Restoring from checkpoint: {self._model_path}")
+            checkpoint = torch.load(self._model_path)
+            self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
         avg_loss, losses = .0, []
         with torch.no_grad():
