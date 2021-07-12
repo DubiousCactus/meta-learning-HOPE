@@ -132,7 +132,5 @@ class AlgorithmFactory:
                 use_cuda=use_cuda,
                 gpu_numbers=gpu_numbers,
             )
-
         else:
             raise Exception(f"No training algorithm found: {algorithm}")
-        return trainer

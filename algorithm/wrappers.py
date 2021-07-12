@@ -28,7 +28,6 @@ class MAML_HOPETrainer(MAMLTrainer):
         first_order: bool = False,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
     ):
         super().__init__(
             "hopenet",
@@ -41,7 +40,6 @@ class MAML_HOPETrainer(MAMLTrainer):
             first_order=first_order,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
-            test_mode=test_mode,
         )
 
     def _training_step(self, batch: MetaBatch, learner):
@@ -94,7 +92,6 @@ class MAML_ResnetTrainer(MAMLTrainer):
         first_order: bool = False,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
     ):
         super().__init__(
             "resnet10",
@@ -107,7 +104,6 @@ class MAML_ResnetTrainer(MAMLTrainer):
             first_order=first_order,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
-            test_mode=test_mode,
         )
 
     def _training_step(self, batch: MetaBatch, learner):
@@ -144,7 +140,6 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         first_order: bool = False,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
     ):
         super().__init__(
             "graphunet",
@@ -157,7 +152,6 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             first_order=first_order,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
-            test_mode=test_mode,
         )
 
     def _training_step(self, batch: MetaBatch, learner):
@@ -170,7 +164,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         # Adapt the model on the support set
-        for step in range(self._steps):
+        for _ in range(self._steps):
             # forward + backward + optimize
             outputs3d = learner(s_labels2d)
             support_loss = self.inner_criterion(outputs3d, s_labels3d)
@@ -190,7 +184,6 @@ class Regular_ResnetTrainer(RegularTrainer):
         model_path: str = None,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
     ):
         super().__init__(
             "resnet10",
@@ -199,7 +192,6 @@ class Regular_ResnetTrainer(RegularTrainer):
             model_path=model_path,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
-            test_mode=test_mode,
         )
 
     def _training_step(self, batch: tuple, backward: bool = True):
@@ -222,7 +214,6 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         model_path: str = None,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        test_mode: bool = False,
     ):
         super().__init__(
             "graphunet",
@@ -231,7 +222,6 @@ class Regular_GraphUNetTrainer(RegularTrainer):
             model_path=model_path,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
-            test_mode=test_mode,
         )
 
     def _training_step(self, batch: tuple, backward: bool = True):
