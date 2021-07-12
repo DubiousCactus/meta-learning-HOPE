@@ -230,6 +230,7 @@ class Regular_GraphUNetTrainer(RegularTrainer):
             labels2d = labels2d.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         outputs3d = self.model(labels2d)
+        print(labels2d[0], labels3d[0], outputs3d[0])
         loss = self.inner_criterion(outputs3d, labels3d)
         if backward:
             loss.backward()
