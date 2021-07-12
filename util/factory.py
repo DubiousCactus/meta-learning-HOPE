@@ -56,7 +56,7 @@ class DatasetFactory:
             args = [shapenet_root]
         elif dataset == "fphad":
             datasetClass = FPHADTaskLoader
-            kargs = {'augment_2d': augment_fphad}
+            kargs = {"augment_2d": augment_fphad}
         elif dataset == "ho3d":
             datasetClass = HO3DTaskLoader
         else:
@@ -71,7 +71,7 @@ class DatasetFactory:
             object_as_task=object_as_task,
             use_cuda=use_cuda,
             gpu_number=gpu_numbers[0],
-            **kargs
+            **kargs,
         )
 
 
@@ -107,7 +107,7 @@ class AlgorithmFactory:
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
             args = [k_shots, n_queries, inner_steps]
-            kargs = {'first_order': algorithm == "fomaml"}
+            kargs = {"first_order": algorithm == "fomaml"}
         elif algorithm == "regular":
             if model_def == "hopenet":
                 raise Exception(f"No training algorithm found for model {model_def}")
@@ -124,11 +124,11 @@ class AlgorithmFactory:
         else:
             raise Exception(f"No training algorithm found: {algorithm}")
         return trainer(
-                dataset,
-                ckpt_path,
-                *args,
-                model_path=model_path,
-                use_cuda=use_cuda,
-                gpu_numbers=gpu_numbers,
-                **kargs
-                )
+            dataset,
+            ckpt_path,
+            *args,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_numbers=gpu_numbers,
+            **kargs,
+        )

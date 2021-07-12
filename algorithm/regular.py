@@ -46,7 +46,7 @@ class RegularTrainer(BaseTrainer):
         print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
-        if resume_training and 'backup' not in checkpoint.keys():
+        if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
             opt.load_state_dict(checkpoint["opt_state_dict"])
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
@@ -80,7 +80,7 @@ class RegularTrainer(BaseTrainer):
             log.info(f"=====================================")
             log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
             log.info(f"=====================================")
-        avg_val_loss = .0
+        avg_val_loss = 0.0
         for epoch in range(self._epoch, iterations):
             self.model.train()
             train_losses = []
@@ -159,11 +159,9 @@ class RegularTrainer(BaseTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_loss, losses = .0, []
+        avg_loss, losses = 0.0, []
         with torch.no_grad():
             for batch in tqdm(self.dataset.test):
-                losses.append(
-                    self._training_step(batch, backward=False).detach()
-                )
+                losses.append(self._training_step(batch, backward=False).detach())
             avg_loss = torch.Tensor(losses).mean().item()
         print(f"[*] Average test loss: {avg_loss:.6f}")

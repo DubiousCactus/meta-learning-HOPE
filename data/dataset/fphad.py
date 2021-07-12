@@ -26,8 +26,8 @@ import os
 
 def kp2d_transform(keypoints):
     """
-        "In addition to the samples in the FPHA dataset, we augment the 2D points with Gaussian noise
-        (μ = 0, σ = 10) to help improve robustness to errors."
+    "In addition to the samples in the FPHA dataset, we augment the 2D points with Gaussian noise
+    (μ = 0, σ = 10) to help improve robustness to errors."
     """
     std = 10
     return keypoints + (std * torch.randn(keypoints.shape))
@@ -228,7 +228,9 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
-            kp2d_transform=kp2d_transform if split == "train" and self._augment_2d else None,
+            kp2d_transform=kp2d_transform
+            if split == "train" and self._augment_2d
+            else None,
             object_as_task=object_as_task,
         )
         return dataset

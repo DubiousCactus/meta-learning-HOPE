@@ -35,6 +35,7 @@ class BaseDatasetTaskLoader(ABC):
         object_as_task: bool,
         use_cuda: bool,
         gpu_number: int,
+        auto_load: bool = True,
     ):
         self._root = root
         self._batch_size = batch_size
@@ -43,12 +44,13 @@ class BaseDatasetTaskLoader(ABC):
         self._use_cuda = use_cuda
         self._gpu_number = gpu_number
         self.train, self.val, self.test = None, None, None
-        if test:
-            self.test = self._load(object_as_task, "test", False)
-        else:
-            self.train, self.val = self._load(
-                object_as_task, "train", True
-            ), self._load(object_as_task, "val", False)
+        if auto_load:
+            if test:
+                self.test = self._load(object_as_task, "test", False)
+            else:
+                self.train, self.val = self._load(
+                    object_as_task, "train", True
+                ), self._load(object_as_task, "val", False)
 
     def _make_dataset(self, root, object_as_task=False) -> CustomDataset:
         raise NotImplementedError

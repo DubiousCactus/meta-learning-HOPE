@@ -77,4 +77,3 @@ class BaseTrainer(ABC):
 
     def _training_step(self, *args, **kargs):
         raise NotImplementedError("_training_step() not implemented!")
-

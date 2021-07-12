@@ -25,7 +25,6 @@ import os
 
 
 class HO3DTaskLoader(BaseDatasetTaskLoader):
-
     def __init__(
         self,
         root: str,
@@ -37,7 +36,6 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
-        # Call super() first, because we need to overwrite the base class's call to the _load() function!
         super().__init__(
             root,
             batch_size,
@@ -47,11 +45,16 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             object_as_task,
             use_cuda,
             gpu_number,
+            auto_load=False,
         )
         # Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/ho/make_data.py.
-        self._reorder_idx = np.array([0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20])
-        self._cam_extr = np.array([[1., 0., 0.], [0, -1., 0.], [0., 0., -1.]], dtype=np.float32)
-        self._seq_splits = {'train': None, 'val': 'MC6'}
+        self._reorder_idx = np.array(
+            [0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20]
+        )
+        self._cam_extr = np.array(
+            [[1.0, 0.0, 0.0], [0, -1.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float32
+        )
+        self._seq_splits = {"train": None, "val": "MC6"}
         if test:
             self.test = self._load(object_as_task, "test", "evaluation", False)
         else:
@@ -59,24 +62,27 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 object_as_task, "train", "train", True
             ), self._load(object_as_task, "val", "train", False)
 
-
-    def _compute_labels(self, split: str, meta: dict) -> Tuple[torch.Tensor, torch.Tensor]:
-        cam_intr = meta['camMat']
-        if meta['handJoints3D'] is None:
+    def _compute_labels(
+        self, split: str, meta: dict
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        cam_intr = meta["camMat"]
+        if meta["handJoints3D"] is None:
             raise ValueError
         if split != "test":
-            hand3d = meta['handJoints3D'][self._reorder_idx]
+            hand3d = meta["handJoints3D"][self._reorder_idx]
         else:
-            hand3d = np.repeat(np.expand_dims(meta['handJoints3D'], 0), 21, 0)
+            hand3d = np.repeat(np.expand_dims(meta["handJoints3D"], 0), 21, 0)
             hand3d = hand3d[self._reorder_idx]
-        obj_corners = meta['objCorners3D']
+        obj_corners = meta["objCorners3D"]
         hand_obj_3d = np.concatenate([hand3d, obj_corners])
         hand_obj_3d = hand_obj_3d.dot(self._cam_extr.T)
         hand_obj_2d = cam_intr.dot(hand_obj_3d.transpose()).transpose()
         hand_obj_2d = (hand_obj_2d / hand_obj_2d[:, 2:])[:, :2]
         return torch.Tensor(hand_obj_2d), torch.Tensor(hand_obj_3d)
 
-    def _make_dataset(self, split: str, root: str, object_as_task=False) -> CustomDataset:
+    def _make_dataset(
+        self, split: str, root: str, object_as_task=False
+    ) -> CustomDataset:
         """
         Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/ho/make_data.py.
         """
@@ -100,22 +106,20 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 ):
                     continue
                 s_path = os.path.join(root, subject)
-                meta_dir = os.path.join(s_path, 'meta')
-                for img_path in os.listdir(os.path.join(s_path, 'rgb')):
-                    file_no = img_path.split('.')[0]
+                meta_dir = os.path.join(s_path, "meta")
+                for img_path in os.listdir(os.path.join(s_path, "rgb")):
+                    file_no = img_path.split(".")[0]
                     meta_file = os.path.join(meta_dir, f"{file_no}.pkl")
                     meta = np.load(meta_file, allow_pickle=True)
                     try:
                         points_2d, points_3d = self._compute_labels(split, meta)
                     except ValueError:
                         failed += 1
-                    obj_class_id = meta['objLabel']
+                    obj_class_id = meta["objLabel"]
                     if object_as_task:
                         if obj_class_id not in samples.keys():
                             samples[obj_class_id] = []
-                        samples[obj_class_id].append(
-                            (img_path, points_2d, points_3d)
-                        )
+                        samples[obj_class_id].append((img_path, points_2d, points_3d))
                     else:
                         samples.append((img_path, points_2d, points_3d))
             if object_as_task:
@@ -146,7 +150,9 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             raise Exception(
                 f"{self._root} directory does not contain the '{split_folder}' folder!"
             )
-        split_task_set = self._make_dataset(split, split_path, object_as_task=object_as_task)
+        split_task_set = self._make_dataset(
+            split, split_path, object_as_task=object_as_task
+        )
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels

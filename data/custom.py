@@ -29,8 +29,12 @@ class CustomDataset(TorchDataset):
         pin_memory=True,
     ):
         self._pin_memory = pin_memory
-        self._img_transform = img_transform if img_transform is not None else lambda i: i
-        self._kp2d_transform = kp2d_transform if kp2d_transform is not None else lambda i: i
+        self._img_transform = (
+            img_transform if img_transform is not None else lambda i: i
+        )
+        self._kp2d_transform = (
+            kp2d_transform if kp2d_transform is not None else lambda i: i
+        )
         self.images, self.points2d, self.points3d, self.class_labels = self._load(
             samples, object_as_task
         )

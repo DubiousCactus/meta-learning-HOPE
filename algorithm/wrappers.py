@@ -252,7 +252,9 @@ class Regular_GraphNetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            GraphNet(in_features=514, out_features=2), # 514 for the output features of resnet10
+            GraphNet(
+                in_features=514, out_features=2
+            ),  # 514 for the output features of resnet10
             dataset,
             checkpoint_path,
             model_path=model_path,
@@ -266,7 +268,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
         if resnet_path:
             print(f"[*] Loading ResNet state dict form {resnet_path}")
             ckpt = torch.load(resnet_path)
-            self._resnet.load_state_dict(ckpt['model_state_dict'])
+            self._resnet.load_state_dict(ckpt["model_state_dict"])
         else:
             print("[!] ResNet is randomly initialized!")
         self._resnet.eval()
