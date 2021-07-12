@@ -37,11 +37,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
-        # Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/ho/make_data.py.
-        self._reorder_idx = np.array([0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20])
-        self._cam_extr = np.array([[1., 0., 0.], [0, -1., 0.], [0., 0., -1.]], dtype=np.float32)
-        self._seq_splits = {'train': None, 'val': 'MC6'}
-        # Only call super() last, because the base class's init() calls the _load() function!
+        # Call super() first, because we need to overwrite the base class's call to the _load() function!
         super().__init__(
             root,
             batch_size,
@@ -52,6 +48,16 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             use_cuda,
             gpu_number,
         )
+        # Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/ho/make_data.py.
+        self._reorder_idx = np.array([0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20])
+        self._cam_extr = np.array([[1., 0., 0.], [0, -1., 0.], [0., 0., -1.]], dtype=np.float32)
+        self._seq_splits = {'train': None, 'val': 'MC6'}
+        if test:
+            self.test = self._load(object_as_task, "test", "evaluation", False)
+        else:
+            self.train, self.val = self._load(
+                object_as_task, "train", "train", True
+            ), self._load(object_as_task, "val", "train", False)
 
 
     def _compute_labels(self, split: str, meta: dict) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -124,13 +130,13 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         return dataset
 
     def _load(
-        self, object_as_task: bool, split: str, shuffle: bool
+        self, object_as_task: bool, split: str, split_folder: str, shuffle: bool
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
-        if split in os.listdir(self._root):
-            split_path = os.path.join(self._root, split)
+        if split_folder in os.listdir(self._root):
+            split_path = os.path.join(self._root, split_folder)
         else:
             raise Exception(
-                f"{self._root} directory does not contain the '{split}' folder!"
+                f"{self._root} directory does not contain the '{split_folder}' folder!"
             )
         split_task_set = self._make_dataset(split, split_path, object_as_task=object_as_task)
         if object_as_task:
