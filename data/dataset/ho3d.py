@@ -62,6 +62,8 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
 
     def _compute_labels(self, split: str, meta: dict) -> Tuple[torch.Tensor, torch.Tensor]:
         cam_intr = meta['camMat']
+        if meta['handJoints3D'] is None:
+            raise ValueError
         if split != "test":
             hand3d = meta['handJoints3D'][self._reorder_idx]
         else:
@@ -90,6 +92,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         else:
             print(f"[*] Building {split} split...")
             samples = {} if object_as_task else []
+            failed = 0
             for subject in os.listdir(root):
                 if (
                     self._seq_splits[split] is not None
@@ -102,7 +105,10 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                     file_no = img_path.split('.')[0]
                     meta_file = os.path.join(meta_dir, f"{file_no}.pkl")
                     meta = np.load(meta_file, allow_pickle=True)
-                    points_2d, points_3d = self._compute_labels(split, meta)
+                    try:
+                        points_2d, points_3d = self._compute_labels(split, meta)
+                    except ValueError:
+                        failed += 1
                     obj_class_id = meta['objLabel']
                     if object_as_task:
                         if obj_class_id not in samples.keys():
@@ -118,6 +124,8 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 )
             else:
                 print(f"[*] Loaded {len(samples)} samples from the {split} split.")
+            if failed != 0:
+                print(f"[!] {failed} samples were missing annotations!")
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
