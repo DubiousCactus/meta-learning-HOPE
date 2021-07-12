@@ -33,6 +33,7 @@ def main(cfg: DictConfig):
         augment_fphad=cfg.experiment.augment
     )
     trainer = AlgorithmFactory.make_training_algorithm(
+        cfg,
         cfg.experiment.algorithm,
         cfg.experiment.model_def,
         dataset,

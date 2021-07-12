@@ -1,10 +1,5 @@
 defaults:
-    - base_regular
-iterations: 10000
-algorithm: regular
-model_def: GraphUNet
+    - base_regular_graphunet
 dataset: obman
 dataset_path: ../Obman
 name: regular_graphunet_obman
-lr_step: 4000
-lr_step_gamma: 0.1

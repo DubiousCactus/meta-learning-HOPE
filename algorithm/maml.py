@@ -13,7 +13,7 @@ Meta-Training.
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
 from collections import namedtuple
-from typing import List
+from typing import List, Union
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ MetaBatch = namedtuple("MetaBatch", "support query")
 class MAMLTrainer(BaseTrainer):
     def __init__(
         self,
-        model_name: str,
+        model: Union[str, torch.nn.Module],
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
@@ -47,7 +47,7 @@ class MAMLTrainer(BaseTrainer):
             dataset.n_querries == n_querries
         ), "Dataset's N-querries does not match MAML's N-querries!"
         super().__init__(
-            model_name,
+            model,
             dataset,
             checkpoint_path,
             model_path=model_path,

@@ -13,8 +13,10 @@ Utility classes.
 from data.dataset.base import BaseDatasetTaskLoader
 from data.dataset.obman import ObManTaskLoader
 from data.dataset.fphad import FPHADTaskLoader
+from hydra.utils import to_absolute_path
 from algorithm.wrappers import (
     Regular_GraphUNetTrainer,
+    Regular_GraphNetTrainer,
     Regular_ResnetTrainer,
     MAML_GraphUNetTrainer,
     MAML_ResnetTrainer,
@@ -80,6 +82,7 @@ class DatasetFactory:
 class AlgorithmFactory:
     @abstractmethod
     def make_training_algorithm(
+        config,
         algorithm: str,
         model_def: str,
         dataset: BaseDatasetTaskLoader,
@@ -117,17 +120,23 @@ class AlgorithmFactory:
                 first_order=(algorithm == "fomaml"),
             )
         elif algorithm == "regular":
+            args = []
             if model_def == "hopenet":
                 raise Exception(f"No training algorithm found for model {model_def}")
             elif model_def == "resnet":
                 trainer = Regular_ResnetTrainer
             elif model_def == "graphunet":
                 trainer = Regular_GraphUNetTrainer
+            elif model_def == "graphnet":
+                trainer = Regular_GraphNetTrainer
+                resnet_path = config.experiment.resnet_model_path
+                args = [to_absolute_path(resnet_path) if resnet_path else None]
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
             return trainer(
                 dataset,
                 ckpt_path,
+                *args,
                 model_path=model_path,
                 use_cuda=use_cuda,
                 gpu_numbers=gpu_numbers,

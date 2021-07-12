@@ -13,7 +13,7 @@ Typical one-objective training.
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
 from collections import namedtuple
-from typing import List
+from typing import List, Union
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
@@ -26,7 +26,7 @@ import os
 class RegularTrainer(BaseTrainer):
     def __init__(
         self,
-        model_name: str,
+        model: Union[str, torch.nn.Module],
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         model_path: str = None,
@@ -34,7 +34,7 @@ class RegularTrainer(BaseTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            model_name,
+            model,
             dataset,
             checkpoint_path,
             model_path=model_path,

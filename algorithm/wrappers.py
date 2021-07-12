@@ -13,7 +13,12 @@ Part-specific training wrappers.
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.maml import MAMLTrainer, MetaBatch
 from algorithm.regular import RegularTrainer
+from HOPE.models.graphunet import GraphNet
+from HOPE.utils.model import select_model
 from typing import List
+
+
+import torch
 
 
 class MAML_HOPETrainer(MAMLTrainer):
@@ -230,8 +235,52 @@ class Regular_GraphUNetTrainer(RegularTrainer):
             labels2d = labels2d.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         outputs3d = self.model(labels2d)
-        print(labels2d[0], labels3d[0], outputs3d[0])
         loss = self.inner_criterion(outputs3d, labels3d)
+        if backward:
+            loss.backward()
+        return loss
+
+
+class Regular_GraphNetTrainer(RegularTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        resnet_path: str,
+        model_path: str = None,
+        use_cuda: int = False,
+        gpu_numbers: List = [0],
+    ):
+        super().__init__(
+            GraphNet(in_features=514, out_features=2), # 514 for the output features of resnet10
+            dataset,
+            checkpoint_path,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_numbers=gpu_numbers,
+        )
+        self._resnet = select_model("resnet10")
+        if use_cuda and torch.cuda.is_available():
+            self._resnet = self._resnet.cuda()
+        if resnet_path:
+            print(f"[*] Loading ResNet state dict form {resnet_path}")
+            ckpt = torch.load(resnet_path)
+            self._resnet.load_state_dict(ckpt['model_state_dict'])
+        else:
+            print("[!] ResNet is randomly initialized!")
+        self._resnet.eval()
+
+    def _training_step(self, batch: tuple, backward: bool = True):
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+        with torch.no_grad():
+            points2D_init, features = self._resnet(inputs)
+            features = features.unsqueeze(1).repeat(1, 29, 1)
+            in_features = torch.cat([points2D_init, features], dim=2)
+        points2D = self.model(in_features)
+        loss = self.inner_criterion(points2D, labels2d)
         if backward:
             loss.backward()
         return loss

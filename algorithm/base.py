@@ -12,7 +12,7 @@ Base training class.
 
 from data.dataset.base import BaseDatasetTaskLoader
 from HOPE.utils.model import select_model
-from typing import List
+from typing import List, Union
 from abc import ABC
 
 import signal
@@ -23,7 +23,7 @@ import os
 class BaseTrainer(ABC):
     def __init__(
         self,
-        model_name: str,
+        model: Union[str, torch.nn.Module],
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         model_path: str = None,
@@ -33,7 +33,10 @@ class BaseTrainer(ABC):
         self._use_cuda = use_cuda
         self._gpu_number = gpu_numbers[0]
         self._model_path = model_path
-        self.model = select_model(model_name)
+        if type(model) is str:
+            self.model: torch.nn.Module = select_model(model)
+        else:
+            self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_numbers)
