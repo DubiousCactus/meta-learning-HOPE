@@ -262,6 +262,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
         self._resnet = select_model("resnet10")
         if use_cuda and torch.cuda.is_available():
             self._resnet = self._resnet.cuda()
+            self._resnet = torch.nn.DataParallel(self._resnet, device_ids=gpu_numbers)
         if resnet_path:
             print(f"[*] Loading ResNet state dict form {resnet_path}")
             ckpt = torch.load(resnet_path)
