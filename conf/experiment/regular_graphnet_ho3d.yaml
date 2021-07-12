@@ -1,0 +1,5 @@
+defaults:
+    - base_regular_graphnet
+dataset: ho3d
+dataset_path: ../HO3D_v3
+name: regular_graphunet_ho3d
