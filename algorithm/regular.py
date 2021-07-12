@@ -64,9 +64,6 @@ class RegularTrainer(BaseTrainer):
         resume: bool = True,
     ):
         log = logging.getLogger(__name__)
-        log.info(f"=====================================")
-        log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
-        log.info(f"=====================================")
         opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
@@ -77,6 +74,10 @@ class RegularTrainer(BaseTrainer):
             saved_val_loss = self._restore(opt, scheduler, resume_training=resume)
             if resume:
                 past_val_loss = saved_val_loss
+        else:
+            log.info(f"=====================================")
+            log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
+            log.info(f"=====================================")
         avg_val_loss = .0
         for epoch in range(self._epoch, iterations):
             self.model.train()
