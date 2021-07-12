@@ -1,0 +1,5 @@
+defaults:
+    - base_regular_graphnet
+dataset: fphad
+dataset_path: ../FPHAD
+name: regular_graphnet_fphad

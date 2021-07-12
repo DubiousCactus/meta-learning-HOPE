@@ -1,0 +1,5 @@
+defaults:
+    - base_regular
+iterations: 5000
+algorithm: regular
+model_def: ResNet

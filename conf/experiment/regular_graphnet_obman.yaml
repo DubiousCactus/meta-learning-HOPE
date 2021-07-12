@@ -1,0 +1,5 @@
+defaults:
+    - base_regular_graphnet
+dataset: obman
+dataset_path: ../Obman
+name: regular_graphnet_obman

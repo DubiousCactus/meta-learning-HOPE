@@ -1,0 +1,8 @@
+defaults:
+    - base_regular
+iterations: 10000
+algorithm: regular
+model_def: GraphUNet
+lr_step: 4000
+lr_step_gamma: 0.1
+augment: False
