@@ -242,7 +242,6 @@ class Regular_ResnetTrainer(RegularTrainer):
             return criterion(outputs2d_init, labels2d).detach()
 
 
-
 class Regular_GraphUNetTrainer(RegularTrainer):
     def __init__(
         self,

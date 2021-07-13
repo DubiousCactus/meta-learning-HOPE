@@ -14,6 +14,7 @@ from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.base import BaseTrainer
 from collections import namedtuple
 from typing import List, Union
+from functools import partial
 from tqdm import tqdm
 
 import torch.nn.functional as F
@@ -99,9 +100,7 @@ class RegularTrainer(BaseTrainer):
                 val_losses = []
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val, dynamic_ncols=True):
-                    val_losses.append(
-                        self._testing_step(batch)
-                    )
+                    val_losses.append(self._testing_step(batch))
                 avg_val_loss = torch.Tensor(val_losses).mean().item()
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
@@ -169,3 +168,22 @@ class RegularTrainer(BaseTrainer):
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
         print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
 
+        # Percentage of Correct Keypoints (3D-PCK for hand) / Poses (3D-PCP for object) merged:
+        for thresh in range(0, 80, 5):
+            correct_poses = 0
+            for batch in tqdm(self.dataset.test, dynamic_ncols=True):
+                mean_norms = torch.mean(
+                    self._testing_step(
+                        batch,
+                        loss_fn=lambda pred, target: torch.norm((pred - target), dim=2),
+                    ),
+                    dim=1,
+                )
+                correct_poses += (
+                    torch.where(mean_norms < thresh, 1, 0)
+                    .count_nonzero()
+                    .item()
+                )
+            print(
+                f"[*] Percentage of Correct Poses (PCP-3D) with threshold={thresh}: {correct_poses/len(self.dataset.test):.6f}"
+            )
