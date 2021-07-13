@@ -1,5 +1,6 @@
 defaults:
   - base_regular
+fast_lr: 0.0001
 val_every: 1
 model_def: HOPENet
 resnet_model_path: null
