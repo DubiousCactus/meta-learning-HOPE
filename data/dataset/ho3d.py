@@ -88,7 +88,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         """
         pickle_path = os.path.join(
             root,
-            f"fphad_{split}_task.pkl" if object_as_task else f"fphad_{split}.pkl",
+            f"ho3d_{split}_task.pkl" if object_as_task else f"ho3d_{split}.pkl",
         )
         samples = []
         if os.path.isfile(pickle_path):
