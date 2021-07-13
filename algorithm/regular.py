@@ -160,12 +160,12 @@ class RegularTrainer(BaseTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_mse_loss, avg_l1_loss, mse_losses, l1_losses = 0.0, 0.0, [], []
+        avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
-            l1_losses.append(self._testing_step(batch, loss_fn=F.l1_loss))
+            mae_losses.append(self._testing_step(batch, loss_fn=F.mae_loss))
             mse_losses.append(self._testing_step(batch))
         avg_mse_loss = torch.Tensor(mse_losses).mean().item()
-        avg_l1_loss = torch.Tensor(l1_losses).mean().item()
+        avg_mae_loss = torch.Tensor(mae_losses).mean().item()
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
-        print(f"[*] Average L1 test loss: {avg_l1_loss:.6f}")
+        print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
 

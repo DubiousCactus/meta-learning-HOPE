@@ -54,7 +54,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         self._cam_extr = np.array(
             [[1.0, 0.0, 0.0], [0, -1.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float32
         )
-        self._seq_splits = {"train": None, "val": "MC6"}
+        self._seq_splits = {"train": None, "val": "MC6", "test": None}
         if test:
             self.test = self._load(object_as_task, "test", "evaluation", False)
         else:
