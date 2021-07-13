@@ -15,7 +15,7 @@ from algorithm.maml import MAMLTrainer, MetaBatch
 from algorithm.regular import RegularTrainer
 from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
-from models.hopenet import HOPENet
+from model.hopenet import HOPENet
 from typing import List
 
 
