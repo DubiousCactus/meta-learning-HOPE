@@ -162,7 +162,7 @@ class RegularTrainer(BaseTrainer):
         self.model.eval()
         avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
-            mae_losses.append(self._testing_step(batch, loss_fn=F.mae_loss))
+            mae_losses.append(self._testing_step(batch, loss_fn=F.l1_loss))
             mse_losses.append(self._testing_step(batch))
         avg_mse_loss = torch.Tensor(mse_losses).mean().item()
         avg_mae_loss = torch.Tensor(mae_losses).mean().item()
