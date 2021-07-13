@@ -77,3 +77,6 @@ class BaseTrainer(ABC):
 
     def _training_step(self, *args, **kargs):
         raise NotImplementedError("_training_step() not implemented!")
+
+    def _testing_step(self, *args, **kargs):
+        raise NotImplementedError("_testing_step() not implemented!")

@@ -91,7 +91,7 @@ class RegularTrainer(BaseTrainer):
                     return
                 opt.zero_grad()
                 loss = self._training_step(batch)
-                train_losses.append(loss.detach())
+                train_losses.append(loss)
                 opt.step()
 
             if (epoch + 1) % val_every == 0:
@@ -100,7 +100,7 @@ class RegularTrainer(BaseTrainer):
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val, dynamic_ncols=True):
                     val_losses.append(
-                        self._training_step(batch, backward=False).detach()
+                        self._testing_step(batch)
                     )
                 avg_val_loss = torch.Tensor(val_losses).mean().item()
 
@@ -161,15 +161,11 @@ class RegularTrainer(BaseTrainer):
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
         avg_mse_loss, avg_l1_loss, mse_losses, l1_losses = 0.0, 0.0, [], []
-        with torch.no_grad():
-            for batch in tqdm(self.dataset.test, dynamic_ncols=True):
-                l1_losses.append(
-                    self._training_step(
-                        batch, backward=False, loss_fn=F.l1_loss
-                    ).detach()
-                )
-                mse_losses.append(self._training_step(batch, backward=False).detach())
-            avg_mse_loss = torch.Tensor(mse_losses).mean().item()
-            avg_l1_loss = torch.Tensor(l1_losses).mean().item()
+        for batch in tqdm(self.dataset.test, dynamic_ncols=True):
+            l1_losses.append(self._training_step(batch, loss_fn=F.l1_loss))
+            mse_losses.append(self._testing_step(batch))
+        avg_mse_loss = torch.Tensor(mse_losses).mean().item()
+        avg_l1_loss = torch.Tensor(l1_losses).mean().item()
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
         print(f"[*] Average L1 test loss: {avg_l1_loss:.6f}")
+

@@ -221,16 +221,26 @@ class Regular_ResnetTrainer(RegularTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: tuple, backward: bool = True):
+    def _training_step(self, batch: tuple):
         inputs, labels2d, _ = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels2d = labels2d.float().cuda(device=self._gpu_number)
         outputs2d_init, _ = self.model(inputs)
         loss = self.inner_criterion(outputs2d_init, labels2d)
-        if backward:
-            loss.backward()
-        return loss
+        loss.backward()
+        return loss.detach()
+
+    def _testing_step(self, batch: tuple, loss_fn=None):
+        criterion = self.inner_criterion if not loss_fn else loss_fn
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+        with torch.no_grad():
+            outputs2d_init, _ = self.model(inputs)
+            return criterion(outputs2d_init, labels2d).detach()
+
 
 
 class Regular_GraphUNetTrainer(RegularTrainer):
@@ -251,17 +261,25 @@ class Regular_GraphUNetTrainer(RegularTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: tuple, backward: bool = True, loss_fn=None):
-        criterion = self.inner_criterion if not loss_fn else loss_fn
+    def _training_step(self, batch: tuple):
         _, labels2d, labels3d = batch
         if self._use_cuda:
             labels2d = labels2d.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         outputs3d = self.model(labels2d)
-        loss = criterion(outputs3d, labels3d)
-        if backward:
-            loss.backward()
-        return loss
+        loss = self.inner_criterion(outputs3d, labels3d)
+        loss.backward()
+        return loss.detach()
+
+    def _testing_step(self, batch: tuple, loss_fn=None):
+        criterion = self.inner_criterion if not loss_fn else loss_fn
+        _, labels2d, labels3d = batch
+        if self._use_cuda:
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+            labels3d = labels3d.float().cuda(device=self._gpu_number)
+        with torch.no_grad():
+            outputs3d = self.model(labels2d)
+            return criterion(outputs3d, labels3d).detach()
 
 
 class Regular_GraphNetTrainer(RegularTrainer):
@@ -296,7 +314,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
             print("[!] ResNet is randomly initialized!")
         self._resnet.eval()
 
-    def _training_step(self, batch: tuple, backward: bool = True):
+    def _training_step(self, batch: tuple):
         inputs, labels2d, _ = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
@@ -307,9 +325,21 @@ class Regular_GraphNetTrainer(RegularTrainer):
             in_features = torch.cat([points2D_init, features], dim=2)
         points2D = self.model(in_features)
         loss = self.inner_criterion(points2D, labels2d)
-        if backward:
-            loss.backward()
-        return loss
+        loss.backward()
+        return loss.detach()
+
+    def _testing_step(self, batch: tuple, loss_fn=None):
+        criterion = self.inner_criterion if not loss_fn else loss_fn
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+        with torch.no_grad():
+            points2D_init, features = self._resnet(inputs)
+            features = features.unsqueeze(1).repeat(1, 29, 1)
+            in_features = torch.cat([points2D_init, features], dim=2)
+            points2D = self.model(in_features)
+            return criterion(points2D, labels2d).detach()
 
 
 class Regular_HOPENetTrainer(RegularTrainer):
@@ -333,8 +363,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: tuple, backward: bool = True, loss_fn=None):
-        criterion = self.inner_criterion if not loss_fn else loss_fn
+    def _training_step(self, batch: tuple):
         inputs, labels2d, labels3d = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
@@ -342,11 +371,24 @@ class Regular_HOPENetTrainer(RegularTrainer):
             labels3d = labels3d.float().cuda(device=self._gpu_number)
 
         outputs2d_init, outputs2d, outputs3d = self.model(inputs)
-        loss2d_init = criterion(outputs2d_init, labels2d)
-        loss2d = criterion(outputs2d, labels2d)
-        loss3d = criterion(outputs3d, labels3d)
-        return (
+        loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
+        loss2d = self.inner_criterion(outputs2d, labels2d)
+        loss3d = self.inner_criterion(outputs3d, labels3d)
+        loss = (
             (self._lambda1) * loss2d_init
             + (self._lambda1) * loss2d
             + (self._lambda2) * loss3d
         )
+        loss.backward()
+        return loss.detach()
+
+    def _testing_step(self, batch: tuple, loss_fn=None):
+        criterion = self.inner_criterion if not loss_fn else loss_fn
+        inputs, _, labels3d = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels3d = labels3d.float().cuda(device=self._gpu_number)
+
+        with torch.no_grad():
+            _, _, outputs3d = self.model(inputs)
+            return criterion(outputs3d, labels3d).detach()
