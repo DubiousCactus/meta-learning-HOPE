@@ -327,7 +327,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            HOPENet,
+            HOPENet(),
             dataset,
             checkpoint_path,
             model_path=model_path,
