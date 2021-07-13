@@ -69,8 +69,6 @@ class MAML_HOPETrainer(MAMLTrainer):
         else:
             print("[!] GraphUNet is randomly initialized!")
 
-
-
     def _training_step(self, batch: MetaBatch, learner):
         s_inputs, s_labels2d, s_labels3d = batch.support
         q_inputs, q_labels2d, q_labels3d = batch.query
@@ -327,31 +325,13 @@ class Regular_HOPENetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            HOPENet(),
+            HOPENet(resnet_path, graphnet_path, graphunet_path),
             dataset,
             checkpoint_path,
             model_path=model_path,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
-        if resnet_path:
-            print(f"[*] Loading ResNet state dict form {resnet_path}")
-            ckpt = torch.load(resnet_path)
-            self.model.resnet.load_state_dict(ckpt["model_state_dict"])
-        else:
-            print("[!] ResNet is randomly initialized!")
-        if graphnet_path:
-            print(f"[*] Loading GraphNet state dict form {graphnet_path}")
-            ckpt = torch.load(graphnet_path)
-            self.model.graphnet.load_state_dict(ckpt["model_state_dict"])
-        else:
-            print("[!] GraphNet is randomly initialized!")
-        if graphunet_path:
-            print(f"[*] Loading GraphUNet state dict form {graphunet_path}")
-            ckpt = torch.load(graphunet_path)
-            self.model.graphunet.load_state_dict(ckpt["model_state_dict"])
-        else:
-            print("[!] GraphUNet is randomly initialized!")
 
     def _training_step(self, batch: tuple, backward: bool = True, loss_fn=None):
         criterion = self.inner_criterion if not loss_fn else loss_fn

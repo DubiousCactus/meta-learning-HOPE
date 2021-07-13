@@ -160,10 +160,14 @@ class RegularTrainer(BaseTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_mse_loss, avg_l1_loss, mse_losses, l1_losses = .0, .0, [], []
+        avg_mse_loss, avg_l1_loss, mse_losses, l1_losses = 0.0, 0.0, [], []
         with torch.no_grad():
             for batch in tqdm(self.dataset.test, dynamic_ncols=True):
-                l1_losses.append(self._training_step(batch, backward=False, loss_fn=F.l1_loss).detach())
+                l1_losses.append(
+                    self._training_step(
+                        batch, backward=False, loss_fn=F.l1_loss
+                    ).detach()
+                )
                 mse_losses.append(self._training_step(batch, backward=False).detach())
             avg_mse_loss = torch.Tensor(mse_losses).mean().item()
             avg_l1_loss = torch.Tensor(l1_losses).mean().item()
