@@ -25,7 +25,6 @@ for mod in ["", "models", "utils"]:
 setup(
     name="HopeNet",
     version="1.0",
-    packages=["utils", "models"],
     py_modules=[
         "utils.dataset",
         "utils.model",

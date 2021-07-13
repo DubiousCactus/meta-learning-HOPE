@@ -9,8 +9,6 @@
 """
 Custom HOPE-Net
 """
-
-
 import torch
 
 from HOPE.models.graphunet import GraphUNet, GraphNet
