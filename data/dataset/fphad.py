@@ -30,7 +30,11 @@ def kp2d_transform(keypoints):
     (μ = 0, σ = 10) to help improve robustness to errors."
     """
     std = 10
-    return keypoints + (std * torch.randn(keypoints.shape))
+    # Only with a 25% chance
+    if np.random.choice([True, False, False, False]):
+        return keypoints + (std * torch.randn(keypoints.shape))
+    else:
+        return keypoints
 
 
 class FPHADTaskLoader(BaseDatasetTaskLoader):
