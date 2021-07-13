@@ -15,6 +15,7 @@ from algorithm.maml import MAMLTrainer, MetaBatch
 from algorithm.regular import RegularTrainer
 from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
+from models.hopenet import HOPENet
 from typing import List
 
 
@@ -29,13 +30,16 @@ class MAML_HOPETrainer(MAMLTrainer):
         k_shots: int,
         n_querries,
         inner_steps: int,
+        resnet_path: str,
+        graphnet_path: str,
+        graphunet_path: str,
         model_path: str = None,
         first_order: bool = False,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            "hopenet",
+            HOPENet,
             dataset,
             checkpoint_path,
             k_shots,
@@ -46,6 +50,26 @@ class MAML_HOPETrainer(MAMLTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
+        if resnet_path:
+            print(f"[*] Loading ResNet state dict form {resnet_path}")
+            ckpt = torch.load(resnet_path)
+            self.model.resnet.load_state_dict(ckpt["model_state_dict"])
+        else:
+            print("[!] ResNet is randomly initialized!")
+        if graphnet_path:
+            print(f"[*] Loading GraphNet state dict form {graphnet_path}")
+            ckpt = torch.load(graphnet_path)
+            self.model.graphnet.load_state_dict(ckpt["model_state_dict"])
+        else:
+            print("[!] GraphNet is randomly initialized!")
+        if graphunet_path:
+            print(f"[*] Loading GraphUNet state dict form {graphunet_path}")
+            ckpt = torch.load(graphunet_path)
+            self.model.graphunet.load_state_dict(ckpt["model_state_dict"])
+        else:
+            print("[!] GraphUNet is randomly initialized!")
+
+
 
     def _training_step(self, batch: MetaBatch, learner):
         s_inputs, s_labels2d, s_labels3d = batch.support
@@ -229,13 +253,14 @@ class Regular_GraphUNetTrainer(RegularTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: tuple, backward: bool = True):
+    def _training_step(self, batch: tuple, backward: bool = True, loss_fn=None):
+        criterion = self.inner_criterion if not loss_fn else loss_fn
         _, labels2d, labels3d = batch
         if self._use_cuda:
             labels2d = labels2d.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         outputs3d = self.model(labels2d)
-        loss = self.inner_criterion(outputs3d, labels3d)
+        loss = criterion(outputs3d, labels3d)
         if backward:
             loss.backward()
         return loss
@@ -287,3 +312,61 @@ class Regular_GraphNetTrainer(RegularTrainer):
         if backward:
             loss.backward()
         return loss
+
+
+class Regular_HOPENetTrainer(RegularTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        resnet_path: str,
+        graphnet_path: str,
+        graphunet_path: str,
+        model_path: str = None,
+        use_cuda: int = False,
+        gpu_numbers: List = [0],
+    ):
+        super().__init__(
+            HOPENet,
+            dataset,
+            checkpoint_path,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_numbers=gpu_numbers,
+        )
+        if resnet_path:
+            print(f"[*] Loading ResNet state dict form {resnet_path}")
+            ckpt = torch.load(resnet_path)
+            self.model.resnet.load_state_dict(ckpt["model_state_dict"])
+        else:
+            print("[!] ResNet is randomly initialized!")
+        if graphnet_path:
+            print(f"[*] Loading GraphNet state dict form {graphnet_path}")
+            ckpt = torch.load(graphnet_path)
+            self.model.graphnet.load_state_dict(ckpt["model_state_dict"])
+        else:
+            print("[!] GraphNet is randomly initialized!")
+        if graphunet_path:
+            print(f"[*] Loading GraphUNet state dict form {graphunet_path}")
+            ckpt = torch.load(graphunet_path)
+            self.model.graphunet.load_state_dict(ckpt["model_state_dict"])
+        else:
+            print("[!] GraphUNet is randomly initialized!")
+
+    def _training_step(self, batch: tuple, backward: bool = True, loss_fn=None):
+        criterion = self.inner_criterion if not loss_fn else loss_fn
+        inputs, labels2d, labels3d = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+            labels3d = labels3d.float().cuda(device=self._gpu_number)
+
+        outputs2d_init, outputs2d, outputs3d = self.model(inputs)
+        loss2d_init = criterion(outputs2d_init, labels2d)
+        loss2d = criterion(outputs2d, labels2d)
+        loss3d = criterion(outputs3d, labels3d)
+        return (
+            (self._lambda1) * loss2d_init
+            + (self._lambda1) * loss2d
+            + (self._lambda2) * loss3d
+        )

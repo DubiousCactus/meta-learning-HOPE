@@ -1,0 +1,7 @@
+defaults:
+  - base_regular
+val_every: 1
+model_def: HOPENet
+resnet_model_path: null
+graphnet_model_path: null
+graphunet_model_path: null

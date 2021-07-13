@@ -18,6 +18,7 @@ from hydra.utils import to_absolute_path
 from algorithm.wrappers import (
     Regular_GraphUNetTrainer,
     Regular_GraphNetTrainer,
+    Regular_HOPENetTrainer,
     Regular_ResnetTrainer,
     MAML_GraphUNetTrainer,
     MAML_ResnetTrainer,
@@ -100,6 +101,14 @@ class AlgorithmFactory:
         if algorithm in ["maml", "fomaml"]:
             if model_def == "hopenet":
                 trainer = MAML_HOPETrainer
+                resnet_path = config.experiment.resnet_model_path
+                graphnet_path = config.experiment.graphnet_model_path
+                graphunet_path = config.experiment.graphunet_model_path
+                args = [
+                    to_absolute_path(resnet_path) if resnet_path else None,
+                    to_absolute_path(graphnet_path) if graphnet_path else None,
+                    to_absolute_path(graphunet_path) if graphunet_path else None,
+                ]
             elif model_def == "resnet":
                 trainer = MAML_ResnetTrainer
             elif model_def == "graphunet":
@@ -110,7 +119,15 @@ class AlgorithmFactory:
             kargs = {"first_order": algorithm == "fomaml"}
         elif algorithm == "regular":
             if model_def == "hopenet":
-                raise Exception(f"No training algorithm found for model {model_def}")
+                trainer = Regular_HOPENetTrainer
+                resnet_path = config.experiment.resnet_model_path
+                graphnet_path = config.experiment.graphnet_model_path
+                graphunet_path = config.experiment.graphunet_model_path
+                args = [
+                    to_absolute_path(resnet_path) if resnet_path else None,
+                    to_absolute_path(graphnet_path) if graphnet_path else None,
+                    to_absolute_path(graphunet_path) if graphunet_path else None,
+                ]
             elif model_def == "resnet":
                 trainer = Regular_ResnetTrainer
             elif model_def == "graphunet":

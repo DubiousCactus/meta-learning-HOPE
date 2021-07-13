@@ -16,6 +16,7 @@ from collections import namedtuple
 from typing import List, Union
 from tqdm import tqdm
 
+import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import learn2learn as l2l
 import logging
@@ -84,7 +85,7 @@ class RegularTrainer(BaseTrainer):
         for epoch in range(self._epoch, iterations):
             self.model.train()
             train_losses = []
-            for batch in tqdm(self.dataset.train):
+            for batch in tqdm(self.dataset.train, dynamic_ncols=True):
                 if self._exit:
                     self._backup()
                     return
@@ -97,7 +98,7 @@ class RegularTrainer(BaseTrainer):
                 self.model.eval()
                 val_losses = []
                 print("Computing validation error...")
-                for batch in tqdm(self.dataset.val):
+                for batch in tqdm(self.dataset.val, dynamic_ncols=True):
                     val_losses.append(
                         self._training_step(batch, backward=False).detach()
                     )
@@ -159,9 +160,12 @@ class RegularTrainer(BaseTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_loss, losses = 0.0, []
+        avg_mse_loss, avg_l1_loss, mse_losses, l1_losses = .0, .0, [], []
         with torch.no_grad():
-            for batch in tqdm(self.dataset.test):
-                losses.append(self._training_step(batch, backward=False).detach())
-            avg_loss = torch.Tensor(losses).mean().item()
-        print(f"[*] Average test loss: {avg_loss:.6f}")
+            for batch in tqdm(self.dataset.test, dynamic_ncols=True):
+                l1_losses.append(self._training_step(batch, backward=False, loss_fn=F.l1_loss).detach())
+                mse_losses.append(self._training_step(batch, backward=False).detach())
+            avg_mse_loss = torch.Tensor(mse_losses).mean().item()
+            avg_l1_loss = torch.Tensor(l1_losses).mean().item()
+        print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
+        print(f"[*] Average L1 test loss: {avg_l1_loss:.6f}")

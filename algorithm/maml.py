@@ -122,7 +122,7 @@ class MAMLTrainer(BaseTrainer):
             meta_train_losses, meta_val_losses = []
             meta_val_loss = 0.0
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
-            for _ in tqdm(range(batch_size)):
+            for _ in tqdm(range(batch_size), dynamic_ncols=True):
                 if self._exit:
                     self._backup()
                     return
