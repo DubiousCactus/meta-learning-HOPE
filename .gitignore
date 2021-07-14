@@ -4,7 +4,9 @@ checkpoints/
 outputs/
 saved_models/
 *.tar
-
+temp.*
+*.png
+*.tgz
 
 # ------------ Python-specific------------
 # Byte-compiled / optimized / DLL files
