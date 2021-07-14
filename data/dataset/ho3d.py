@@ -103,6 +103,9 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 if (
                     self._seq_splits[split] is not None
                     and subject != self._seq_splits[split]
+                ) or (
+                    self._seq_splits[split] is None and subject in
+                    list(self._seq_splits.values())
                 ):
                     continue
                 s_path = os.path.join(root, subject)

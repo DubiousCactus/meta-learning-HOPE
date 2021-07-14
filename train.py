@@ -49,15 +49,12 @@ def main(cfg: DictConfig):
         gpu_numbers=cfg.gpu_numbers,
     )
     if cfg.test_mode:
-        print("[*] Testing samples: ", len(dataset.test.dataset))
         trainer.test(
             batch_size=cfg.experiment.batch_size,
             fast_lr=cfg.experiment.fast_lr,
             meta_lr=cfg.experiment.meta_lr,
         )
     else:
-        print("[*] Training samples: ", len(dataset.train.dataset))
-        print("[*] Validation samples: ", len(dataset.val.dataset))
         trainer.train(
             batch_size=cfg.experiment.batch_size,
             iterations=cfg.experiment.iterations,
