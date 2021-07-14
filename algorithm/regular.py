@@ -85,6 +85,7 @@ class RegularTrainer(BaseTrainer):
         avg_val_loss = 0.0
         for epoch in range(self._epoch, iterations):
             self.model.train()
+            scheduler.step()
             train_losses = []
             for batch in tqdm(self.dataset.train, dynamic_ncols=True):
                 if self._exit:
@@ -111,7 +112,6 @@ class RegularTrainer(BaseTrainer):
                 print(f"Validation Loss: {avg_val_loss:.6f}")
                 log.info(f"[Epoch {epoch}]: Validation Loss: {avg_val_loss:.6f}")
             print("============================================")
-            scheduler.step()
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and avg_val_loss < past_val_loss:
                 print(f"-> Saving model to {self._checkpoint_path}...")
