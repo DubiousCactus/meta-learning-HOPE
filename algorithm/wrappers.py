@@ -500,18 +500,11 @@ class Regular_HOPENetTester(RegularTrainer):
         print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
 
         # Code tested and correct
-        (
-            correct_ho_poses,
-            correct_hand_poses,
-            correct_obj_poses,
-            correct_obj_init_poses,
-        ) = (
-            [0] * (max_thresh // thresh_step),
-            [0] * (max_thresh // thresh_step),
+        max_thresh, thresh_step = 100, 5
+        (correct_ho_poses, correct_hand_poses,) = (
             [0] * (max_thresh // thresh_step),
             [0] * (max_thresh // thresh_step),
         )
-        max_thresh, thresh_step = 100, 5
         for i, thresh in tqdm(
             enumerate(range(0, max_thresh, thresh_step)),
             total=max_thresh // thresh_step,
@@ -536,6 +529,10 @@ class Regular_HOPENetTester(RegularTrainer):
                 )
 
         max_thresh, thresh_step = 10, 1
+        (correct_obj_poses, correct_obj_init_poses,) = (
+            [0] * (max_thresh // thresh_step),
+            [0] * (max_thresh // thresh_step),
+        )
         for i, thresh in tqdm(
             enumerate(range(0, max_thresh, thresh_step)),
             total=max_thresh // thresh_step,
@@ -558,7 +555,6 @@ class Regular_HOPENetTester(RegularTrainer):
                 correct_poses[i] = int(
                     (correct_poses[i] * 100) / len(self.dataset.test.dataset)
                 )
-
 
         with open("test_results.pkl", "wb") as file:
             pickle.dump(
