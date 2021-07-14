@@ -109,6 +109,8 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 ):
                     continue
                 s_path = os.path.join(root, subject)
+                if not os.path.isdir(s_path):
+                    continue
                 meta_dir = os.path.join(s_path, "meta")
                 for img in os.listdir(os.path.join(s_path, "rgb")):
                     file_no = img.split(".")[0]
