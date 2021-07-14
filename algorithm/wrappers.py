@@ -528,6 +528,22 @@ class Regular_HOPENetTester(RegularTrainer):
                     (correct_poses[i] * 100) / len(self.dataset.test.dataset)
                 )
 
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
+        plt.xlabel("mm Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.grid(True, linestyle="dashed")
+        plt.title("Percentage of Correct Hand-Object Poses (3D)")
+        plt.savefig("ho_pcp3d.png")
+        plt.clf()
+
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_hand_poses)
+        plt.xlabel("mm Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.title("Percentage of Correct Hand Poses (3D)")
+        plt.grid(True, linestyle="dashed")
+        plt.savefig("h_pcp3d.png")
+        plt.clf()
+
         max_thresh, thresh_step = 10, 1
         (correct_obj_poses, correct_obj_init_poses,) = (
             [0] * (max_thresh // thresh_step),
@@ -556,35 +572,6 @@ class Regular_HOPENetTester(RegularTrainer):
                     (correct_poses[i] * 100) / len(self.dataset.test.dataset)
                 )
 
-        with open("test_results.pkl", "wb") as file:
-            pickle.dump(
-                {
-                    "correct_ho_poses": correct_ho_poses,
-                    "correct_hand_poses": correct_hand_poses,
-                    "correct_obj_poses": correct_obj_poses,
-                    "correct_obj_init_poses": correct_obj_init_poses,
-                    "avg_mse": avg_mse_loss,
-                    "avg_mae": avg_mae_loss,
-                },
-                file,
-            )
-
-        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
-        plt.xlabel("mm Threshold")
-        plt.ylabel("Percentage of Correct Poses")
-        plt.grid(True, linestyle="dashed")
-        plt.title("Percentage of Correct Hand-Object Poses (3D)")
-        plt.savefig("ho_pcp3d.png")
-        plt.clf()
-
-        plt.plot(list(range(0, max_thresh, thresh_step)), correct_hand_poses)
-        plt.xlabel("mm Threshold")
-        plt.ylabel("Percentage of Correct Poses")
-        plt.title("Percentage of Correct Hand Poses (3D)")
-        plt.grid(True, linestyle="dashed")
-        plt.savefig("h_pcp3d.png")
-        plt.clf()
-
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_poses)
         plt.xlabel("pixel Threshold")
         plt.ylabel("Percentage of Correct Poses")
@@ -599,3 +586,16 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.title("Percentage of Correct Object Initial Poses (2D)")
         plt.grid(True, linestyle="dashed")
         plt.savefig("o_pcp2d_init.png")
+
+        with open("test_results.pkl", "wb") as file:
+            pickle.dump(
+                {
+                    "correct_ho_poses": correct_ho_poses,
+                    "correct_hand_poses": correct_hand_poses,
+                    "correct_obj_poses": correct_obj_poses,
+                    "correct_obj_init_poses": correct_obj_init_poses,
+                    "avg_mse": avg_mse_loss,
+                    "avg_mae": avg_mae_loss,
+                },
+                file,
+            )
