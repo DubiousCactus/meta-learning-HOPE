@@ -217,7 +217,7 @@ class Regular_ResnetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            ResNet(model="resnet18", pretrained=False),
+            ResNet(model="resnet18", pretrained=True),
             dataset,
             checkpoint_path,
             model_path=model_path,
