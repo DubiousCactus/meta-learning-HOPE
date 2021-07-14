@@ -32,7 +32,9 @@ class ResNet(torch.nn.Module):
         self.fcl = torch.nn.Sequential(
             torch.nn.Linear(n_features, n_features//2),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_features//2, 29*2)
+            torch.nn.Linear(n_features//2, n_features//4),
+            torch.nn.ReLU(),
+            torch.nn.Linear(n_features//4, 29*2)
         )
 
     def _forward_impl(self, x: Tensor) -> Tensor:
