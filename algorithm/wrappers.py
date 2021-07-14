@@ -17,8 +17,11 @@ from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
 from model.hopenet import HOPENet
 from typing import List
+from tqdm import tqdm
 
-
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import pickle
 import torch
 
 
@@ -391,3 +394,212 @@ class Regular_HOPENetTrainer(RegularTrainer):
         with torch.no_grad():
             _, _, outputs3d = self.model(inputs)
             return criterion(outputs3d, labels3d).detach()
+
+
+class Regular_HOPENetTester(RegularTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        resnet_path: str,
+        graphnet_path: str,
+        graphunet_path: str,
+        model_path: str = None,
+        use_cuda: int = False,
+        gpu_numbers: List = [0],
+    ):
+        super().__init__(
+            HOPENet(resnet_path, graphnet_path, graphunet_path),
+            dataset,
+            checkpoint_path,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_numbers=gpu_numbers,
+        )
+
+    def _training_step(self, batch: tuple):
+        raise NotImplementedError
+
+    def _testing_step(self, batch: tuple, compute="3d_ho_pcp", threshold=0):
+        inputs, labels2d, labels3d = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels3d = labels3d.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+
+        with torch.no_grad():
+            outputs2d_init, outputs2d, outputs3d = self.model(inputs)
+            if compute == "mse":
+                return F.mse_loss(outputs3d, labels3d).detach()
+            elif compute == "mae":
+                return F.l1_loss(outputs3d, labels3d).detach()
+            elif compute == "3d_ho_pcp":
+                # Percentage of Correct (hand-object) Poses (3D-PCP for hand-object):
+                mean_norms = torch.mean(
+                    torch.norm((outputs3d - labels3d), dim=2),
+                    dim=1,
+                )
+                return int(
+                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
+                )
+            elif compute == "3d_hand_pcp":
+                # Percentage of Correct (hand) Poses (3D-PCP for hands):
+                mean_norms = torch.mean(
+                    torch.norm((outputs3d[:, :21, :] - labels3d[:, :21, :]), dim=2),
+                    dim=1,
+                )
+                return int(
+                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
+                )
+            elif compute == "2d_obj_pcp":
+                # Percentage of Correct (object) Poses (2D-PCP for objects, after graph
+                # convolutions):
+                mean_norms = torch.mean(
+                    torch.norm((outputs2d[:, 21:, :] - labels2d[:, 21:, :]), dim=2),
+                    dim=1,
+                )
+                return int(
+                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
+                )
+            elif compute == "2dinit_obj_pcp":
+                # Percentage of Correct (object) Poses (2D-PCP for objects, after resnet):
+                mean_norms = torch.mean(
+                    torch.norm(
+                        (outputs2d_init[:, 21:, :] - labels2d[:, 21:, :]), dim=2
+                    ),
+                    dim=1,
+                )
+                return int(
+                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
+                )
+            else:
+                raise NotImplementedError(f"No implementation for {compute}")
+
+    def test(
+        self,
+        batch_size: int = 32,
+        fast_lr: float = 0.01,
+        meta_lr: float = None,
+    ):
+        if not self._model_path:
+            print(f"[!] Testing a randomly initialized model!")
+        else:
+            print(f"[*] Restoring from checkpoint: {self._model_path}")
+            checkpoint = torch.load(self._model_path)
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.model.eval()
+        avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
+        for batch in tqdm(self.dataset.test, dynamic_ncols=True):
+            if self._exit:
+                return
+            mae_losses.append(self._testing_step(batch, compute="mae"))
+            mse_losses.append(self._testing_step(batch, compute="mse"))
+        avg_mse_loss = torch.Tensor(mse_losses).mean().item()
+        avg_mae_loss = torch.Tensor(mae_losses).mean().item()
+        print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
+        print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
+
+        # Code tested and correct
+        (
+            correct_ho_poses,
+            correct_hand_poses,
+            correct_obj_poses,
+            correct_obj_init_poses,
+        ) = (
+            [0] * (max_thresh // thresh_step),
+            [0] * (max_thresh // thresh_step),
+            [0] * (max_thresh // thresh_step),
+            [0] * (max_thresh // thresh_step),
+        )
+        max_thresh, thresh_step = 100, 5
+        for i, thresh in tqdm(
+            enumerate(range(0, max_thresh, thresh_step)),
+            total=max_thresh // thresh_step,
+            dynamic_ncols=True,
+        ):
+            for batch in self.dataset.test:
+                if self._exit:
+                    return
+                correct_ho_poses[i] += self._testing_step(
+                    batch, compute="3d_ho_pcp", threshold=thresh
+                )
+                correct_hand_poses[i] += self._testing_step(
+                    batch, compute="3d_hand_pcp", threshold=thresh
+                )
+
+            for correct_poses in [
+                correct_ho_poses,
+                correct_hand_poses,
+            ]:
+                correct_poses[i] = int(
+                    (correct_poses[i] * 100) / len(self.dataset.test.dataset)
+                )
+
+        max_thresh, thresh_step = 10, 1
+        for i, thresh in tqdm(
+            enumerate(range(0, max_thresh, thresh_step)),
+            total=max_thresh // thresh_step,
+            dynamic_ncols=True,
+        ):
+            for batch in self.dataset.test:
+                if self._exit:
+                    return
+                correct_obj_poses[i] += self._testing_step(
+                    batch, compute="2d_obj_pcp", threshold=thresh
+                )
+                correct_obj_init_poses[i] += self._testing_step(
+                    batch, compute="2dinit_obj_pcp", threshold=thresh
+                )
+
+            for correct_poses in [
+                correct_obj_poses,
+                correct_obj_init_poses,
+            ]:
+                correct_poses[i] = int(
+                    (correct_poses[i] * 100) / len(self.dataset.test.dataset)
+                )
+
+
+        with open("test_results.pkl", "wb") as file:
+            pickle.dump(
+                {
+                    "correct_ho_poses": correct_ho_poses,
+                    "correct_hand_poses": correct_hand_poses,
+                    "correct_obj_poses": correct_obj_poses,
+                    "correct_obj_init_poses": correct_obj_init_poses,
+                    "avg_mse": avg_mse_loss,
+                    "avg_mae": avg_mae_loss,
+                },
+                file,
+            )
+
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
+        plt.xlabel("mm Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.grid(True, linestyle="dashed")
+        plt.title("Percentage of Correct Hand-Object Poses (3D)")
+        plt.savefig("ho_pcp3d.png")
+        plt.clf()
+
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_hand_poses)
+        plt.xlabel("mm Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.title("Percentage of Correct Hand Poses (3D)")
+        plt.grid(True, linestyle="dashed")
+        plt.savefig("h_pcp3d.png")
+        plt.clf()
+
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_poses)
+        plt.xlabel("pixel Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.title("Percentage of Correct Object Poses (2D)")
+        plt.grid(True, linestyle="dashed")
+        plt.savefig("o_pcp2d.png")
+        plt.clf()
+
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_init_poses)
+        plt.xlabel("pixel Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.title("Percentage of Correct Object Initial Poses (2D)")
+        plt.grid(True, linestyle="dashed")
+        plt.savefig("o_pcp2d_init.png")

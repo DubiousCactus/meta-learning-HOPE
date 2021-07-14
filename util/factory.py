@@ -19,6 +19,7 @@ from algorithm.wrappers import (
     Regular_GraphUNetTrainer,
     Regular_GraphNetTrainer,
     Regular_HOPENetTrainer,
+    Regular_HOPENetTester,
     Regular_ResnetTrainer,
     MAML_GraphUNetTrainer,
     MAML_ResnetTrainer,
@@ -87,6 +88,7 @@ class AlgorithmFactory:
         n_queries: int,
         inner_steps: int,
         ckpt_path: str,
+        test_mode: bool,
         model_path: str = None,
         use_cuda: bool = True,
         gpu_numbers: List = [0],
@@ -119,7 +121,7 @@ class AlgorithmFactory:
             kargs = {"first_order": algorithm == "fomaml"}
         elif algorithm == "regular":
             if model_def == "hopenet":
-                trainer = Regular_HOPENetTrainer
+                trainer = Regular_HOPENetTester if test_mode else Regular_HOPENetTrainer
                 resnet_path = config.experiment.resnet_model_path
                 graphnet_path = config.experiment.graphnet_model_path
                 graphunet_path = config.experiment.graphunet_model_path

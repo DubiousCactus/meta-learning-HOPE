@@ -41,6 +41,7 @@ def main(cfg: DictConfig):
         cfg.experiment.n_queries,
         cfg.experiment.steps,
         cfg.experiment.checkpoint_path,
+        cfg.test_mode,
         model_path=to_absolute_path(cfg.experiment.saved_model)
         if cfg.experiment.saved_model
         else None,

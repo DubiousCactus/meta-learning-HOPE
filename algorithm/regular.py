@@ -11,15 +11,12 @@ Typical one-objective training.
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from typing import List, Union, Optional
 from algorithm.base import BaseTrainer
 from collections import namedtuple
-from typing import List, Union
 from functools import partial
 from tqdm import tqdm
 
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-import learn2learn as l2l
 import logging
 import torch
 import os
@@ -44,15 +41,17 @@ class RegularTrainer(BaseTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _restore(self, opt, scheduler, resume_training: bool = True):
+    def _restore(self, opt, scheduler, resume_training: bool = True) -> float:
         print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
+        val_loss = float("+inf")
         if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
             opt.load_state_dict(checkpoint["opt_state_dict"])
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-            return checkpoint["val_loss"]
+            val_loss = checkpoint["val_loss"]
+        return val_loss
 
     def train(
         self,
@@ -74,9 +73,8 @@ class RegularTrainer(BaseTrainer):
         past_val_loss = float("+inf")
         shown = False
         if self._model_path:
-            saved_val_loss = self._restore(opt, scheduler, resume_training=resume)
+            past_val_loss = self._restore(opt, scheduler, resume_training=resume)
             if resume:
-                past_val_loss = saved_val_loss
                 shown = True
         if not shown:
             log.info(f"=====================================")
@@ -102,7 +100,7 @@ class RegularTrainer(BaseTrainer):
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val, dynamic_ncols=True):
                     val_losses.append(self._testing_step(batch))
-                avg_val_loss = torch.Tensor(val_losses).mean().item()
+                avg_val_loss = float(torch.Tensor(val_losses).mean().item())
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
             log.info(f"[Epoch {epoch}]: Training Loss: {avg_train_loss:.6f}")
@@ -125,7 +123,8 @@ class RegularTrainer(BaseTrainer):
                     },
                     os.path.join(
                         self._checkpoint_path,
-                        f"epoch_{epoch}_train_loss-{avg_train_loss:.6f}_val_loss-{avg_val_loss:.6f}.tar",
+                        f"epoch_{epoch}_train_loss-{avg_train_loss:.6f}_val_loss-\
+                                {avg_val_loss:.6f}.tar",
                     ),
                 )
                 past_val_loss = avg_val_loss
@@ -161,29 +160,9 @@ class RegularTrainer(BaseTrainer):
         self.model.eval()
         avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
-            mae_losses.append(self._testing_step(batch, loss_fn=F.l1_loss))
-            mse_losses.append(self._testing_step(batch))
+            mae_losses.append(self._testing_step(batch, compute="mae"))
+            mse_losses.append(self._testing_step(batch, compute="mse"))
         avg_mse_loss = torch.Tensor(mse_losses).mean().item()
         avg_mae_loss = torch.Tensor(mae_losses).mean().item()
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
         print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
-
-        # Percentage of Correct Keypoints (3D-PCK for hand) / Poses (3D-PCP for object) merged:
-        for thresh in range(0, 80, 5):
-            correct_poses = 0
-            for batch in tqdm(self.dataset.test, dynamic_ncols=True):
-                mean_norms = torch.mean(
-                    self._testing_step(
-                        batch,
-                        loss_fn=lambda pred, target: torch.norm((pred - target), dim=2),
-                    ),
-                    dim=1,
-                )
-                correct_poses += (
-                    torch.where(mean_norms < thresh, 1, 0)
-                    .count_nonzero()
-                    .item()
-                )
-            print(
-                f"[*] Percentage of Correct Poses (PCP-3D) with threshold={thresh}: {correct_poses/len(self.dataset.test):.6f}"
-            )
