@@ -196,6 +196,9 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                     if (
                         self._seq_splits[split] is not None
                         and int(seq_idx) != self._seq_splits[split]
+                    ) or (
+                        self._seq_splits[split] is None and int(seq_idx) in
+                        list(self._seq_splits.values())
                     ):
                         continue
                     obj_name = "_".join(action_name.split("_")[1:])
