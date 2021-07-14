@@ -32,7 +32,7 @@ class ResNet(torch.nn.Module):
         del self.resnet.fc
         self.fcl = torch.nn.Sequential(
             torch.nn.Linear(n_features, n_features//2),
-            torch.nn.Dropout(p=0.25),
+            torch.nn.Dropout(p=0.35),
             torch.nn.ReLU(),
             torch.nn.Linear(n_features//2, 29*2)
         )
