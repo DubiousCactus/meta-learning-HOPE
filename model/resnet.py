@@ -11,6 +11,7 @@ Custom ResNet
 """
 
 from collections import OrderedDict
+from typing import Tuple
 from torch import Tensor
 
 import torchvision.models as models
@@ -31,13 +32,12 @@ class ResNet(torch.nn.Module):
         del self.resnet.fc
         self.fcl = torch.nn.Sequential(
             torch.nn.Linear(n_features, n_features//2),
+            torch.nn.Dropout(),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_features//2, n_features//4),
-            torch.nn.ReLU(),
-            torch.nn.Linear(n_features//4, 29*2)
+            torch.nn.Linear(n_features//2, 29*2)
         )
 
-    def _forward_impl(self, x: Tensor) -> Tensor:
+    def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         '''
         Original implementation from PyTorch
         '''
@@ -59,5 +59,5 @@ class ResNet(torch.nn.Module):
 
         return x.view(-1, 29, 2), img_features
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         return self._forward_impl(x)
