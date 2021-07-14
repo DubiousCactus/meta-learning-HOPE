@@ -15,6 +15,7 @@ from typing import Tuple
 from torch import Tensor
 
 import torchvision.models as models
+import torch.nn.functional as F
 import torch
 
 
@@ -30,12 +31,14 @@ class ResNet(torch.nn.Module):
         n_features = resnet.fc.in_features
         self.resnet = resnet
         del self.resnet.fc
-        self.fcl = torch.nn.Sequential(
-            torch.nn.Linear(n_features, 128),
-            torch.nn.Dropout(p=0.35),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 29*2)
-        )
+        self.dropout = torch.nn.Dropout(p=0.5)
+        self.fcl = torch.nn.Linear(n_features, 29*2)
+        #torch.nn.Sequential(
+            # torch.nn.Dropout(p=0.5),
+            # torch.nn.Linear(n_features, 29*2),
+            # torch.nn.ReLU(),
+            # torch.nn.Linear(128, 29*2)
+        # )
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         '''
@@ -55,7 +58,7 @@ class ResNet(torch.nn.Module):
         x = self.resnet.avgpool(x)
         x = torch.flatten(x, 1)
         img_features = x
-        x = self.fcl(x)
+        x = self.fcl(self.dropout(x))
 
         return x.view(-1, 29, 2), img_features
 
