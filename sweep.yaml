@@ -12,14 +12,23 @@ parameters:
   experiment: 
     value: regular_cnn_fphad
   experiment.model_def:
-    values: ["resnet10", "resnet18", "resnet32", "mobilenet_v3-small"]
+    #values: ["resnet10", "resnet18", "resnet32", "mobilenet_v3-small"]
+    values: ["resnet10", "mobilenet_v3-small"]
+  experiment.iterations:
+    value: 300
   experiment.fast_lr:
     min: 0.0001
     max: 0.1
-  experiment.dropout:
-    min: 0.05
+  experiment.dropout1:
+    min: 0.0
+    max: 0.5
+  experiment.dropout2:
+    min: 0.0
     max: 0.5
   experiment.hidden:
-    values: [32, 64, 128, 256]
+    values: [8, 16, 32, 64, 128, 256, 512]
   experiment.optimizer:
     values: ["adam", "sgd"]
+early_terminate:
+  type: hyperband
+  min_iter: 5

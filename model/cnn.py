@@ -39,8 +39,9 @@ class ResNet(torch.nn.Module):
         del self.resnet.fc
         wconfig = wandb.config
         self.fc = torch.nn.Sequential(
+            torch.nn.Dropout(p=wconfig['experiment.dropout1'], inplace=True),
             torch.nn.Linear(n_features, wconfig['experiment.hidden']),
-            torch.nn.Dropout(p=wconfig['experiment.dropout'], inplace=True),
+            torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
             torch.nn.ReLU(),
             torch.nn.Linear(wconfig['experiment.hidden'], 29*2)
         )
@@ -92,9 +93,10 @@ class MobileNet(torch.nn.Module):
         del self.mobilenet.classifier
         wconfig = wandb.config
         self.fc = torch.nn.Sequential(
+            torch.nn.Dropout(p=wconfig['experiment.dropout1'], inplace=True),
             torch.nn.Linear(n_features, wconfig['experiment.hidden']),
             torch.nn.Hardswish(),
-            torch.nn.Dropout(p=wconfig['experiment.dropout'], inplace=True),
+            torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
             torch.nn.Linear(wconfig['experiment.hidden'], 29*2)
         )
 
