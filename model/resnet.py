@@ -43,7 +43,7 @@ class ResNet(torch.nn.Module):
             torch.nn.Linear(n_features, 64),
             # torch.nn.Dropout(p=0.2),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_features, 29*2)
+            torch.nn.Linear(64, 29*2)
         )
         print(self.fc)
 
@@ -70,8 +70,7 @@ class ResNet(torch.nn.Module):
         x = self.resnet.layer4(x)
 
         x = self.resnet.avgpool(x)
-        x = torch.flatten(x, 1)
-        img_features = x
+        img_features = torch.flatten(x, 1)
         x = self.fc(x)
 
         return x.view(-1, 29, 2), img_features
