@@ -76,6 +76,7 @@ class RegularTrainer(BaseTrainer):
             past_val_loss = self._restore(opt, scheduler, resume_training=resume)
             if resume:
                 shown = True
+                scheduler.step()
         if not shown:
             log.info(f"=====================================")
             log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
@@ -83,7 +84,6 @@ class RegularTrainer(BaseTrainer):
         avg_val_loss = 0.0
         for epoch in range(self._epoch, iterations):
             self.model.train()
-            scheduler.step()
             train_losses = []
             for batch in tqdm(self.dataset.train, dynamic_ncols=True):
                 if self._exit:
@@ -128,6 +128,7 @@ class RegularTrainer(BaseTrainer):
                     ),
                 )
                 past_val_loss = avg_val_loss
+            scheduler.step()
 
     def _exit_gracefully(self, *args):
         self._exit = True

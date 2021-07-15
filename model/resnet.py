@@ -36,8 +36,6 @@ class ResNet(torch.nn.Module):
         n_features = resnet.fc.in_features
         self.resnet = resnet
         del self.resnet.fc
-        # self.dropout = torch.nn.Dropout(p=0.5)
-        # self.fc = torch.nn.Linear(n_features, 29*2)
         self.fc = torch.nn.Sequential(
             torch.nn.Dropout(p=0.1),
             torch.nn.Linear(n_features, 128),
