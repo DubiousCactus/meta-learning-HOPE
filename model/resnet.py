@@ -37,11 +37,13 @@ class ResNet(torch.nn.Module):
         self.resnet = resnet
         del self.resnet.fc
         self.fc = torch.nn.Sequential(
-            torch.nn.Dropout(p=0.1),
-            torch.nn.Linear(n_features, 128),
-            torch.nn.Dropout(p=0.1),
+            torch.nn.Flatten(),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, 29*2)
+            torch.nn.Dropout(p=0.5),
+            # torch.nn.Linear(n_features, 128),
+            # torch.nn.Dropout(p=0.2),
+            # torch.nn.ReLU(),
+            torch.nn.Linear(n_features, 29*2)
         )
 
     def _load_resnet10_model(self, model: torch.nn.Module):
