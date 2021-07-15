@@ -111,7 +111,7 @@ class MAML_HOPETrainer(MAMLTrainer):
         return query_loss
 
 
-class MAML_ResnetTrainer(MAMLTrainer):
+class MAML_CNNTrainer(MAMLTrainer):
     def __init__(
         self,
         dataset: BaseDatasetTaskLoader,
@@ -119,13 +119,26 @@ class MAML_ResnetTrainer(MAMLTrainer):
         k_shots: int,
         n_querries,
         inner_steps: int,
+        cnn_def: str,
         model_path: str = None,
         first_order: bool = False,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
+        if cnn_def == "resnet10":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet18":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet34":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "mobilenetv3-small":
+            cnn = MobileNet(model="v3-small", pretrained=True)
+        elif cnn_def == "mobilenetv3-large":
+            cnn = MobileNet(model="v3-large", pretrained=True)
+        else:
+            raise ValueError(f"{cnn_def} is not a valid CNN definition!")
         super().__init__(
-            "resnet10",
+            cnn,
             dataset,
             checkpoint_path,
             k_shots,
@@ -207,17 +220,30 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         return query_loss
 
 
-class Regular_ResnetTrainer(RegularTrainer):
+class Regular_CNNTrainer(RegularTrainer):
     def __init__(
         self,
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
+        cnn_def: str,
         model_path: str = None,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
+        if cnn_def == "resnet10":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet18":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet34":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "mobilenetv3-small":
+            cnn = MobileNet(model="v3-small", pretrained=True)
+        elif cnn_def == "mobilenetv3-large":
+            cnn = MobileNet(model="v3-large", pretrained=True)
+        else:
+            raise ValueError(f"{cnn_def} is not a valid CNN definition!")
         super().__init__(
-            MobileNet(model="v3-small", pretrained=True),
+            cnn,
             dataset,
             checkpoint_path,
             model_path=model_path,

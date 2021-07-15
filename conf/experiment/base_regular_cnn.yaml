@@ -1,4 +1,4 @@
 defaults:
     - base_regular
 iterations: 5000
-model_def: ResNet
+model_def: ResNet10

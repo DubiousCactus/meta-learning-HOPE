@@ -1,5 +1,5 @@
 defaults:
-    - base_regular_resnet
+    - base_regular_cnn
 dataset: obman
 dataset_path: ../Obman
 name: regular_resnet_obman

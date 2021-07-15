@@ -20,9 +20,9 @@ from algorithm.wrappers import (
     Regular_GraphNetTrainer,
     Regular_HOPENetTrainer,
     Regular_HOPENetTester,
-    Regular_ResnetTrainer,
+    Regular_CNNTrainer,
     MAML_GraphUNetTrainer,
-    MAML_ResnetTrainer,
+    MAML_CNNTrainer,
     MAML_HOPETrainer,
 )
 from algorithm.base import BaseTrainer
@@ -111,8 +111,9 @@ class AlgorithmFactory:
                     to_absolute_path(graphnet_path) if graphnet_path else None,
                     to_absolute_path(graphunet_path) if graphunet_path else None,
                 ]
-            elif model_def == "resnet":
-                trainer = MAML_ResnetTrainer
+            elif "resnet" in model_def or "mobilenet" in model_def:
+                trainer = MAML_CNNTrainer
+                args = [model_def]
             elif model_def == "graphunet":
                 trainer = MAML_GraphUNetTrainer
             else:
@@ -130,8 +131,9 @@ class AlgorithmFactory:
                     to_absolute_path(graphnet_path) if graphnet_path else None,
                     to_absolute_path(graphunet_path) if graphunet_path else None,
                 ]
-            elif model_def == "resnet":
-                trainer = Regular_ResnetTrainer
+            elif "resnet" in model_def or "mobilenet" in model_def:
+                trainer = Regular_CNNTrainer
+                args = [model_def]
             elif model_def == "graphunet":
                 trainer = Regular_GraphUNetTrainer
             elif model_def == "graphnet":
