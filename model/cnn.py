@@ -89,10 +89,10 @@ class MobileNet(torch.nn.Module):
         self.mobilenet = network
         del self.mobilenet.classifier
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(n_features, 128),
+            # torch.nn.Linear(n_features, 128),
             torch.nn.Hardswish(),
             torch.nn.Dropout(p=0.2, inplace=True),
-            torch.nn.Linear(128, 29*2)
+            torch.nn.Linear(n_features, 29*2)
         )
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
