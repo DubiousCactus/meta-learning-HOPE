@@ -19,11 +19,13 @@ parameters:
   experiment.fast_lr:
     min: 0.0001
     max: 0.1
+  experiment.batch_size:
+    values: [16, 32, 64, 128, 256]
   experiment.dropout1:
-    min: 0.0
+    min: 0.05
     max: 0.5
   experiment.dropout2:
-    min: 0.0
+    min: 0.05
     max: 0.5
   experiment.hidden:
     values: [8, 16, 32, 64, 128, 256, 512]
