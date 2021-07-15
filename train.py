@@ -22,13 +22,7 @@ import os
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
-    wandb.init(project='HOPE-Net')
-    wconfig = wandb.config
-    wconfig.learning_rate = cfg.experiment.fast_lr
-    wconfig.dataset = cfg.experiment.dataset
-    wconfig.batch_size = cfg.experiment.batch_size
-    wconfig.algorithm = cfg.experiment.algorithm
-    wconfig.model_def = cfg.experiment.model_def
+    wandb.init(project='HOPE-Net', config=cfg)
 
     dataset = DatasetFactory.make_data_loader(
         to_absolute_path(cfg.shapenet_root),

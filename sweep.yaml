@@ -1,0 +1,25 @@
+program: train.py
+command: 
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args_no_hyphens}
+method: bayes
+metric:
+  name: val_loss
+  goal: minimize
+parameters:
+  experiment: 
+    value: regular_cnn_fphad
+  experiment.model_def:
+    values: ["resnet10", "resnet18", "resnet32", "mobilenet_v3-small"]
+  experiment.fast_lr:
+    min: 0.0001
+    max: 0.1
+  experiment.dropout:
+    min: 0.05
+    max: 0.5
+  experiment.hidden:
+    values: [32, 64, 128, 256]
+  experiment.optimizer:
+    values: ["adam", "sgd"]

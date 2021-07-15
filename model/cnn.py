@@ -17,6 +17,7 @@ from torch import Tensor
 
 import torchvision.models as models
 import torch.nn.functional as F
+import wandb
 import torch
 
 
@@ -36,11 +37,12 @@ class ResNet(torch.nn.Module):
         n_features = network.fc.in_features
         self.resnet = network
         del self.resnet.fc
+        wconfig = wandb.config
         self.fc = torch.nn.Sequential(
-            # torch.nn.Linear(n_features, 128),
-            torch.nn.Dropout(p=0.5, inplace=True),
+            torch.nn.Linear(n_features, wconfig['experiment.hidden']),
+            torch.nn.Dropout(p=wconfig['experiment.dropout'], inplace=True),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_features, 29*2)
+            torch.nn.Linear(wconfig['experiment.hidden'], 29*2)
         )
 
     def _load_resnet10_model(self, model: torch.nn.Module):
@@ -88,11 +90,12 @@ class MobileNet(torch.nn.Module):
         n_features = network.classifier[0].in_features
         self.mobilenet = network
         del self.mobilenet.classifier
+        wconfig = wandb.config
         self.fc = torch.nn.Sequential(
-            # torch.nn.Linear(n_features, 128),
+            torch.nn.Linear(n_features, wconfig['experiment.hidden']),
             torch.nn.Hardswish(),
-            torch.nn.Dropout(p=0.2, inplace=True),
-            torch.nn.Linear(n_features, 29*2)
+            torch.nn.Dropout(p=wconfig['experiment.dropout'], inplace=True),
+            torch.nn.Linear(wconfig['experiment.hidden'], 29*2)
         )
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:

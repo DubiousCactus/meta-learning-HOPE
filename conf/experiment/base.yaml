@@ -13,3 +13,7 @@ checkpoint_path: ckpt
 object_as_task: False
 name: training
 augment: null
+
+optimizer: adam
+hidden: 32
+dropout: 0
