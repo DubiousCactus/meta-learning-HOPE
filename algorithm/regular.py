@@ -18,6 +18,7 @@ from functools import partial
 from tqdm import tqdm
 
 import logging
+import wandb
 import torch
 import os
 
@@ -64,6 +65,7 @@ class RegularTrainer(BaseTrainer):
         val_every: int = 100,
         resume: bool = True,
     ):
+        wandb.watch(self.model)
         log = logging.getLogger(__name__)
         opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr, weight_decay=1e-3)
         scheduler = torch.optim.lr_scheduler.StepLR(
@@ -103,11 +105,13 @@ class RegularTrainer(BaseTrainer):
                 avg_val_loss = float(torch.Tensor(val_losses).mean().item())
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
+            wandb.log({"train_loss": avg_train_loss})
             log.info(f"[Epoch {epoch}]: Training Loss: {avg_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
+                wandb.log({"val_loss": avg_val_loss})
                 log.info(f"[Epoch {epoch}]: Validation Loss: {avg_val_loss:.6f}")
             print("============================================")
             # Model checkpointing
