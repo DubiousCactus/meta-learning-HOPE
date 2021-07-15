@@ -39,12 +39,13 @@ class ResNet(torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Flatten(),
             torch.nn.ReLU(),
-            torch.nn.Dropout(p=0.5),
-            # torch.nn.Linear(n_features, 128),
+            # torch.nn.Dropout(p=0.5),
+            torch.nn.Linear(n_features, 64),
             # torch.nn.Dropout(p=0.2),
-            # torch.nn.ReLU(),
+            torch.nn.ReLU(),
             torch.nn.Linear(n_features, 29*2)
         )
+        print(self.fc)
 
     def _load_resnet10_model(self, model: torch.nn.Module):
         res_18_state_dict = torch.hub.load_state_dict_from_url(model_urls["resnet18"])
@@ -55,7 +56,7 @@ class ResNet(torch.nn.Module):
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         '''
-        Original implementation from PyTorch
+        Original implementation from PyTorch, modified to return the image features vector.
         '''
         # See note [TorchScript super()]
         x = self.resnet.conv1(x)
@@ -69,8 +70,7 @@ class ResNet(torch.nn.Module):
         x = self.resnet.layer4(x)
 
         x = self.resnet.avgpool(x)
-        x = torch.flatten(x, 1)
-        img_features = x
+        img_features = torch.flatten(x, 1)
         x = self.fc(x)
 
         return x.view(-1, 29, 2), img_features
