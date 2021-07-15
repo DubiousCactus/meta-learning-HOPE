@@ -66,8 +66,14 @@ class RegularTrainer(BaseTrainer):
         resume: bool = True,
     ):
         wandb.watch(self.model)
+        wconfig = wandb.config
         log = logging.getLogger(__name__)
-        opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr, weight_decay=1e-4)
+        if wconfig['experiment.optimizer'] == 'adam':
+            opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr,
+            weight_decay=wconfig['experiment.weight_decay'])
+        elif wconfig['experiment.optimizer'] == 'sgd':
+            opt = torch.optim.SGD(self.model.parameters(), lr=fast_lr,
+                    weight_decay=wconfig['experiment.weight_decay'])
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )

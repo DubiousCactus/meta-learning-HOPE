@@ -15,6 +15,7 @@ name: training
 augment: null
 
 optimizer: adam
+weight_decay: 0
 hidden: 32
 dropout1: 0
 dropout2: 0
