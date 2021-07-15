@@ -15,8 +15,8 @@ from algorithm.maml import MAMLTrainer, MetaBatch
 from algorithm.regular import RegularTrainer
 from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
+from model.cnn import ResNet, MobileNet
 from model.hopenet import HOPENet
-from model.resnet import ResNet
 from typing import List
 from tqdm import tqdm
 
@@ -217,7 +217,7 @@ class Regular_ResnetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            ResNet(model="resnet10", pretrained=True),
+            MobileNet(model="v3-small", pretrained=True),
             dataset,
             checkpoint_path,
             model_path=model_path,
