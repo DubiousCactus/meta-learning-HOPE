@@ -70,7 +70,8 @@ class ResNet(torch.nn.Module):
         x = self.resnet.layer4(x)
 
         x = self.resnet.avgpool(x)
-        img_features = torch.flatten(x, 1)
+        x = torch.flatten(x, 1)
+        img_features = x
         x = self.fc(x)
 
         return x.view(-1, 29, 2), img_features
