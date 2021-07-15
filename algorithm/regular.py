@@ -65,7 +65,7 @@ class RegularTrainer(BaseTrainer):
         resume: bool = True,
     ):
         log = logging.getLogger(__name__)
-        opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
+        opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr, weight_decay=1e-3)
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
