@@ -13,7 +13,7 @@ parameters:
     value: regular_cnn_fphad
   experiment.model_def:
     #values: ["resnet10", "resnet18", "resnet32", "mobilenet_v3-small"]
-    values: ["resnet10", "mobilenet_v3-small"]
+    values: ["resnet10", "mobilenetv3-small"]
   experiment.iterations:
     value: 300
   experiment.fast_lr:
