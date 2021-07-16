@@ -20,6 +20,7 @@ from collections import OrderedDict
 class HOPENet(torch.nn.Module):
     def __init__(self, cnn_def: str, resnet_path: str, graphnet_path: str, graphunet_path: str):
         super().__init__()
+        cnn_def = cnn_def.lower()
         if cnn_def == "resnet10":
             cnn = ResNet(model="10", pretrained=True)
         elif cnn_def == "resnet18":
