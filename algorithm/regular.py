@@ -85,7 +85,7 @@ class RegularTrainer(BaseTrainer):
             log.info(f"=====================================")
             log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
             log.info(f"=====================================")
-        avg_val_loss = 0.0
+        avg_val_loss, avg_val_mae_loss = .0, .0
         for epoch in range(self._epoch, iterations):
             self.model.train()
             train_losses = []
@@ -100,11 +100,13 @@ class RegularTrainer(BaseTrainer):
 
             if (epoch + 1) % val_every == 0:
                 self.model.eval()
-                val_losses = []
+                val_losses, val_mae_losses = [], []
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val, dynamic_ncols=True):
                     val_losses.append(self._testing_step(batch))
+                    val_mae_losses.append(self._testing_step(batch, compute="mae"))
                 avg_val_loss = float(torch.Tensor(val_losses).mean().item())
+                avg_val_mae_loss = float(torch.Tensor(val_mae_losses).mean().item())
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
             wandb.log({"train_loss": avg_train_loss})
@@ -113,7 +115,7 @@ class RegularTrainer(BaseTrainer):
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
-                wandb.log({"val_loss": avg_val_loss})
+                wandb.log({"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss})
                 log.info(f"[Epoch {epoch}]: Validation Loss: {avg_val_loss:.6f}")
             print("============================================")
             # Model checkpointing

@@ -411,8 +411,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
         loss.backward()
         return loss.detach()
 
-    def _testing_step(self, batch: tuple, loss_fn=None):
-        criterion = self.inner_criterion if not loss_fn else loss_fn
+    def _testing_step(self, batch: tuple, compute="mse"):
         inputs, _, labels3d = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
@@ -420,7 +419,12 @@ class Regular_HOPENetTrainer(RegularTrainer):
 
         with torch.no_grad():
             _, _, outputs3d = self.model(inputs)
-            return criterion(outputs3d, labels3d).detach()
+            if compute == "mse":
+                return F.mse_loss(outputs3d, labels3d).detach()
+            elif compute == "mae":
+                return F.l1_loss(outputs3d, labels3d).detach()
+            else:
+                raise NotImplementedError(f"No implementation for {compute}")
 
 
 class Regular_HOPENetTester(RegularTrainer):
