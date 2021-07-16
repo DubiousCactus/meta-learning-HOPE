@@ -131,8 +131,7 @@ class RegularTrainer(BaseTrainer):
                     },
                     os.path.join(
                         self._checkpoint_path,
-                        f"epoch_{epoch}_train_loss-{avg_train_loss:.6f}_val_loss-\
-                                {avg_val_loss:.6f}.tar",
+                        f"epoch_{epoch}_train_loss-{avg_train_loss:.6f}_val_loss-{avg_val_loss:.6f}.tar",
                     ),
                 )
                 past_val_loss = avg_val_loss
