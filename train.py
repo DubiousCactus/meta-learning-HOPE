@@ -39,6 +39,7 @@ def main(cfg: DictConfig):
         cfg,
         cfg.experiment.algorithm,
         cfg.experiment.model_def,
+        cfg.experiment.cnn_def,
         dataset,
         cfg.experiment.k_shots,
         cfg.experiment.n_queries,
