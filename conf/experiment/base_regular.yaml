@@ -3,7 +3,7 @@ defaults:
 val_every: 1
 algorithm: regular
 fast_lr: 0.001
-lr_step: 100
+lr_step: 200
 lr_step_gamma: 0.9
 batch_size: 64
 iterations: 5000
