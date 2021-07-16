@@ -115,8 +115,10 @@ class RegularTrainer(BaseTrainer):
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
+                print(f"Validation MAE Loss: {avg_val_mae_loss:.6f}")
                 wandb.log({"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss})
                 log.info(f"[Epoch {epoch}]: Validation Loss: {avg_val_loss:.6f}")
+                log.info(f"[Epoch {epoch}]: Validation MAE Loss: {avg_val_mae_loss:.6f}")
             print("============================================")
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and avg_val_loss < past_val_loss:

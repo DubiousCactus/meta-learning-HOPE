@@ -1,6 +1,6 @@
 defaults:
   - base_regular
-fast_lr: 0.0001
+fast_lr: 0.001
 val_every: 1
 model_def: HOPENet
 cnn_def: ResNet10
