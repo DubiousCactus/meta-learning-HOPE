@@ -94,10 +94,10 @@ class MobileNet(torch.nn.Module):
         wconfig = wandb.config
         self.fc = torch.nn.Sequential(
             torch.nn.Dropout(p=wconfig['experiment.dropout1'], inplace=True),
-            torch.nn.Linear(n_features, wconfig['experiment.hidden']),
+            # torch.nn.Linear(n_features, wconfig['experiment.hidden']),
             torch.nn.Hardswish(),
-            torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
-            torch.nn.Linear(wconfig['experiment.hidden'], 29*2)
+            # torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
+            torch.nn.Linear(n_features, 29*2)
         )
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
