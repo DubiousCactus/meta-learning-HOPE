@@ -577,7 +577,7 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.savefig("h_pcp3d.png")
         plt.clf()
 
-        max_thresh, thresh_step = 10, 1
+        max_thresh, thresh_step = 100, 5
         (correct_obj_poses, correct_obj_init_poses,) = (
             [0] * (max_thresh // thresh_step),
             [0] * (max_thresh // thresh_step),
