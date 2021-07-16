@@ -127,6 +127,7 @@ class AlgorithmFactory:
                 graphnet_path = config.experiment.graphnet_model_path
                 graphunet_path = config.experiment.graphunet_model_path
                 args = [
+                    model_def,
                     to_absolute_path(resnet_path) if resnet_path else None,
                     to_absolute_path(graphnet_path) if graphnet_path else None,
                     to_absolute_path(graphunet_path) if graphunet_path else None,

@@ -376,6 +376,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
         self,
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
+        cnn_def: str,
         resnet_path: str,
         graphnet_path: str,
         graphunet_path: str,
@@ -384,7 +385,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            HOPENet(resnet_path, graphnet_path, graphunet_path),
+            HOPENet(cnn_def, resnet_path, graphnet_path, graphunet_path),
             dataset,
             checkpoint_path,
             model_path=model_path,
@@ -432,6 +433,7 @@ class Regular_HOPENetTester(RegularTrainer):
         self,
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
+        cnn_def: str,
         resnet_path: str,
         graphnet_path: str,
         graphunet_path: str,
@@ -440,7 +442,7 @@ class Regular_HOPENetTester(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            HOPENet(resnet_path, graphnet_path, graphunet_path),
+            HOPENet(cnn_def, resnet_path, graphnet_path, graphunet_path),
             dataset,
             checkpoint_path,
             model_path=model_path,

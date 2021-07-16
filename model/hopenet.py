@@ -13,14 +13,26 @@ Custom HOPE-Net
 import torch
 
 from HOPE.models.graphunet import GraphUNet, GraphNet
-from HOPE.models.resnet import resnet10
+from model.cnn import ResNet, MobileNet
 from collections import OrderedDict
 
 
 class HOPENet(torch.nn.Module):
-    def __init__(self, resnet_path: str, graphnet_path: str, graphunet_path: str):
+    def __init__(self, cnn_def: str, resnet_path: str, graphnet_path: str, graphunet_path: str):
         super().__init__()
-        self.resnet = resnet10(pretrained=False, num_classes=29 * 2)
+        if cnn_def == "resnet10":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet18":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet34":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "mobilenetv3-small":
+            cnn = MobileNet(model="v3-small", pretrained=True)
+        elif cnn_def == "mobilenetv3-large":
+            cnn = MobileNet(model="v3-large", pretrained=True)
+        else:
+            raise ValueError(f"{cnn_def} is not a valid CNN definition!")
+        self.resnet = cnn
         self.graphnet = GraphNet(in_features=514, out_features=2)
         self.graphunet = GraphUNet(in_features=2, out_features=3)
         if resnet_path:
