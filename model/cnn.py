@@ -35,6 +35,7 @@ class ResNet(torch.nn.Module):
         else:
             raise ValueError(f"No models for {model}")
         n_features = network.fc.in_features
+        self._n_features = n_features
         self.resnet = network
         del self.resnet.fc
         wconfig = wandb.config
@@ -75,6 +76,11 @@ class ResNet(torch.nn.Module):
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         return self._forward_impl(x)
+
+
+    @property
+    def out_features(self):
+        return self._n_features
 
 
 class MobileNet(torch.nn.Module):

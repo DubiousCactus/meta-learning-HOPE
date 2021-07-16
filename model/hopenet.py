@@ -34,7 +34,7 @@ class HOPENet(torch.nn.Module):
         else:
             raise ValueError(f"{cnn_def} is not a valid CNN definition!")
         self.resnet = cnn
-        self.graphnet = GraphNet(in_features=514, out_features=2)
+        self.graphnet = GraphNet(in_features=cnn.out_features, out_features=2)
         self.graphunet = GraphUNet(in_features=2, out_features=3)
         if resnet_path:
             print(f"[*] Loading ResNet state dict form {resnet_path}")
