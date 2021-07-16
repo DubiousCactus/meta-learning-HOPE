@@ -39,11 +39,11 @@ class ResNet(torch.nn.Module):
         del self.resnet.fc
         wconfig = wandb.config
         self.fc = torch.nn.Sequential(
-            torch.nn.Dropout(p=wconfig['experiment.dropout1'], inplace=True),
-            # torch.nn.Linear(n_features, wconfig['experiment.hidden']),
-            # torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
+            # torch.nn.Dropout(p=wconfig['experiment.dropout1'], inplace=True),
+            torch.nn.Linear(n_features, wconfig['experiment.hidden']),
+            torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_features, 29*2)
+            torch.nn.Linear(wconfig['experiment.hidden'], 29*2)
         )
 
     def _load_resnet10_model(self, model: torch.nn.Module):

@@ -68,8 +68,8 @@ class RegularTrainer(BaseTrainer):
         wandb.watch(self.model)
         wconfig = wandb.config
         log = logging.getLogger(__name__)
-        opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr,
-        weight_decay=wconfig['experiment.weight_decay'])
+        opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
+        #weight_decay=wconfig['experiment.weight_decay'])
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
