@@ -109,19 +109,21 @@ class RegularTrainer(BaseTrainer):
                 avg_val_mae_loss = float(torch.Tensor(val_mae_losses).mean().item())
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
-            wandb.log({"train_loss": avg_train_loss})
+            wandb.log({"train_loss": avg_train_loss}, step=epoch)
             log.info(f"[Epoch {epoch}]: Training Loss: {avg_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
                 print(f"Validation MAE Loss: {avg_val_mae_loss:.6f}")
-                wandb.log({"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss})
+                wandb.log({"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss}, step=epoch)
                 log.info(f"[Epoch {epoch}]: Validation Loss: {avg_val_loss:.6f}")
                 log.info(f"[Epoch {epoch}]: Validation MAE Loss: {avg_val_mae_loss:.6f}")
             print("============================================")
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and avg_val_loss < past_val_loss:
+                wandb.run.summary["best_val_mse"] = avg_val_loss
+                wandb.run.summary["best_val_mae"] = avg_val_mae_loss
                 print(f"-> Saving model to {self._checkpoint_path}...")
                 torch.save(
                     {
