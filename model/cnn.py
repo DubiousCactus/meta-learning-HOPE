@@ -39,11 +39,12 @@ class ResNet(torch.nn.Module):
         self.resnet = network
         del self.resnet.fc
         wconfig = wandb.config
-        self.fc = torch.nn.Sequential(
-            torch.nn.Linear(n_features, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 29*2)
-        )
+        # self.fc = torch.nn.Sequential(
+            # torch.nn.Linear(n_features, 128),
+            # torch.nn.ReLU(),
+            # torch.nn.Linear(128, 29*2)
+        # )
+        self.fc = torch.nn.Linear(n_features, 29*2)
 
     def _load_resnet10_model(self, model: torch.nn.Module):
         res_18_state_dict = torch.hub.load_state_dict_from_url(model_urls["resnet18"])
