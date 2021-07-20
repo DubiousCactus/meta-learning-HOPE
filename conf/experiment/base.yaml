@@ -13,6 +13,8 @@ checkpoint_path: ckpt
 object_as_task: False
 name: training
 augment: null
+model_def: null
+cnn_def: null
 
 optimizer: adam
 weight_decay: 0
