@@ -3,6 +3,7 @@ datasets
 checkpoints/
 outputs/
 saved_models/
+wandb/
 *.tar
 temp.*
 *.png
