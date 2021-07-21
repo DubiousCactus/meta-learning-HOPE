@@ -157,7 +157,10 @@ class MAML_CNNTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: MetaBatch, learner):
+    def _training_step(self, batch: MetaBatch, learner, compute="mse"):
+        criterion = self.inner_criterion
+        if compute == "mae":
+            criterion = F.l1_loss
         s_inputs, s_labels2d, _ = batch.support
         q_inputs, q_labels2d, _ = batch.query
         if self._use_cuda:
@@ -177,6 +180,9 @@ class MAML_CNNTrainer(MAMLTrainer):
         e_outputs2d_init, _ = learner(q_inputs)
         query_loss = self.inner_criterion(e_outputs2d_init, q_labels2d)
         return query_loss
+
+    def _testing_step(self, meta_batch: MetaBatch, learner, compute="mse"):
+        return self._training_step(meta_batch, learner, compute)
 
 
 class MAML_GraphUNetTrainer(MAMLTrainer):
