@@ -1,18 +1,15 @@
 defaults:
     - base
 algorithm: maml
-val_every: 100
-fast_lr: 0.001
-meta_lr: 0.01
-lr_step: 100
+val_every: 1000
+fast_lr: 0.0001
+meta_lr: 0.003
+lr_step: 1000
 lr_step_gamma: 0.9
-k_shots: 15
+k_shots: 5
 n_queries: 30
 steps: 5
 batch_size: 8
-iterations: 15000
+iterations: 50000
 object_as_task: True
-hydra:
-    run:
-        dir: outputs/${hydra.job.config_name}/fast_lr:${fast_lr}_meta_lr:${meta_lr}_steps:${steps}_k:${k_shots}_q:${n_queries}_batchsz:${batch_size}
 name: maml_training

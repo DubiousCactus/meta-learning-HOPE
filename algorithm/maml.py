@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import learn2learn as l2l
 import logging
 import torch
+import wandb
 import os
 
 MetaBatch = namedtuple("MetaBatch", "support query")
@@ -78,14 +79,17 @@ class MAMLTrainer(BaseTrainer):
         )
 
     def _restore(self, maml, opt, scheduler, resume_training: bool = True):
+        print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
+        val_loss = float("+inf")
         if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
             maml.load_state_dict(checkpoint["maml_state_dict"])
             opt.load_state_dict(checkpoint["meta_opt_state_dict"])
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-            return checkpoint["val_meta_loss"]
+            val_loss = checkpoint["val_meta_loss"]
+        return val_loss
 
     def train(
         self,
@@ -98,12 +102,8 @@ class MAMLTrainer(BaseTrainer):
         val_every: int = 100,
         resume: bool = True,
     ):
+        wandb.watch(self.model)
         log = logging.getLogger(__name__)
-        log.info(f"=====================================")
-        log.info(
-            f"fast_lr={fast_lr} - meta_lr={meta_lr} - batch_size={batch_size} - K={self._k_shots} - Q={self._n_querries}"
-        )
-        log.info(f"=====================================")
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
@@ -113,14 +113,22 @@ class MAMLTrainer(BaseTrainer):
         )
         scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
+        shown = False
         if self._model_path:
-            saved_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+            past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
             if resume:
-                past_val_loss = saved_val_loss
+                shown = True
+                scheduler.step()
+        if not shown:
+            log.info(f"=====================================")
+            log.info(
+                f"fast_lr={fast_lr} - meta_lr={meta_lr} - batch_size={batch_size} - K={self._k_shots} - Q={self._n_querries}"
+            )
+            log.info(f"=====================================")
         for epoch in range(self._epoch, iterations):
             opt.zero_grad()
-            meta_train_losses, meta_val_losses = []
-            meta_val_loss = 0.0
+            meta_train_losses, meta_val_mse_losses, meta_val_mae_losses = [], [], []
+            meta_val_mse_loss, meta_val_mae_loss = .0, .0
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
             for _ in tqdm(range(batch_size), dynamic_ncols=True):
                 if self._exit:
@@ -137,17 +145,22 @@ class MAMLTrainer(BaseTrainer):
                     # Compute the meta-validation loss
                     learner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.val.sample())
-                    inner_loss = self._training_step(meta_batch, learner)
-                    meta_val_losses.append(inner_loss.detach())
+                    inner_mse_loss = self._testing_step(meta_batch, learner)
+                    inner_mae_loss = self._testing_step(meta_batch, learner, compute="mae")
+                    meta_val_mse_losses.append(inner_mse_loss.detach())
+                    meta_val_mae_losses.append(inner_mae_loss.detach())
             meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
             if epoch % val_every == 0:
-                meta_val_loss = torch.Tensor(meta_val_losses).mean().item()
+                meta_val_mse_loss = float(torch.Tensor(meta_val_mse_losses).mean().item())
+                meta_val_mae_loss = float(torch.Tensor(meta_val_mae_losses).mean().item())
+            wandb.log({"meta_train_loss": meta_train_loss}, step=epoch)
             log.info(f"[Epoch {epoch}]: Meta-Training Loss: {meta_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Meta-training Loss: {meta_train_loss:.6f}")
             if epoch % val_every == 0:
-                print(f"Meta-validation Loss: {meta_val_loss:.6f}")
-                log.info(f"[Epoch {epoch}]: Meta-validation Loss: {meta_val_loss:.6f}")
+                wandb.log({"meta_val_mse_loss": meta_val_mse_loss, "meta_val_mae_loss": meta_val_mae_loss}, step=epoch)
+                print(f"Meta-validation Loss: {meta_val_mse_loss:.6f}")
+                log.info(f"[Epoch {epoch}]: Meta-validation Loss: {meta_val_mse_loss:.6f}")
             print("============================================")
 
             # Average the accumulated gradients and optimize
@@ -160,7 +173,9 @@ class MAMLTrainer(BaseTrainer):
             scheduler.step()
 
             # Model checkpointing
-            if epoch % val_every == 0 and meta_val_loss < past_val_loss:
+            if epoch % val_every == 0 and meta_val_mse_loss < past_val_loss:
+                wandb.run.summary["best_val_mse"] = meta_val_mse_loss
+                wandb.run.summary["best_val_mae"] = meta_val_mae_loss
                 print(f"-> Saving model to {self._checkpoint_path}...")
                 torch.save(
                     {
@@ -169,14 +184,14 @@ class MAMLTrainer(BaseTrainer):
                         "maml_state_dict": maml.state_dict(),
                         "meta_opt_state_dict": opt.state_dict(),
                         "scheduler_state_dict": scheduler.state_dict(),
-                        "val_meta_loss": meta_val_loss,
+                        "val_meta_loss": meta_val_mse_loss,
                     },
                     os.path.join(
                         self._checkpoint_path,
-                        f"epoch_{epoch}_train_loss-{meta_train_loss:.6f}_val_loss-{meta_val_loss:.6f}.tar",
+                        f"epoch_{epoch}_train_loss-{meta_train_loss:.6f}_val_loss-{meta_val_mse_loss:.6f}.tar",
                     ),
                 )
-                past_val_loss = meta_val_loss
+                past_val_loss = meta_val_mse_loss
 
     def test(
         self,

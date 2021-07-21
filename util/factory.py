@@ -95,31 +95,32 @@ class AlgorithmFactory:
         gpu_numbers: List = [0],
     ) -> BaseTrainer:
         trainer = lambda x: Exception()
-        algorithm = algorithm.lower()
-        model_def = model_def.lower()
         print(f"[*] Loading training algorithm: {algorithm}")
         print(f"[*] Loading model definition: {model_def}")
+        algorithm = algorithm.lower()
+        model_def = model_def.lower()
         args, kargs = [], {}
         trainer = None
         if algorithm in ["maml", "fomaml"]:
+            args: List = [k_shots, n_queries, inner_steps]
             if model_def == "hopenet":
                 trainer = MAML_HOPETrainer
                 resnet_path = config.experiment.resnet_model_path
                 graphnet_path = config.experiment.graphnet_model_path
                 graphunet_path = config.experiment.graphunet_model_path
-                args = [
+                args += [
+                    cnn_def,
                     to_absolute_path(resnet_path) if resnet_path else None,
                     to_absolute_path(graphnet_path) if graphnet_path else None,
                     to_absolute_path(graphunet_path) if graphunet_path else None,
                 ]
             elif "resnet" in model_def or "mobilenet" in model_def:
                 trainer = MAML_CNNTrainer
-                args = [model_def]
+                args += [model_def]
             elif model_def == "graphunet":
                 trainer = MAML_GraphUNetTrainer
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
-            args = [k_shots, n_queries, inner_steps]
             kargs = {"first_order": algorithm == "fomaml"}
         elif algorithm == "regular":
             if model_def == "hopenet":

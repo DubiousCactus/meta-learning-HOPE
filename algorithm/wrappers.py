@@ -34,6 +34,7 @@ class MAML_HOPETrainer(MAMLTrainer):
         k_shots: int,
         n_querries,
         inner_steps: int,
+        cnn_def: str,
         resnet_path: str,
         graphnet_path: str,
         graphunet_path: str,
@@ -43,7 +44,7 @@ class MAML_HOPETrainer(MAMLTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            HOPENet,
+            HOPENet(cnn_def, resnet_path, graphnet_path, graphunet_path),
             dataset,
             checkpoint_path,
             k_shots,
@@ -73,7 +74,10 @@ class MAML_HOPETrainer(MAMLTrainer):
         else:
             print("[!] GraphUNet is randomly initialized!")
 
-    def _training_step(self, batch: MetaBatch, learner):
+    def _training_step(self, batch: MetaBatch, learner, compute="mse"):
+        criterion = self.inner_criterion
+        if compute == "mae":
+            criterion = F.l1_loss
         s_inputs, s_labels2d, s_labels3d = batch.support
         q_inputs, q_labels2d, q_labels3d = batch.query
         if self._use_cuda:
@@ -100,15 +104,18 @@ class MAML_HOPETrainer(MAMLTrainer):
 
         # Evaluate the adapted model on the query set
         e_outputs2d_init, e_outputs2d, e_outputs3d = learner(q_inputs)
-        e_loss2d_init = self.inner_criterion(e_outputs2d_init, q_labels2d)
-        e_loss2d = self.inner_criterion(e_outputs2d, q_labels2d)
-        e_loss3d = self.inner_criterion(e_outputs3d, q_labels3d)
+        e_loss2d_init = criterion(e_outputs2d_init, q_labels2d)
+        e_loss2d = criterion(e_outputs2d, q_labels2d)
+        e_loss3d = criterion(e_outputs3d, q_labels3d)
         query_loss = (
             (self._lambda1) * e_loss2d_init
             + (self._lambda1) * e_loss2d
             + (self._lambda2) * e_loss3d
         )
         return query_loss
+
+    def _testing_step(self, meta_batch: MetaBatch, learner, compute="mse"):
+        return self._training_step(meta_batch, learner, compute)
 
 
 class MAML_CNNTrainer(MAMLTrainer):

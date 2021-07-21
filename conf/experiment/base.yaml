@@ -15,9 +15,3 @@ name: training
 augment: null
 model_def: null
 cnn_def: null
-
-optimizer: adam
-weight_decay: 0
-hidden: 32
-dropout1: 0
-dropout2: 0
