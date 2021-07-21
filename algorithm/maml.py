@@ -122,7 +122,7 @@ class MAMLTrainer(BaseTrainer):
         if not shown:
             log.info(f"=====================================")
             log.info(
-                f"fast_lr={fast_lr} - meta_lr={meta_lr} - batch_size={batch_size} - K={self._k_shots} - Q={self._n_querries}"
+                f"fast_lr={fast_lr} - meta_lr={meta_lr} - batch_size={batch_size} - K={self._k_shots} - Q={self._n_querries} - Steps={self._steps}"
             )
             log.info(f"=====================================")
         for epoch in range(self._epoch, iterations):
@@ -150,14 +150,14 @@ class MAMLTrainer(BaseTrainer):
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())
             meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
-            if epoch % val_every == 0:
+            if (epoch + 1) % val_every == 0:
                 meta_val_mse_loss = float(torch.Tensor(meta_val_mse_losses).mean().item())
                 meta_val_mae_loss = float(torch.Tensor(meta_val_mae_losses).mean().item())
             wandb.log({"meta_train_loss": meta_train_loss}, step=epoch)
             log.info(f"[Epoch {epoch}]: Meta-Training Loss: {meta_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Meta-training Loss: {meta_train_loss:.6f}")
-            if epoch % val_every == 0:
+            if (epoch + 1) % val_every == 0:
                 wandb.log({"meta_val_mse_loss": meta_val_mse_loss, "meta_val_mae_loss": meta_val_mae_loss}, step=epoch)
                 print(f"Meta-validation Loss: {meta_val_mse_loss:.6f}")
                 log.info(f"[Epoch {epoch}]: Meta-validation Loss: {meta_val_mse_loss:.6f}")
@@ -173,7 +173,7 @@ class MAMLTrainer(BaseTrainer):
             scheduler.step()
 
             # Model checkpointing
-            if epoch % val_every == 0 and meta_val_mse_loss < past_val_loss:
+            if (epoch + 1) % val_every == 0 and meta_val_mse_loss < past_val_loss:
                 wandb.run.summary["best_val_mse"] = meta_val_mse_loss
                 wandb.run.summary["best_val_mae"] = meta_val_mae_loss
                 print(f"-> Saving model to {self._checkpoint_path}...")
