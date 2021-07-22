@@ -66,7 +66,6 @@ class RegularTrainer(BaseTrainer):
         resume: bool = True,
     ):
         wandb.watch(self.model)
-        wconfig = wandb.config
         log = logging.getLogger(__name__)
         opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
         #weight_decay=wconfig['experiment.weight_decay'])

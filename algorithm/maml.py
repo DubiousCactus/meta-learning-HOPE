@@ -146,6 +146,7 @@ class MAMLTrainer(BaseTrainer):
                     learner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.val.sample())
                     inner_mse_loss = self._testing_step(meta_batch, learner)
+                    learner = maml.clone()
                     inner_mae_loss = self._testing_step(meta_batch, learner, compute="mae")
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())

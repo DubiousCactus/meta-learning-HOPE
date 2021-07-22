@@ -178,7 +178,7 @@ class MAML_CNNTrainer(MAMLTrainer):
 
         # Evaluate the adapted model on the query set
         e_outputs2d_init, _ = learner(q_inputs)
-        query_loss = self.inner_criterion(e_outputs2d_init, q_labels2d)
+        query_loss = criterion(e_outputs2d_init, q_labels2d)
         return query_loss
 
     def _testing_step(self, meta_batch: MetaBatch, learner, compute="mse"):
@@ -211,7 +211,10 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: MetaBatch, learner):
+    def _training_step(self, batch: MetaBatch, learner, compute="mse"):
+        criterion = self.inner_criterion
+        if compute == "mae":
+            criterion = F.l1_loss
         _, s_labels2d, s_labels3d = batch.support
         _, q_labels2d, q_labels3d = batch.query
         if self._use_cuda:
@@ -229,8 +232,11 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
 
         # Evaluate the adapted model on the query set
         outputs3d = learner(q_labels2d)
-        query_loss = self.inner_criterion(outputs3d, q_labels3d)
+        query_loss = criterion(outputs3d, q_labels3d)
         return query_loss
+
+    def _testing_step(self, meta_batch: MetaBatch, learner, compute="mse"):
+        return self._training_step(meta_batch, learner, compute)
 
 
 class Regular_CNNTrainer(RegularTrainer):
