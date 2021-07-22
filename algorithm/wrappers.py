@@ -55,24 +55,6 @@ class MAML_HOPETrainer(MAMLTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
-        if resnet_path:
-            print(f"[*] Loading ResNet state dict form {resnet_path}")
-            ckpt = torch.load(resnet_path)
-            self.model.resnet.load_state_dict(ckpt["model_state_dict"])
-        else:
-            print("[!] ResNet is randomly initialized!")
-        if graphnet_path:
-            print(f"[*] Loading GraphNet state dict form {graphnet_path}")
-            ckpt = torch.load(graphnet_path)
-            self.model.graphnet.load_state_dict(ckpt["model_state_dict"])
-        else:
-            print("[!] GraphNet is randomly initialized!")
-        if graphunet_path:
-            print(f"[*] Loading GraphUNet state dict form {graphunet_path}")
-            ckpt = torch.load(graphunet_path)
-            self.model.graphunet.load_state_dict(ckpt["model_state_dict"])
-        else:
-            print("[!] GraphUNet is randomly initialized!")
 
     def _training_step(self, batch: MetaBatch, learner, compute="mse"):
         criterion = self.inner_criterion
