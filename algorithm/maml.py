@@ -112,7 +112,7 @@ class MAMLTrainer(BaseTrainer):
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
-        max_grad_norm = 10.0
+        max_grad_norm = 5.0
         past_val_loss = float("+inf")
         shown = False
         if self._model_path:
@@ -176,7 +176,7 @@ class MAMLTrainer(BaseTrainer):
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(maml.parameters(), 25.0)
+            torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
             opt.step()
             scheduler.step()
 
