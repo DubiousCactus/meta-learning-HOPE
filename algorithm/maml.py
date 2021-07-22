@@ -112,6 +112,7 @@ class MAMLTrainer(BaseTrainer):
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
+        max_grad_norm = 10.0
         past_val_loss = float("+inf")
         shown = False
         if self._model_path:
@@ -137,7 +138,9 @@ class MAMLTrainer(BaseTrainer):
                 # Compute the meta-training loss
                 learner = maml.clone()
                 meta_batch = self._split_batch(self.dataset.train.sample())
-                inner_loss = self._training_step(meta_batch, learner)
+                inner_loss = self._training_step(meta_batch, learner, clip_grad_norm=max_grad_norm)
+                if torch.isnan(inner_loss).any():
+                    raise ValueError("Inner loss is Nan!")
                 inner_loss.backward()
                 meta_train_losses.append(inner_loss.detach())
 
@@ -145,9 +148,11 @@ class MAMLTrainer(BaseTrainer):
                     # Compute the meta-validation loss
                     learner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.val.sample())
-                    inner_mse_loss = self._testing_step(meta_batch, learner)
+                    inner_mse_loss = self._testing_step(meta_batch, learner,
+                            clip_grad_norm=max_grad_norm)
                     learner = maml.clone()
-                    inner_mae_loss = self._testing_step(meta_batch, learner, compute="mae")
+                    inner_mae_loss = self._testing_step(meta_batch, learner,
+                            clip_grad_norm=max_grad_norm, compute="mae")
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())
             meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
