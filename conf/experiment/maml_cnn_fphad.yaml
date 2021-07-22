@@ -1,6 +1,6 @@
 defaults:
     - base_maml
-model_def: ResNet
+model_def: ResNet10
 dataset: fphad
 dataset_path: ../FPHAD
 name: maml_resnet_fphad

@@ -3,8 +3,7 @@ defaults:
 lr_step: 1000
 lr_step_gamma: 0.9
 iterations: 30000
-algorithm: fomaml
-model_def: ResNet
+model_def: ResNet10
 dataset: obman
 dataset_path: ../Obman
 name: maml_resnet_obman
