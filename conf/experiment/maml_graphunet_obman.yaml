@@ -1,0 +1,6 @@
+defaults:
+    - base_maml
+model_def: GraphUNet
+dataset: obman
+dataset_path: ../Obman
+name: maml_graphunet_obman

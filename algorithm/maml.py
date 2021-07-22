@@ -112,7 +112,7 @@ class MAMLTrainer(BaseTrainer):
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
-        max_grad_norm = 5.0
+        max_grad_norm = 10.0
         past_val_loss = float("+inf")
         shown = False
         if self._model_path:
