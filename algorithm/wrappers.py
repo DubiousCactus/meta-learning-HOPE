@@ -92,6 +92,11 @@ class MAML_HOPETrainer(MAMLTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             outputs2d_init, outputs2d, outputs3d = learner(s_inputs)
+            nans = int(torch.where(torch.isnan(outputs2d_init), 1, 0).count_nonzero().item())
+            nans += int(torch.where(torch.isnan(outputs2d), 1, 0).count_nonzero().item())
+            nans += int(torch.where(torch.isnan(outputs3d), 1, 0).count_nonzero().item())
+            if nans > 0:
+                print(f"Support outputs contains NaN!")
             loss2d_init = self.inner_criterion(outputs2d_init, s_labels2d)
             loss2d = self.inner_criterion(outputs2d, s_labels2d)
             loss3d = self.inner_criterion(outputs3d, s_labels3d)
@@ -100,10 +105,15 @@ class MAML_HOPETrainer(MAMLTrainer):
                 + (self._lambda1) * loss2d
                 + (self._lambda2) * loss3d
             )
-            learner.adapt(support_loss)
+            learner.adapt(support_loss, clip_grad_max_norm=25.0)
 
         # Evaluate the adapted model on the query set
         e_outputs2d_init, e_outputs2d, e_outputs3d = learner(q_inputs)
+        nans = int(torch.where(torch.isnan(e_outputs2d_init), 1, 0).count_nonzero().item())
+        nans += int(torch.where(torch.isnan(e_outputs2d), 1, 0).count_nonzero().item())
+        nans += int(torch.where(torch.isnan(e_outputs3d), 1, 0).count_nonzero().item())
+        if nans > 0:
+            print(f"Query outputs contains NaN!")
         e_loss2d_init = criterion(e_outputs2d_init, q_labels2d)
         e_loss2d = criterion(e_outputs2d, q_labels2d)
         e_loss3d = criterion(e_outputs3d, q_labels3d)
@@ -173,11 +183,17 @@ class MAML_CNNTrainer(MAMLTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             outputs2d_init, _ = learner(s_inputs)
+            nans = torch.where(torch.isnan(outputs2d_init), 1, 0).count_nonzero().item()
+            if nans > 0:
+                print(f"Support outputs contains NaN!")
             support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
-            learner.adapt(support_loss)
+            learner.adapt(support_loss, clip_grad_max_norm=25.0)
 
         # Evaluate the adapted model on the query set
         e_outputs2d_init, _ = learner(q_inputs)
+        nans = torch.where(torch.isnan(e_outputs2d_init), 1, 0).count_nonzero().item()
+        if nans > 0:
+            print(f"Query outputs contains NaN!")
         query_loss = criterion(e_outputs2d_init, q_labels2d)
         return query_loss
 
@@ -227,11 +243,17 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             outputs3d = learner(s_labels2d)
+            nans = torch.where(torch.isnan(outputs3d), 1, 0).count_nonzero().item()
+            if nans > 0:
+                print(f"Support outputs contains NaN!")
             support_loss = self.inner_criterion(outputs3d, s_labels3d)
-            learner.adapt(support_loss)
+            learner.adapt(support_loss, clip_grad_max_norm=25.0)
 
         # Evaluate the adapted model on the query set
         outputs3d = learner(q_labels2d)
+        nans = torch.where(torch.isnan(outputs3d), 1, 0).count_nonzero().item()
+        if nans > 0:
+            print(f"Query outputs contains NaN!")
         query_loss = criterion(outputs3d, q_labels3d)
         return query_loss
 

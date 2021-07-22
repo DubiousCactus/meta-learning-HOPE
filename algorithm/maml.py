@@ -170,6 +170,8 @@ class MAMLTrainer(BaseTrainer):
                 # instead of modifying the original code, this simple check will do).
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(maml.parameters(), 25.0)
             opt.step()
             scheduler.step()
 
