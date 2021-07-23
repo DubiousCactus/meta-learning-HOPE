@@ -42,8 +42,7 @@ class RegularTrainer(BaseTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _restore(self, opt, scheduler, resume_training: bool = True,
-            resume_scheduler: bool = True) -> float:
+    def _restore(self, opt, scheduler, resume_training: bool = True) -> float:
         print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
@@ -51,8 +50,7 @@ class RegularTrainer(BaseTrainer):
         if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
             opt.load_state_dict(checkpoint["opt_state_dict"])
-            if resume_scheduler:
-                scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
             val_loss = checkpoint["val_loss"]
         return val_loss
 
@@ -66,7 +64,7 @@ class RegularTrainer(BaseTrainer):
         lr_step_gamma: float = 0.5,
         val_every: int = 100,
         resume: bool = True,
-        resume_scheduler: bool = True,
+        use_scheduler: bool = True,
     ):
         wandb.watch(self.model)
         log = logging.getLogger(__name__)
@@ -75,16 +73,13 @@ class RegularTrainer(BaseTrainer):
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
-        scheduler.last_epoch = self._epoch if resume_scheduler else -1
+        scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         shown = False
         if self._model_path:
-            past_val_loss = self._restore(opt, scheduler, resume_training=resume,
-                    resume_scheduler=resume_scheduler)
+            past_val_loss = self._restore(opt, scheduler, resume_training=resume)
             if resume:
                 shown = True
-                if resume_scheduler:
-                    scheduler.step()
         if not shown:
             log.info(f"=====================================")
             log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
@@ -143,7 +138,8 @@ class RegularTrainer(BaseTrainer):
                     ),
                 )
                 past_val_loss = avg_val_loss
-            scheduler.step()
+            if use_scheduler:
+                scheduler.step()
 
     def _exit_gracefully(self, *args):
         self._exit = True
