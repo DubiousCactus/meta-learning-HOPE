@@ -114,7 +114,7 @@ class MAMLTrainer(BaseTrainer):
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
-        scheduler.last_epoch = self._epoch
+        scheduler.last_epoch = self._epoch if resume_scheduler else 0
         max_grad_norm = 5.0
         past_val_loss = float("+inf")
         shown = False

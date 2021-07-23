@@ -75,7 +75,7 @@ class RegularTrainer(BaseTrainer):
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
-        scheduler.last_epoch = self._epoch
+        scheduler.last_epoch = self._epoch if resume_scheduler else 0
         past_val_loss = float("+inf")
         shown = False
         if self._model_path:
