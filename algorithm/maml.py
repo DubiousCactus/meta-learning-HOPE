@@ -39,7 +39,6 @@ class MAMLTrainer(BaseTrainer):
         first_order: bool = False,
         use_cuda: int = False,
         gpu_numbers: List = [0],
-        object_as_task: bool = True,
     ):
         assert (
             dataset.k_shots == k_shots
@@ -79,16 +78,10 @@ class MAMLTrainer(BaseTrainer):
         )
 
     def _restore(self, maml, opt, scheduler, resume_training: bool = True) -> float:
-        print(f"[*] Restoring from checkpoint: {self._model_path}")
+        val_loss = super()._restore(opt, scheduler, resume_training=resume_training)
         checkpoint = torch.load(self._model_path)
-        self.model.load_state_dict(checkpoint["model_state_dict"])
-        val_loss = float("+inf")
         if resume_training and "backup" not in checkpoint.keys():
-            self._epoch = checkpoint["epoch"] + 1
             maml.load_state_dict(checkpoint["maml_state_dict"])
-            opt.load_state_dict(checkpoint["meta_opt_state_dict"])
-            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-            val_loss = checkpoint["val_meta_loss"]
         return val_loss
 
     def train(
@@ -104,7 +97,6 @@ class MAMLTrainer(BaseTrainer):
         use_scheduler: bool = True,
     ):
         wandb.watch(self.model)
-        log = logging.getLogger(__name__)
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
@@ -114,18 +106,9 @@ class MAMLTrainer(BaseTrainer):
         )
         scheduler.last_epoch = self._epoch
         max_grad_norm = 5.0
-        past_val_loss = float("+inf")
-        shown = False
         if self._model_path:
-            past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
-            if resume:
-                shown = True
-        if not shown:
-            log.info(f"=====================================")
-            log.info(
-                f"fast_lr={fast_lr} - meta_lr={meta_lr} - batch_size={batch_size} - K={self._k_shots} - Q={self._n_querries} - Steps={self._steps}"
-            )
-            log.info(f"=====================================")
+            self._past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+
         for epoch in range(self._epoch, iterations):
             opt.zero_grad()
             meta_train_losses, meta_val_mse_losses, meta_val_mae_losses = [], [], []
@@ -160,46 +143,38 @@ class MAMLTrainer(BaseTrainer):
                 meta_val_mse_loss = float(torch.Tensor(meta_val_mse_losses).mean().item())
                 meta_val_mae_loss = float(torch.Tensor(meta_val_mae_losses).mean().item())
             wandb.log({"meta_train_loss": meta_train_loss}, step=epoch)
-            log.info(f"[Epoch {epoch}]: Meta-Training Loss: {meta_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Meta-training Loss: {meta_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 wandb.log({"meta_val_mse_loss": meta_val_mse_loss, "meta_val_mae_loss": meta_val_mae_loss}, step=epoch)
-                print(f"Meta-validation Loss: {meta_val_mse_loss:.6f}")
-                log.info(f"[Epoch {epoch}]: Meta-validation Loss: {meta_val_mse_loss:.6f}")
+                print(f"Meta-validation MSE Loss: {meta_val_mse_loss:.6f}")
+                print(f"Meta-validation MAE Loss: {meta_val_mae_loss:.6f}")
             print("============================================")
 
             # Average the accumulated gradients and optimize
-            for p in maml.parameters():
-                # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
-                # instead of modifying the original code, this simple check will do).
-                if p.grad is not None:
-                    p.grad.data.mul_(1.0 / batch_size)
+#             for p in maml.parameters():
+                # # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
+                # # instead of modifying the original code, this simple check will do).
+                # if p.grad is not None:
+                    # p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            # torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
             opt.step()
             if use_scheduler:
                 scheduler.step()
 
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and meta_val_mse_loss < past_val_loss:
-                wandb.run.summary["best_val_mse"] = meta_val_mse_loss
-                wandb.run.summary["best_val_mae"] = meta_val_mae_loss
-                print(f"-> Saving model to {self._checkpoint_path}...")
-                torch.save(
-                    {
-                        "epoch": epoch,
-                        "model_state_dict": self.model.state_dict(),
-                        "maml_state_dict": maml.state_dict(),
-                        "meta_opt_state_dict": opt.state_dict(),
-                        "scheduler_state_dict": scheduler.state_dict(),
-                        "val_meta_loss": meta_val_mse_loss,
-                    },
-                    os.path.join(
-                        self._checkpoint_path,
-                        f"epoch_{epoch}_train_loss-{meta_train_loss:.6f}_val_loss-{meta_val_mse_loss:.6f}.tar",
-                    ),
-                )
+                state_dicts = {
+                    "epoch": epoch,
+                    "model_state_dict": self.model.state_dict(),
+                    "maml_state_dict": maml.state_dict(),
+                    "meta_opt_state_dict": opt.state_dict(),
+                    "scheduler_state_dict": scheduler.state_dict(),
+                    "val_meta_loss": meta_val_mse_loss,
+                }
+                self._checkpoint(epoch, meta_train_loss, meta_val_mse_loss, meta_val_mae_loss,
+                        state_dicts)
                 past_val_loss = meta_val_mse_loss
 
     def test(
@@ -257,19 +232,3 @@ class MAMLTrainer(BaseTrainer):
             meta_test_loss += inner_loss.item()
         print("==========[Test Error]==========")
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")
-
-    def _exit_gracefully(self, *args):
-        self._exit = True
-
-    def _backup(self):
-        print(f"-> Saving model to {self._checkpoint_path}...")
-        torch.save(
-            {
-                "backup": True,
-                "model_state_dict": self.model.state_dict(),
-            },
-            os.path.join(
-                self._checkpoint_path,
-                f"backup_weights.tar",
-            ),
-        )

@@ -42,18 +42,6 @@ class RegularTrainer(BaseTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _restore(self, opt, scheduler, resume_training: bool = True) -> float:
-        print(f"[*] Restoring from checkpoint: {self._model_path}")
-        checkpoint = torch.load(self._model_path)
-        self.model.load_state_dict(checkpoint["model_state_dict"])
-        val_loss = float("+inf")
-        if resume_training and "backup" not in checkpoint.keys():
-            self._epoch = checkpoint["epoch"] + 1
-            opt.load_state_dict(checkpoint["opt_state_dict"])
-            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-            val_loss = checkpoint["val_loss"]
-        return val_loss
-
     def train(
         self,
         batch_size: int = 32,
@@ -67,7 +55,6 @@ class RegularTrainer(BaseTrainer):
         use_scheduler: bool = True,
     ):
         wandb.watch(self.model)
-        log = logging.getLogger(__name__)
         opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
         #weight_decay=wconfig['experiment.weight_decay'])
         scheduler = torch.optim.lr_scheduler.StepLR(
@@ -75,15 +62,8 @@ class RegularTrainer(BaseTrainer):
         )
         scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
-        shown = False
         if self._model_path:
             past_val_loss = self._restore(opt, scheduler, resume_training=resume)
-            if resume:
-                shown = True
-        if not shown:
-            log.info(f"=====================================")
-            log.info(f"fast_lr={fast_lr} - batch_size={batch_size}")
-            log.info(f"=====================================")
         avg_val_loss, avg_val_mae_loss = .0, .0
         for epoch in range(self._epoch, iterations):
             self.model.train()
@@ -109,53 +89,27 @@ class RegularTrainer(BaseTrainer):
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
             wandb.log({"train_loss": avg_train_loss}, step=epoch)
-            log.info(f"[Epoch {epoch}]: Training Loss: {avg_train_loss:.6f}")
             print(f"==========[Epoch {epoch}]==========")
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
                 print(f"Validation MAE Loss: {avg_val_mae_loss:.6f}")
                 wandb.log({"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss}, step=epoch)
-                log.info(f"[Epoch {epoch}]: Validation Loss: {avg_val_loss:.6f}")
-                log.info(f"[Epoch {epoch}]: Validation MAE Loss: {avg_val_mae_loss:.6f}")
             print("============================================")
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and avg_val_loss < past_val_loss:
-                wandb.run.summary["best_val_mse"] = avg_val_loss
-                wandb.run.summary["best_val_mae"] = avg_val_mae_loss
-                print(f"-> Saving model to {self._checkpoint_path}...")
-                torch.save(
-                    {
-                        "epoch": epoch,
-                        "model_state_dict": self.model.state_dict(),
-                        "opt_state_dict": opt.state_dict(),
-                        "scheduler_state_dict": scheduler.state_dict(),
-                        "val_loss": avg_val_loss,
-                    },
-                    os.path.join(
-                        self._checkpoint_path,
-                        f"epoch_{epoch}_train_loss-{avg_train_loss:.6f}_val_loss-{avg_val_loss:.6f}.tar",
-                    ),
-                )
+                state_dicts = {
+                    "epoch": epoch,
+                    "model_state_dict": self.model.state_dict(),
+                    "opt_state_dict": opt.state_dict(),
+                    "scheduler_state_dict": scheduler.state_dict(),
+                    "val_loss": avg_val_loss,
+                }
+                self._checkpoint(epoch, avg_train_loss, avg_val_loss, avg_val_mae_loss,
+                        state_dicts)
                 past_val_loss = avg_val_loss
             if use_scheduler:
                 scheduler.step()
-
-    def _exit_gracefully(self, *args):
-        self._exit = True
-
-    def _backup(self):
-        print(f"-> Saving model to {self._checkpoint_path}...")
-        torch.save(
-            {
-                "backup": True,
-                "model_state_dict": self.model.state_dict(),
-            },
-            os.path.join(
-                self._checkpoint_path,
-                f"backup_weights.tar",
-            ),
-        )
 
     def test(
         self,
