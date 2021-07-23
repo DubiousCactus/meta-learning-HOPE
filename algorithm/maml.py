@@ -78,7 +78,8 @@ class MAMLTrainer(BaseTrainer):
             (images[query_indices], labels_2d[query_indices], labels_3d[query_indices]),
         )
 
-    def _restore(self, maml, opt, scheduler, resume_training: bool = True):
+    def _restore(self, maml, opt, scheduler, resume_training: bool = True,
+            resume_scheduler: bool = True) -> float:
         print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
@@ -87,7 +88,8 @@ class MAMLTrainer(BaseTrainer):
             self._epoch = checkpoint["epoch"] + 1
             maml.load_state_dict(checkpoint["maml_state_dict"])
             opt.load_state_dict(checkpoint["meta_opt_state_dict"])
-            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            if resume_scheduler:
+                scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
             val_loss = checkpoint["val_meta_loss"]
         return val_loss
 
@@ -101,6 +103,7 @@ class MAMLTrainer(BaseTrainer):
         lr_step_gamma: float = 0.5,
         val_every: int = 100,
         resume: bool = True,
+        resume_scheduler: bool = True,
     ):
         wandb.watch(self.model)
         log = logging.getLogger(__name__)
@@ -112,11 +115,12 @@ class MAMLTrainer(BaseTrainer):
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
-        max_grad_norm = 10.0
+        max_grad_norm = 5.0
         past_val_loss = float("+inf")
         shown = False
         if self._model_path:
-            past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+            past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume,
+                    resume_scheduler=resume_scheduler)
             if resume:
                 shown = True
                 scheduler.step()

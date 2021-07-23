@@ -3,6 +3,7 @@ gpu_numbers: [0]
 use_cuda: True
 test_mode: False
 resume_training: True
+resume_scheduler: True
 defaults:
     - experiment: maml_resnet_obman
 hydra:

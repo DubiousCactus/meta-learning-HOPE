@@ -68,6 +68,7 @@ def main(cfg: DictConfig):
             lr_step_gamma=cfg.experiment.lr_step_gamma,
             val_every=cfg.experiment.val_every,
             resume=cfg.resume_training,
+            resume_scheduler=cfg.resume_scheduler,
         )
 
 
