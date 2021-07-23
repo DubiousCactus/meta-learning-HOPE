@@ -1,0 +1,6 @@
+defaults:
+    - base_anil
+model_def: ResNet10
+dataset: fphad
+dataset_path: ../FPHAD
+name: anil_resnet_fphad

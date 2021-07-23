@@ -24,6 +24,7 @@ from algorithm.wrappers import (
     MAML_GraphUNetTrainer,
     MAML_CNNTrainer,
     MAML_HOPETrainer,
+    ANIL_CNNTrainer,
 )
 from algorithm.base import BaseTrainer
 from abc import abstractmethod
@@ -122,6 +123,14 @@ class AlgorithmFactory:
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
             kargs = {"first_order": algorithm == "fomaml"}
+        elif algorithm in ["anil", "foanil"]:
+            args: List = [k_shots, n_queries, inner_steps]
+            if "resnet" in model_def or "mobilenet" in model_def:
+                trainer = MAML_CNNTrainer
+                args += [model_def]
+            else:
+                raise Exception(f"No training algorithm found for model {model_def}")
+            kargs = {"first_order": algorithm == "foanil"}
         elif algorithm == "regular":
             if model_def == "hopenet":
                 trainer = Regular_HOPENetTester if test_mode else Regular_HOPENetTrainer

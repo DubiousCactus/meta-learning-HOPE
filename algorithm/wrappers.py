@@ -13,10 +13,14 @@ Part-specific training wrappers.
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.maml import MAMLTrainer, MetaBatch
 from algorithm.regular import RegularTrainer
+from algorithm.anil import ANILTrainer
+
 from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
+
 from model.cnn import ResNet, MobileNet
 from model.hopenet import HOPENet
+
 from typing import List
 from tqdm import tqdm
 
@@ -56,7 +60,9 @@ class MAML_HOPETrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"):
+    def _training_step(
+        self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
+    ):
         criterion = self.inner_criterion
         if compute == "mae":
             criterion = F.l1_loss
@@ -106,7 +112,9 @@ class MAML_HOPETrainer(MAMLTrainer):
         )
         return query_loss
 
-    def _testing_step(self, meta_batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"):
+    def _testing_step(
+        self, meta_batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
+    ):
         return self._training_step(meta_batch, learner, clip_grad_norm, compute)
 
 
@@ -149,7 +157,9 @@ class MAML_CNNTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"):
+    def _training_step(
+        self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
+    ):
         criterion = self.inner_criterion
         if compute == "mae":
             criterion = F.l1_loss
@@ -177,8 +187,88 @@ class MAML_CNNTrainer(MAMLTrainer):
         query_loss = criterion(e_outputs2d_init, q_labels2d)
         return query_loss
 
-    def _testing_step(self, meta_batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"):
+    def _testing_step(
+        self, meta_batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
+    ):
         return self._training_step(meta_batch, learner, clip_grad_norm, compute)
+
+
+class ANIL_CNNTrainer(ANILTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        k_shots: int,
+        n_querries,
+        inner_steps: int,
+        cnn_def: str,
+        model_path: str = None,
+        first_order: bool = False,
+        use_cuda: int = False,
+        gpu_numbers: List = [0],
+    ):
+        if cnn_def == "resnet10":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet18":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet34":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "mobilenetv3-small":
+            cnn = MobileNet(model="v3-small", pretrained=True)
+        elif cnn_def == "mobilenetv3-large":
+            cnn = MobileNet(model="v3-large", pretrained=True)
+        else:
+            raise ValueError(f"{cnn_def} is not a valid CNN definition!")
+        super().__init__(
+            cnn,
+            dataset,
+            checkpoint_path,
+            k_shots,
+            n_querries,
+            inner_steps,
+            model_path=model_path,
+            first_order=first_order,
+            use_cuda=use_cuda,
+            gpu_numbers=gpu_numbers,
+        )
+
+    def _training_step(
+        self, batch: MetaBatch, head, features, clip_grad_norm=None, compute="mse"
+    ):
+        criterion = self.inner_criterion
+        if compute == "mae":
+            criterion = F.l1_loss
+        s_inputs, s_labels2d, _ = batch.support
+        q_inputs, q_labels2d, _ = batch.query
+        if self._use_cuda:
+            s_inputs = s_inputs.float().cuda(device=self._gpu_number)
+            s_labels2d = s_labels2d.float().cuda(device=self._gpu_number)
+            q_inputs = q_inputs.float().cuda(device=self._gpu_number)
+            q_labels2d = q_labels2d.float().cuda(device=self._gpu_number)
+
+        s_inputs = features(s_inputs)
+        # Adapt the model on the support set
+        for _ in range(self._steps):
+            # forward + backward + optimize
+            outputs2d_init, _ = head(s_inputs)
+            if torch.isnan(outputs2d_init).any():
+                print(f"Support outputs contains NaN!")
+            support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
+            head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
+
+        # Evaluate the adapted model on the query set
+        q_inputs = features(q_inputs)
+        e_outputs2d_init, _ = head(q_inputs)
+        if torch.isnan(e_outputs2d_init).any():
+            print(f"Query outputs contains NaN!")
+        query_loss = criterion(e_outputs2d_init, q_labels2d)
+        return query_loss
+
+    def _testing_step(
+        self, meta_batch: MetaBatch, head, features, clip_grad_norm=None, compute="mse"
+    ):
+        return self._training_step(meta_batch, head, features, clip_grad_norm, compute)
+
 
 class MAML_GraphUNetTrainer(MAMLTrainer):
     def __init__(
@@ -206,7 +296,9 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
 
-    def _training_step(self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"):
+    def _training_step(
+        self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
+    ):
         criterion = self.inner_criterion
         if compute == "mae":
             criterion = F.l1_loss
@@ -234,7 +326,9 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         query_loss = criterion(e_outputs3d, q_labels3d)
         return query_loss
 
-    def _testing_step(self, meta_batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"):
+    def _testing_step(
+        self, meta_batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
+    ):
         return self._training_step(meta_batch, learner, clip_grad_norm, compute)
 
 

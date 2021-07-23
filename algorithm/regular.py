@@ -56,7 +56,7 @@ class RegularTrainer(BaseTrainer):
     ):
         wandb.watch(self.model)
         opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
-        #weight_decay=wconfig['experiment.weight_decay'])
+        # weight_decay=wconfig['experiment.weight_decay'])
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
@@ -64,7 +64,7 @@ class RegularTrainer(BaseTrainer):
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(opt, scheduler, resume_training=resume)
-        avg_val_loss, avg_val_mae_loss = .0, .0
+        avg_val_loss, avg_val_mae_loss = 0.0, 0.0
         for epoch in range(self._epoch, iterations):
             self.model.train()
             train_losses = []
@@ -94,7 +94,10 @@ class RegularTrainer(BaseTrainer):
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
                 print(f"Validation MAE Loss: {avg_val_mae_loss:.6f}")
-                wandb.log({"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss}, step=epoch)
+                wandb.log(
+                    {"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss},
+                    step=epoch,
+                )
             print("============================================")
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and avg_val_loss < past_val_loss:
@@ -105,8 +108,9 @@ class RegularTrainer(BaseTrainer):
                     "scheduler_state_dict": scheduler.state_dict(),
                     "val_loss": avg_val_loss,
                 }
-                self._checkpoint(epoch, avg_train_loss, avg_val_loss, avg_val_mae_loss,
-                        state_dicts)
+                self._checkpoint(
+                    epoch, avg_train_loss, avg_val_loss, avg_val_mae_loss, state_dicts
+                )
                 past_val_loss = avg_val_loss
             if use_scheduler:
                 scheduler.step()

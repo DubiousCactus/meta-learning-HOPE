@@ -119,4 +119,3 @@ class BaseTrainer(ABC):
                 f"epoch_{epoch}_train_loss-{train_loss:.6f}_val_loss-{val_loss:.6f}.tar",
             ),
         )
-

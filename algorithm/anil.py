@@ -7,10 +7,11 @@
 # Distributed under terms of the MIT license.
 
 """
-Model-Agnostic Meta-Learning algorithm.
+Almost No Inner-Loop meta-learning algorithm.
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from model.cnn import ResNet, MobileNet
 from algorithm.base import BaseTrainer
 from collections import namedtuple
 from typing import List, Union
@@ -26,7 +27,7 @@ import os
 MetaBatch = namedtuple("MetaBatch", "support query")
 
 
-class MAMLTrainer(BaseTrainer):
+class ANILTrainer(BaseTrainer):
     def __init__(
         self,
         model: Union[str, torch.nn.Module],
@@ -46,6 +47,9 @@ class MAMLTrainer(BaseTrainer):
         assert (
             dataset.n_querries == n_querries
         ), "Dataset's N-querries does not match MAML's N-querries!"
+        assert type(model) in [ResNet, MobileNet] or (
+            type(model) is str and "resnet" in model
+        ), "Only CNN models can be trained with ANIL!"
         super().__init__(
             model,
             dataset,
@@ -98,9 +102,15 @@ class MAMLTrainer(BaseTrainer):
     ):
         wandb.watch(self.model)
         maml = l2l.algorithms.MAML(
-            self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
+            self.model.head,
+            lr=fast_lr,
+            first_order=self._first_order,
+            allow_unused=True,
         )
-        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        all_parameters = list(self.model.features.parameters()) + list(
+            maml.parameters()
+        )
+        opt = torch.optim.Adam(all_parameters, lr=meta_lr)
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
@@ -120,10 +130,10 @@ class MAMLTrainer(BaseTrainer):
                     self._backup()
                     return
                 # Compute the meta-training loss
-                learner = maml.clone()
+                head = maml.clone()
                 meta_batch = self._split_batch(self.dataset.train.sample())
                 inner_loss = self._training_step(
-                    meta_batch, learner, clip_grad_norm=max_grad_norm
+                    meta_batch, head, self.model.features, clip_grad_norm=max_grad_norm
                 )
                 if torch.isnan(inner_loss).any():
                     raise ValueError("Inner loss is Nan!")
@@ -132,14 +142,21 @@ class MAMLTrainer(BaseTrainer):
 
                 if (epoch + 1) % val_every == 0:
                     # Compute the meta-validation loss
-                    learner = maml.clone()
+                    head = maml.clone()
                     meta_batch = self._split_batch(self.dataset.val.sample())
                     inner_mse_loss = self._testing_step(
-                        meta_batch, learner, clip_grad_norm=max_grad_norm
+                        meta_batch,
+                        head,
+                        self.model.features,
+                        clip_grad_norm=max_grad_norm,
                     )
-                    learner = maml.clone()
+                    head = maml.clone()
                     inner_mae_loss = self._testing_step(
-                        meta_batch, learner, clip_grad_norm=max_grad_norm, compute="mae"
+                        meta_batch,
+                        head,
+                        self.model.features,
+                        clip_grad_norm=max_grad_norm,
+                        compute="mae",
                     )
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())
@@ -196,59 +213,3 @@ class MAMLTrainer(BaseTrainer):
                     state_dicts,
                 )
                 past_val_loss = meta_val_mse_loss
-
-    def test(
-        self,
-        batch_size: int = 16,
-        fast_lr: float = 0.01,
-        meta_lr: float = 0.001,
-    ):
-        maml = l2l.algorithms.MAML(
-            self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
-        )
-        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
-        if self._model_path:
-            self._restore(maml, opt, None, resume_training=False)
-        meta_test_loss = 0.0
-        for task in range(batch_size):
-            learner = maml.clone()
-            meta_batch = self._split_batch(self.dataset.test.sample())
-
-            print("Support")
-            images = meta_batch.support[0]
-            for i in range(images.shape[0]):
-                image = images[i, :].permute(1, 2, 0).cpu().numpy()
-                print(
-                    "2D coordinates: ",
-                    meta_batch.support[1][i].shape,
-                    meta_batch.support[1][i],
-                )
-                print(
-                    "3D coordinates: ",
-                    meta_batch.support[2][i].shape,
-                    meta_batch.support[2][i],
-                )
-                plt.imshow(image)
-                plt.show()
-
-            print("Query")
-            images = meta_batch.query[0]
-            for i in range(images.shape[0]):
-                image = images[i, :].permute(1, 2, 0).cpu().numpy()
-                print(
-                    "2D coordinates: ",
-                    meta_batch.query[1][i].shape,
-                    meta_batch.query[1][i],
-                )
-                print(
-                    "3D coordinates: ",
-                    meta_batch.query[2][i].shape,
-                    meta_batch.query[2][i],
-                )
-                plt.imshow(image)
-                plt.show()
-
-            inner_loss = self._training_step(meta_batch, learner)
-            meta_test_loss += inner_loss.item()
-        print("==========[Test Error]==========")
-        print(f"Meta-testing Loss: {meta_test_loss:.6f}")

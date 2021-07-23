@@ -21,11 +21,20 @@ import wandb
 import torch
 
 
+class Lambda(torch.nn.Module):
+    def __init__(self, fn):
+        super(Lambda, self).__init__()
+        self.fn = fn
+
+    def forward(self, x):
+        return self.fn(x)
+
+
 class ResNet(torch.nn.Module):
     def __init__(self, model="18", pretrained=True):
         super().__init__()
         if model == "10":
-            network = resnet10(num_classes=29*2)
+            network = resnet10(num_classes=29 * 2)
             if pretrained:
                 self._load_resnet10_model(network)
         elif model == "18":
@@ -42,20 +51,20 @@ class ResNet(torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(n_features, 128),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, 29*2)
+            torch.nn.Linear(128, 29 * 2),
         )
 
     def _load_resnet10_model(self, model: torch.nn.Module):
         res_18_state_dict = torch.hub.load_state_dict_from_url(model_urls["resnet18"])
         # Exclude the fully connected layer
-        del res_18_state_dict['fc.weight']
-        del res_18_state_dict['fc.bias']
+        del res_18_state_dict["fc.weight"]
+        del res_18_state_dict["fc.bias"]
         model.load_state_dict(res_18_state_dict, strict=False)
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
-        '''
+        """
         Original implementation from PyTorch, modified to return the image features vector.
-        '''
+        """
         # See note [TorchScript super()]
         x = self.resnet.conv1(x)
         x = self.resnet.bn1(x)
@@ -77,10 +86,19 @@ class ResNet(torch.nn.Module):
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         return self._forward_impl(x)
 
-
     @property
     def out_features(self):
         return self._n_features
+
+    @property
+    def features(self):
+        return torch.nn.Sequential(
+            self.resnet, Lambda(lambda x: x.view(-1, self._n_features))
+        )
+
+    @property
+    def head(self):
+        return self.fc
 
 
 class MobileNet(torch.nn.Module):
@@ -97,17 +115,17 @@ class MobileNet(torch.nn.Module):
         del self.mobilenet.classifier
         wconfig = wandb.config
         self.fc = torch.nn.Sequential(
-            torch.nn.Dropout(p=wconfig['experiment.dropout1'], inplace=True),
+            torch.nn.Dropout(p=wconfig["experiment.dropout1"], inplace=True),
             # torch.nn.Linear(n_features, wconfig['experiment.hidden']),
             torch.nn.Hardswish(),
             # torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
-            torch.nn.Linear(n_features, 29*2)
+            torch.nn.Linear(n_features, 29 * 2),
         )
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
-        '''
+        """
         Original implementation from PyTorch, modified to return the image features vector.
-        '''
+        """
         x = self.mobilenet.features(x)
 
         x = self.mobilenet.avgpool(x)
@@ -121,4 +139,12 @@ class MobileNet(torch.nn.Module):
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         return self._forward_impl(x)
 
+    @property
+    def features(self):
+        return torch.nn.Sequential(
+            self.mobilenet, Lambda(lambda x: x.view(-1, self._n_features))
+        )
 
+    @property
+    def head(self):
+        return self.fc
