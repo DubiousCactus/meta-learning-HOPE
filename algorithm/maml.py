@@ -106,8 +106,9 @@ class MAMLTrainer(BaseTrainer):
         )
         scheduler.last_epoch = self._epoch
         max_grad_norm = 5.0
+        past_val_loss = float("+inf")
         if self._model_path:
-            self._past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+            past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
             opt.zero_grad()
