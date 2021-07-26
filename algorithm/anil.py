@@ -30,7 +30,7 @@ MetaBatch = namedtuple("MetaBatch", "support query")
 class ANILTrainer(BaseTrainer):
     def __init__(
         self,
-        model: Union[str, torch.nn.Module],
+        model: torch.nn.Module,
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
@@ -58,6 +58,11 @@ class ANILTrainer(BaseTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
+        print(type(model))
+        self.model: torch.nn.Module = model
+        if use_cuda and torch.cuda.is_available():
+            self.model = self.model.cuda()
+        print(type(self.model))
         self._k_shots = k_shots
         self._n_querries = n_querries
         self._steps = inner_steps
@@ -101,6 +106,9 @@ class ANILTrainer(BaseTrainer):
         use_scheduler: bool = True,
     ):
         wandb.watch(self.model)
+        print("ANIL")
+        print("HEAD: ", all(p.is_cuda for p in self.model.head.parameters()))
+        print("FEATURES: ", all(p.is_cuda for p in self.model.features.parameters()))
         maml = l2l.algorithms.MAML(
             self.model.head,
             lr=fast_lr,

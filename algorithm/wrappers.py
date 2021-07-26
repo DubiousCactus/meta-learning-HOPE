@@ -373,15 +373,20 @@ class Regular_CNNTrainer(RegularTrainer):
         loss.backward()
         return loss.detach()
 
-    def _testing_step(self, batch: tuple, loss_fn=None):
-        criterion = self.inner_criterion if not loss_fn else loss_fn
+    def _testing_step(self, batch: tuple, compute="mse"):
         inputs, labels2d, _ = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels2d = labels2d.float().cuda(device=self._gpu_number)
         with torch.no_grad():
             outputs2d_init, _ = self.model(inputs)
-            return criterion(outputs2d_init, labels2d).detach()
+            if compute == "mse":
+                return F.mse_loss(outputs2d_init, labels2d).detach()
+            elif compute == "mae":
+                return F.l1_loss(outputs2d_init, labels2d).detach()
+            else:
+                raise NotImplementedError(f"No implementation for {compute}")
+
 
 
 class Regular_GraphUNetTrainer(RegularTrainer):
@@ -412,15 +417,20 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         loss.backward()
         return loss.detach()
 
-    def _testing_step(self, batch: tuple, loss_fn=None):
-        criterion = self.inner_criterion if not loss_fn else loss_fn
+    def _testing_step(self, batch: tuple, compute="mse"):
         _, labels2d, labels3d = batch
         if self._use_cuda:
             labels2d = labels2d.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         with torch.no_grad():
             outputs3d = self.model(labels2d)
-            return criterion(outputs3d, labels3d).detach()
+            if compute == "mse":
+                return F.mse_loss(outputs3d, labels3d).detach()
+            elif compute == "mae":
+                return F.l1_loss(outputs3d, labels3d).detach()
+            else:
+                raise NotImplementedError(f"No implementation for {compute}")
+
 
 
 class Regular_GraphNetTrainer(RegularTrainer):
@@ -469,8 +479,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
         loss.backward()
         return loss.detach()
 
-    def _testing_step(self, batch: tuple, loss_fn=None):
-        criterion = self.inner_criterion if not loss_fn else loss_fn
+    def _testing_step(self, batch: tuple, compute="mse"):
         inputs, labels2d, _ = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
@@ -480,7 +489,12 @@ class Regular_GraphNetTrainer(RegularTrainer):
             features = features.unsqueeze(1).repeat(1, 29, 1)
             in_features = torch.cat([points2D_init, features], dim=2)
             points2D = self.model(in_features)
-            return criterion(points2D, labels2d).detach()
+            if compute == "mse":
+                return F.mse_loss(points2D, labels2d).detach()
+            elif compute == "mae":
+                return F.l1_loss(points2D, labels2d).detach()
+            else:
+                raise NotImplementedError(f"No implementation for {compute}")
 
 
 class Regular_HOPENetTrainer(RegularTrainer):

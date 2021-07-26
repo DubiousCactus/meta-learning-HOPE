@@ -61,7 +61,7 @@ class ResNet(torch.nn.Module):
         del res_18_state_dict["fc.bias"]
         model.load_state_dict(res_18_state_dict, strict=False)
 
-    def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+    def _forward_impl(self, x: Tensor, features_only=False) -> Tuple[Tensor, Tensor]:
         """
         Original implementation from PyTorch, modified to return the image features vector.
         """
@@ -76,15 +76,15 @@ class ResNet(torch.nn.Module):
         x = self.resnet.layer3(x)
         x = self.resnet.layer4(x)
 
-        x = self.resnet.avgpool(x)
-        x = torch.flatten(x, 1)
+        features = self.resnet.avgpool(x)
+        x = torch.flatten(features, 1)
         img_features = x
         x = self.fc(x)
 
-        return x.view(-1, 29, 2), img_features
+        return x.view(-1, 29, 2), img_features if not features_only else img_features.view(-1, self._n_features)
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
-        return self._forward_impl(x)
+    def forward(self, x: Tensor, features_only=False) -> Tuple[Tensor, Tensor]:
+        return self._forward_impl(x, features_only=features_only)
 
     @property
     def out_features(self):
@@ -92,12 +92,11 @@ class ResNet(torch.nn.Module):
 
     @property
     def features(self):
-        return torch.nn.Sequential(
-            self.resnet, Lambda(lambda x: x.view(-1, self._n_features))
-        )
+        return Lambda(lambda x: self(x, features_only=True))
 
     @property
     def head(self):
+        print("head")
         return self.fc
 
 

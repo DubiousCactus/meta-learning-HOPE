@@ -126,7 +126,7 @@ class AlgorithmFactory:
         elif algorithm in ["anil", "foanil"]:
             args: List = [k_shots, n_queries, inner_steps]
             if "resnet" in model_def or "mobilenet" in model_def:
-                trainer = MAML_CNNTrainer
+                trainer = ANIL_CNNTrainer
                 args += [model_def]
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
