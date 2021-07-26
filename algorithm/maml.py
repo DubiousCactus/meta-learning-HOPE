@@ -167,13 +167,13 @@ class MAMLTrainer(BaseTrainer):
             print("============================================")
 
             # Average the accumulated gradients and optimize
-            #             for p in maml.parameters():
-            # # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
-            # # instead of modifying the original code, this simple check will do).
-            # if p.grad is not None:
-            # p.grad.data.mul_(1.0 / batch_size)
+            for p in maml.parameters():
+                # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
+                # instead of modifying the original code, this simple check will do).
+                if p.grad is not None:
+                    p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
-            # torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
             opt.step()
             if use_scheduler:
                 scheduler.step()
