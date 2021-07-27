@@ -25,6 +25,11 @@ import torch
 import os
 
 
+def kp2d_transform(keypoints):
+    _min, _max = 0, 240
+    return (keypoints - _min) / (_max - _min)
+
+
 class ObManTaskLoader(BaseDatasetTaskLoader):
     """
     Refer to https://github.com/hassony2/obman/blob/master/obman/obman.py
@@ -186,45 +191,20 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             if object_as_task:
                 flat_samples = [s for sublist in samples.values() for s in sublist]
                 kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in flat_samples]))
-                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in flat_samples]))
-                min_2d, max_2d, min_3d, max_3d = (
-                    torch.min(kp_2d),
-                    torch.max(kp_2d),
-                    torch.min(kp_3d),
-                    torch.max(kp_3d),
-                )
+                min_2d, max_2d = torch.min(kp_2d), torch.max(kp_2d)
                 for k, v in samples.items():
                     n_v = []
                     for img, kp2d, kp3d in v:
-                        n_v.append(
-                            (
-                                img,
-                                (kp2d - min_2d) / (max_2d - min_2d),
-                                (kp3d - min_3d) / (max_3d - min_3d),
-                            )
-                        )
+                        n_v.append((img, (kp2d - min_2d) / (max_2d - min_2d), kp3d))
                     samples[k] = n_v
             else:
                 kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in samples]))
-                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in samples]))
-                min_2d, max_2d, min_3d, max_3d = (
-                    torch.min(kp_2d),
-                    torch.max(kp_2d),
-                    torch.min(kp_3d),
-                    torch.max(kp_3d),
-                )
+                min_2d, max_2d = torch.min(kp_2d), torch.max(kp_2d)
                 n_s = []
                 for img, kp2d, kp3d in samples:
-                    n_s.append(
-                        (
-                            img,
-                            (kp2d - min_2d) / (max_2d - min_2d),
-                            (kp3d - min_3d) / (max_3d - min_3d),
-                        )
-                    )
+                    n_s.append((img, (kp2d - min_2d) / (max_2d - min_2d), kp3d))
                 samples = n_s
 
-        print(f"[*] Generating dataset in pinned memory...")
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,

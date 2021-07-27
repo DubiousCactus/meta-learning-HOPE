@@ -100,20 +100,20 @@ class MAMLTrainer(BaseTrainer):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
-        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr, weight_decay=5.0)
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
-        max_grad_norm = 5.0
+        max_grad_norm = 1.0
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
-            opt.zero_grad()
             meta_train_losses, meta_val_mse_losses, meta_val_mae_losses = [], [], []
             meta_val_mse_loss, meta_val_mae_loss = 0.0, 0.0
+            opt.zero_grad()
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
             for _ in tqdm(range(batch_size), dynamic_ncols=True):
                 if self._exit:
@@ -122,13 +122,13 @@ class MAMLTrainer(BaseTrainer):
                 # Compute the meta-training loss
                 learner = maml.clone()
                 meta_batch = self._split_batch(self.dataset.train.sample())
-                inner_loss = self._training_step(
+                meta_loss = self._training_step(
                     meta_batch, learner, clip_grad_norm=max_grad_norm
                 )
-                if torch.isnan(inner_loss).any():
+                if torch.isnan(meta_loss).any():
                     raise ValueError("Inner loss is Nan!")
-                inner_loss.backward()
-                meta_train_losses.append(inner_loss.detach())
+                meta_loss.backward()
+                meta_train_losses.append(meta_loss.detach())
 
                 if (epoch + 1) % val_every == 0:
                     # Compute the meta-validation loss
@@ -173,7 +173,8 @@ class MAMLTrainer(BaseTrainer):
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            max_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            print(max_norm)
             opt.step()
             if use_scheduler:
                 scheduler.step()
@@ -248,7 +249,7 @@ class MAMLTrainer(BaseTrainer):
                 plt.imshow(image)
                 plt.show()
 
-            inner_loss = self._training_step(meta_batch, learner)
-            meta_test_loss += inner_loss.item()
+            meta_loss = self._training_step(meta_batch, learner)
+            meta_test_loss += meta_loss.item()
         print("==========[Test Error]==========")
         print(f"Meta-testing Loss: {meta_test_loss:.6f}")
