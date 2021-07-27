@@ -81,7 +81,11 @@ class ResNet(torch.nn.Module):
         img_features = x
         x = self.fc(x)
 
-        return x.view(-1, 29, 2), img_features if not features_only else img_features.view(-1, self._n_features)
+        return x.view(
+            -1, 29, 2
+        ), img_features if not features_only else img_features.view(
+            -1, self._n_features
+        )
 
     def forward(self, x: Tensor, features_only=False) -> Tuple[Tensor, Tensor]:
         return self._forward_impl(x, features_only=features_only)

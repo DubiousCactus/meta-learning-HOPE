@@ -33,6 +33,7 @@ def main(cfg: DictConfig):
         cfg.experiment.k_shots,
         cfg.experiment.n_queries,
         object_as_task=cfg.experiment.object_as_task,
+        normalize_keypoints=cfg.experiment.normalize_keypoints,
         augment_fphad=cfg.experiment.augment,
     )
     trainer = AlgorithmFactory.make_training_algorithm(

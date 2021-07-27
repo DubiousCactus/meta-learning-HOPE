@@ -388,7 +388,6 @@ class Regular_CNNTrainer(RegularTrainer):
                 raise NotImplementedError(f"No implementation for {compute}")
 
 
-
 class Regular_GraphUNetTrainer(RegularTrainer):
     def __init__(
         self,
@@ -430,7 +429,6 @@ class Regular_GraphUNetTrainer(RegularTrainer):
                 return F.l1_loss(outputs3d, labels3d).detach()
             else:
                 raise NotImplementedError(f"No implementation for {compute}")
-
 
 
 class Regular_GraphNetTrainer(RegularTrainer):

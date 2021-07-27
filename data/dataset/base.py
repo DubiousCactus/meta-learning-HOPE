@@ -37,6 +37,7 @@ class BaseDatasetTaskLoader(ABC):
         n_querries: int,
         test: bool,
         object_as_task: bool,
+        normalize_keypoints: bool,
         use_cuda: bool,
         gpu_number: int,
         auto_load: bool = True,
@@ -50,16 +51,20 @@ class BaseDatasetTaskLoader(ABC):
         self.train, self.val, self.test = None, None, None
         if auto_load:
             if test:
-                self.test = self._load(object_as_task, "test", False)
+                self.test = self._load(
+                    object_as_task, "test", False, normalize_keypoints
+                )
             else:
                 self.train, self.val = self._load(
-                    object_as_task, "train", True
-                ), self._load(object_as_task, "val", False)
+                    object_as_task, "train", True, normalize_keypoints
+                ), self._load(object_as_task, "val", False, normalize_keypoints)
 
-    def _make_dataset(self, root, object_as_task=False) -> CustomDataset:
+    def _make_dataset(
+        self, root, object_as_task=False, normalize_keypoints=False
+    ) -> CustomDataset:
         raise NotImplementedError
 
     def _load(
-        self, object_as_task: bool, split: str, shuffle: bool
+        self, object_as_task: bool, split: str, shuffle: bool, normalize_keypoints: bool
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
         raise NotImplementedError

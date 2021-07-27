@@ -173,7 +173,8 @@ class MAMLTrainer(BaseTrainer):
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            max_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            print(max_norm)
             opt.step()
             if use_scheduler:
                 scheduler.step()

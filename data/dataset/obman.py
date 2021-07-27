@@ -52,6 +52,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         shapenet_root: str,
         test: bool = False,
         object_as_task: bool = True,
+        normalize_keypoints: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
@@ -76,6 +77,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             n_querries,
             test,
             object_as_task,
+            normalize_keypoints,
             use_cuda,
             gpu_number,
         )
@@ -140,7 +142,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         )
 
     def _make_dataset(
-        self, split: str, root: str, object_as_task=False
+        self, split: str, root: str, object_as_task=False, normalize_keypoints=False
     ) -> CustomDataset:
         pickle_path = os.path.join(
             root,
@@ -179,6 +181,50 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
+        if normalize_keypoints:
+            print(f"[*] Normalizing 2D and 3D keypoints...")
+            if object_as_task:
+                flat_samples = [s for sublist in samples.values() for s in sublist]
+                kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in flat_samples]))
+                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in flat_samples]))
+                min_2d, max_2d, min_3d, max_3d = (
+                    torch.min(kp_2d),
+                    torch.max(kp_2d),
+                    torch.min(kp_3d),
+                    torch.max(kp_3d),
+                )
+                for k, v in samples.items():
+                    n_v = []
+                    for img, kp2d, kp3d in v:
+                        n_v.append(
+                            (
+                                img,
+                                (kp2d - min_2d) / (max_2d - min_2d),
+                                (kp3d - min_3d) / (max_3d - min_3d),
+                            )
+                        )
+                    samples[k] = n_v
+            else:
+                kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in samples]))
+                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in samples]))
+                min_2d, max_2d, min_3d, max_3d = (
+                    torch.min(kp_2d),
+                    torch.max(kp_2d),
+                    torch.min(kp_3d),
+                    torch.max(kp_3d),
+                )
+                n_s = []
+                for img, kp2d, kp3d in samples:
+                    n_s.append(
+                        (
+                            img,
+                            (kp2d - min_2d) / (max_2d - min_2d),
+                            (kp3d - min_3d) / (max_3d - min_3d),
+                        )
+                    )
+                samples = n_s
+
+        print(f"[*] Generating dataset in pinned memory...")
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,
@@ -188,7 +234,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         return dataset
 
     def _load(
-        self, object_as_task: bool, split: str, shuffle: bool
+        self, object_as_task: bool, split: str, shuffle: bool, normalize_keypoints: bool
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
         if split in os.listdir(self._root):
             split_path = os.path.join(self._root, split)
@@ -197,7 +243,10 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                 f"{self._root} directory does not contain the '{split}' folder!"
             )
         split_task_set = self._make_dataset(
-            split, split_path, object_as_task=object_as_task
+            split,
+            split_path,
+            object_as_task=object_as_task,
+            normalize_keypoints=normalize_keypoints,
         )
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(

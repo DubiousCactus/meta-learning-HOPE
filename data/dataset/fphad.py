@@ -49,6 +49,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         n_querries: int,
         test: bool = False,
         object_as_task: bool = True,
+        normalize_keypoints: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
         augment_2d: bool = False,
@@ -82,6 +83,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             n_querries,
             test,
             object_as_task,
+            normalize_keypoints,
             use_cuda,
             gpu_number,
         )
@@ -173,7 +175,9 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             torch.cat([torch.Tensor(skel_camcoords), torch.Tensor(verts_camcoords)]),
         )
 
-    def _make_dataset(self, split: str, object_as_task=False) -> CustomDataset:
+    def _make_dataset(
+        self, split: str, object_as_task=False, normalize_keypoints=False
+    ) -> CustomDataset:
         """
         Refer to the make_datay.py script in the HOPE project: ../HOPE/datasets/fhad/make_data.py.
         """
@@ -231,6 +235,49 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
+        if normalize_keypoints:
+            print(f"[*] Normalizing 2D and 3D keypoints...")
+            if object_as_task:
+                flat_samples = [s for sublist in samples.values() for s in sublist]
+                kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in flat_samples]))
+                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in flat_samples]))
+                min_2d, max_2d, min_3d, max_3d = (
+                    torch.min(kp_2d),
+                    torch.max(kp_2d),
+                    torch.min(kp_3d),
+                    torch.max(kp_3d),
+                )
+                for k, v in samples.items():
+                    n_v = []
+                    for img, kp2d, kp3d in v:
+                        n_v.append(
+                            (
+                                img,
+                                (kp2d - min_2d) / (max_2d - min_2d),
+                                (kp3d - min_3d) / (max_3d - min_3d),
+                            )
+                        )
+                    samples[k] = n_v
+            else:
+                kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in samples]))
+                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in samples]))
+                min_2d, max_2d, min_3d, max_3d = (
+                    torch.min(kp_2d),
+                    torch.max(kp_2d),
+                    torch.min(kp_3d),
+                    torch.max(kp_3d),
+                )
+                n_s = []
+                for img, kp2d, kp3d in samples:
+                    n_s.append(
+                        (
+                            img,
+                            (kp2d - min_2d) / (max_2d - min_2d),
+                            (kp3d - min_3d) / (max_3d - min_3d),
+                        )
+                    )
+                samples = n_s
+
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,
@@ -243,9 +290,13 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         return dataset
 
     def _load(
-        self, object_as_task: bool, split: str, shuffle: bool
+        self, object_as_task: bool, split: str, shuffle: bool, normalize_keypoints: bool
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
-        split_task_set = self._make_dataset(split, object_as_task=object_as_task)
+        split_task_set = self._make_dataset(
+            split,
+            object_as_task=object_as_task,
+            normalize_keypoints=normalize_keypoints,
+        )
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
                 split_task_set, indices_to_labels=split_task_set.class_labels
