@@ -105,7 +105,7 @@ class MAMLTrainer(BaseTrainer):
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
-        max_grad_norm = 1.0
+        max_grad_norm = 5.0
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
@@ -166,15 +166,15 @@ class MAMLTrainer(BaseTrainer):
                 print(f"Meta-validation MAE Loss: {meta_val_mae_loss:.6f}")
             print("============================================")
 
+            # Gradient clipping
+            max_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            print(max_norm)
             # Average the accumulated gradients and optimize
             for p in maml.parameters():
                 # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
                 # instead of modifying the original code, this simple check will do).
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
-            # Gradient clipping
-            max_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
-            print(max_norm)
             opt.step()
             if use_scheduler:
                 scheduler.step()
