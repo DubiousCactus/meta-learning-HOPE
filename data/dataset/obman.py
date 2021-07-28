@@ -26,7 +26,7 @@ import os
 
 
 def kp2d_transform(keypoints):
-    _min, _max = 0, 240
+    _min, _max = -234.1035, 482.4938
     return (keypoints - _min) / (_max - _min)
 
 
