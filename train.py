@@ -53,6 +53,9 @@ def main(cfg: DictConfig):
         use_cuda=cfg.use_cuda,
         gpu_numbers=cfg.gpu_numbers,
     )
+    table = wandb.Table(columns=["Dataset", "Batch size", "Model"])
+    table.add_data(cfg.experiment.dataset, cfg.experiment.batch_size, cfg.experiment.model_def)
+    wandb.log({"Config summary": table})
     if cfg.test_mode:
         trainer.test(
             batch_size=cfg.experiment.batch_size,
