@@ -67,6 +67,8 @@ def main(cfg: DictConfig):
             meta_lr=cfg.experiment.meta_lr,
             lr_step=cfg.experiment.lr_step,
             lr_step_gamma=cfg.experiment.lr_step_gamma,
+            max_grad_norm=cfg.experiment.max_grad_norm,
+            optimizer=cfg.experiment.optimizer.lower(),
             val_every=cfg.experiment.val_every,
             resume=cfg.resume_training,
             use_scheduler=cfg.use_scheduler,

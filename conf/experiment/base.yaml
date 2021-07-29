@@ -12,6 +12,8 @@ saved_model: null
 checkpoint_path: ckpt
 object_as_task: False
 normalize_keypoints: False
+max_grad_norm: null
+optimizer: adam
 name: training
 augment: null
 model_def: null

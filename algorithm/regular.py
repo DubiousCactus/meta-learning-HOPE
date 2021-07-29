@@ -50,13 +50,20 @@ class RegularTrainer(BaseTrainer):
         meta_lr: float = None,
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
+        max_grad_norm: float = None,
+        optimizer: str = "adam",
         val_every: int = 100,
         resume: bool = True,
         use_scheduler: bool = True,
     ):
         wandb.watch(self.model)
-        opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
-        # weight_decay=wconfig['experiment.weight_decay'])
+        if optimizer == "adam":
+            opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
+        elif optimizer == "sgd":
+            opt = torch.optim.SGD(self.model.parameters(), lr=fast_lr)
+        else:
+            raise ValueError(f"{optimizer} is not a valid outer optimizer")
+
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
@@ -75,6 +82,10 @@ class RegularTrainer(BaseTrainer):
                 opt.zero_grad()
                 loss = self._training_step(batch)
                 train_losses.append(loss)
+                # Gradient clipping
+                if max_grad_norm:
+                    max_norm = float(torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm).item())
+                    print(f"Max gradient norm: {max_norm:.2f}")
                 opt.step()
 
             if (epoch + 1) % val_every == 0:

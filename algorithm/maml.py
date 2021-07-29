@@ -92,6 +92,8 @@ class MAMLTrainer(BaseTrainer):
         meta_lr: float = 0.01,
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
+        max_grad_norm: float = 25.0,
+        optimizer: str = "adam",
         val_every: int = 100,
         resume: bool = True,
         use_scheduler: bool = True,
@@ -100,12 +102,17 @@ class MAMLTrainer(BaseTrainer):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
-        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr, weight_decay=5.0)
+        if optimizer == "adam":
+            opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        elif optimizer == "sgd":
+            opt = torch.optim.SGD(maml.parameters(), lr=meta_lr)
+        else:
+            raise ValueError(f"{optimizer} is not a valid outer optimizer")
+
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
-        max_grad_norm = 5.0
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
@@ -166,15 +173,16 @@ class MAMLTrainer(BaseTrainer):
                 print(f"Meta-validation MAE Loss: {meta_val_mae_loss:.6f}")
             print("============================================")
 
-            # Gradient clipping
-            max_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
-            print(max_norm)
             # Average the accumulated gradients and optimize
             for p in maml.parameters():
                 # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
                 # instead of modifying the original code, this simple check will do).
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
+            # Gradient clipping
+            if max_grad_norm:
+                max_norm = float(torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm).item())
+                print(f"Max gradient norm: {max_norm:.2f}")
             opt.step()
             if use_scheduler:
                 scheduler.step()

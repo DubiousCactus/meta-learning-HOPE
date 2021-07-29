@@ -63,6 +63,8 @@ class BaseTrainer(ABC):
         meta_lr: float = 0.001,
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
+        max_grad_norm: float = None,
+        optimizer: str = "adam",
         val_every: int = 100,
         resume: bool = True,
         use_scheduler: bool = True,
