@@ -84,7 +84,11 @@ class RegularTrainer(BaseTrainer):
                 train_losses.append(loss)
                 # Gradient clipping
                 if max_grad_norm:
-                    max_norm = float(torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm).item())
+                    max_norm = float(
+                        torch.nn.utils.clip_grad_norm_(
+                            self.model.parameters(), max_grad_norm
+                        ).item()
+                    )
                     print(f"Max gradient norm: {max_norm:.2f}")
                 opt.step()
 

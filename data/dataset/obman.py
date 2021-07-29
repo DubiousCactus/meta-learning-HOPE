@@ -202,7 +202,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             samples,
             img_transform=self._img_transform,
             object_as_task=object_as_task,
-            kp2d_transform=kp2d_transform if normalize_keypoints else None
+            kp2d_transform=kp2d_transform if normalize_keypoints else None,
         )
         return dataset
 
