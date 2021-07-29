@@ -12,4 +12,6 @@ steps: 1
 batch_size: 32
 iterations: 50000
 object_as_task: True
+max_grad_norm: 25.0
+optimizer: sgd
 name: maml_training
