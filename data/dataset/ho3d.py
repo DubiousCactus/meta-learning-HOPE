@@ -24,6 +24,12 @@ import torch
 import os
 
 
+
+def kp2d_transform(keypoints):
+    _min, _max = -5737.2490, 3297.0396
+    return (keypoints - _min) / (_max - _min)
+
+
 class HO3DTaskLoader(BaseDatasetTaskLoader):
     def __init__(
         self,
@@ -58,11 +64,11 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         )
         self._seq_splits = {"train": None, "val": "MC6", "test": None}
         if test:
-            self.test = self._load(object_as_task, "test", "evaluation", False)
+            self.test = self._load(object_as_task, "test", "evaluation", False, normalize_keypoints)
         else:
             self.train, self.val = self._load(
-                object_as_task, "train", "train", True
-            ), self._load(object_as_task, "val", "train", False)
+                object_as_task, "train", "train", True, normalize_keypoints
+            ), self._load(object_as_task, "val", "train", False, normalize_keypoints)
 
     def _compute_labels(
         self, split: str, meta: dict
@@ -146,48 +152,16 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             if object_as_task:
                 flat_samples = [s for sublist in samples.values() for s in sublist]
                 kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in flat_samples]))
-                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in flat_samples]))
-                min_2d, max_2d, min_3d, max_3d = (
+                min_2d, max_2d = (
                     torch.min(kp_2d),
                     torch.max(kp_2d),
-                    torch.min(kp_3d),
-                    torch.max(kp_3d),
                 )
-                for k, v in samples.items():
-                    n_v = []
-                    for img, kp2d, kp3d in v:
-                        n_v.append(
-                            (
-                                img,
-                                (kp2d - min_2d) / (max_2d - min_2d),
-                                (kp3d - min_3d) / (max_3d - min_3d),
-                            )
-                        )
-                    samples[k] = n_v
-            else:
-                kp_2d = torch.flatten(torch.vstack([p2d for _, p2d, _ in samples]))
-                kp_3d = torch.flatten(torch.vstack([p3d for _, _, p3d in samples]))
-                min_2d, max_2d, min_3d, max_3d = (
-                    torch.min(kp_2d),
-                    torch.max(kp_2d),
-                    torch.min(kp_3d),
-                    torch.max(kp_3d),
-                )
-                n_s = []
-                for img, kp2d, kp3d in samples:
-                    n_s.append(
-                        (
-                            img,
-                            (kp2d - min_2d) / (max_2d - min_2d),
-                            (kp3d - min_3d) / (max_3d - min_3d),
-                        )
-                    )
-                samples = n_s
-
+                print(min_2d, max_2d)
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
+            kp2d_transform=kp2d_transform if normalize_keypoints else None,
             object_as_task=object_as_task,
         )
         return dataset
