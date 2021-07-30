@@ -136,13 +136,6 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                         samples[obj_class_id].append((img_path, points_2d, points_3d))
                     else:
                         samples.append((img_path, points_2d, points_3d))
-            if object_as_task:
-                print(
-                    f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
-                )
-                print(f"[*] Total object categories: {len(samples.keys())}")
-            else:
-                print(f"[*] Loaded {len(samples)} samples from the {split} split.")
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
             with open(pickle_path, "wb") as pickle_file:
@@ -158,6 +151,13 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                     torch.max(kp_2d),
                 )
                 print(min_2d, max_2d)
+        if object_as_task:
+            print(
+                f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
+            )
+            print(f"[*] Total object categories: {len(samples.keys())}")
+        else:
+            print(f"[*] Loaded {len(samples)} samples from the {split} split.")
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,
