@@ -14,6 +14,7 @@ from data.dataset.base import BaseDatasetTaskLoader
 from torch.utils.data import DataLoader
 from data.custom import CustomDataset
 from util.utils import fast_load_obj
+from functools import reduce
 from typing import Union
 from tqdm import tqdm
 
@@ -183,6 +184,13 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                             ]
                     else:
                         samples.append((img_path, coord_2d, coord_3d))
+            if object_as_task:
+                print(
+                    f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
+                )
+                print(f"[*] Total object categories: {len(samples.keys())}")
+            else:
+                print(f"[*] Loaded {len(samples)} samples from the {split} split.")
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
                 pickle.dump(samples, pickle_file)

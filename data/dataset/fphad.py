@@ -235,6 +235,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                 print(
                     f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
                 )
+                print(f"[*] Total object categories: {len(samples.keys())}")
             else:
                 print(f"[*] Loaded {len(samples)} samples from the {split} split.")
             with open(pickle_path, "wb") as pickle_file:
