@@ -253,12 +253,17 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         else:
             print(f"[*] Loaded {len(samples)} samples from the {split} split.")
         print(f"[*] Generating dataset in pinned memory...")
+        transform = None
+        if normalize_keypoints and self._augment_2d:
+            transform = lambda kp: kp2d_transform(kp2d_augment(kp))
+        elif normalize_keypoints:
+            transform = kp2d_transform
+        elif self._augment_2d:
+            transform = kp2d_augment
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
-            kp2d_transform=kp2d_augment
-            if split == "train" and self._augment_2d
-            else (kp2d_transform if normalize_keypoints else None),
+            kp2d_transform=transform,
             object_as_task=object_as_task,
         )
         return dataset
