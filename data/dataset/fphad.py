@@ -255,7 +255,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         print(f"[*] Generating dataset in pinned memory...")
         transform = None
         if normalize_keypoints and self._augment_2d:
-            transform = lambda kp: kp2d_transform(kp2d_augment(kp)) if split == "train" else kp2d_transform
+            transform = (lambda kp: kp2d_transform(kp2d_augment(kp))) if split == "train" else kp2d_transform
         elif normalize_keypoints:
             transform = kp2d_transform
         elif self._augment_2d:
