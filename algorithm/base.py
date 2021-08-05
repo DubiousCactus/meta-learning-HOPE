@@ -21,6 +21,19 @@ import wandb
 import os
 
 
+def initialize_weights(m):
+  if isinstance(m, torch.nn.Conv2d):
+      torch.nn.init.kaiming_normal_(m.weight.data, nonlinearity='relu')
+      if m.bias is not None:
+          torch.nn.init.constant_(m.bias.data, 0)
+  elif isinstance(m, torch.nn.BatchNorm2d):
+      torch.nn.init.constant_(m.weight.data, 1)
+      torch.nn.init.constant_(m.bias.data, 0)
+  elif isinstance(m, torch.nn.Linear):
+      torch.nn.init.kaiming_normal_(m.weight.data, nonlinearity='relu')
+      torch.nn.init.constant_(m.bias.data, 0)
+
+
 class BaseTrainer(ABC):
     def __init__(
         self,
@@ -41,6 +54,7 @@ class BaseTrainer(ABC):
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_numbers)
+        self.model.apply(initialize_weights)
         self.dataset = dataset
         self._checkpoint_path = checkpoint_path
         if not os.path.isdir(self._checkpoint_path):
