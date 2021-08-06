@@ -49,9 +49,9 @@ class ResNet(torch.nn.Module):
         del self.resnet.fc
         wconfig = wandb.config
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(n_features, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 29 * 2),
+            #torch.nn.Linear(n_features, 128),
+            #torch.nn.ReLU(),
+            torch.nn.Linear(n_features, 29 * 2),
         )
 
     def _load_resnet10_model(self, model: torch.nn.Module):
