@@ -17,7 +17,6 @@ from torch import Tensor
 
 import torchvision.models as models
 import torch.nn.functional as F
-import wandb
 import torch
 
 
@@ -47,7 +46,6 @@ class ResNet(torch.nn.Module):
         self._n_features = n_features
         self.resnet = network
         del self.resnet.fc
-        wconfig = wandb.config
         self.fc = torch.nn.Sequential(
             #torch.nn.Linear(n_features, 128),
             #torch.nn.ReLU(),
@@ -116,7 +114,6 @@ class MobileNet(torch.nn.Module):
         n_features = network.classifier[0].in_features
         self.mobilenet = network
         del self.mobilenet.classifier
-        wconfig = wandb.config
         self.fc = torch.nn.Sequential(
             torch.nn.Dropout(p=wconfig["experiment.dropout1"], inplace=True),
             # torch.nn.Linear(n_features, wconfig['experiment.hidden']),

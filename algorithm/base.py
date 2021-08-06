@@ -54,7 +54,7 @@ class BaseTrainer(ABC):
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_numbers)
-        self.model.apply(initialize_weights)
+        # self.model.apply(initialize_weights)
         self.dataset = dataset
         self._checkpoint_path = checkpoint_path
         if not os.path.isdir(self._checkpoint_path):

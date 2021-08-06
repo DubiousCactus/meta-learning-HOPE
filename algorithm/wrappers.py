@@ -18,6 +18,7 @@ from algorithm.anil import ANILTrainer
 from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
 
+from model.graphnet import GraphUNetBatchNorm
 from model.cnn import ResNet, MobileNet
 from model.hopenet import HOPENet
 
@@ -398,7 +399,7 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            "graphunet",
+            GraphUNetBatchNorm(),
             dataset,
             checkpoint_path,
             model_path=model_path,
