@@ -285,7 +285,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            GraphUNetBatchNorm(),
+            "graphunet",
             dataset,
             checkpoint_path,
             k_shots,
