@@ -70,7 +70,6 @@ class GraphUNetBatchNorm(torch.nn.Module):
 
         self.unpool10 = GraphUnpool(15, 29)
         self.gconv10 = GraphConv(8, out_features, activation=None)
-        self.bn11 = torch.nn.BatchNorm1d(29)
 
         self.ReLU = torch.nn.ReLU()
 
@@ -121,7 +120,6 @@ class GraphUNetBatchNorm(torch.nn.Module):
 
         X_10 = self.unpool10(X_9)
         X_10 = self.gconv10(self._get_decoder_input(X_0, X_10), self.A_0)
-        X_10 = self.bn11(X_10)
 
         return X_10
 
