@@ -54,19 +54,15 @@ class GraphUNetBatchNorm(torch.nn.Module):
 
         self.unpool6 = GraphUnpool(1, 2)
         self.gconv6 = GraphConv(128, 32)
-        self.bn7 = torch.nn.BatchNorm1d(2)
 
         self.unpool7 = GraphUnpool(2, 4)
         self.gconv7 = GraphConv(64, 16)
-        self.bn8 = torch.nn.BatchNorm1d(4)
 
         self.unpool8 = GraphUnpool(4, 7)
         self.gconv8 = GraphConv(32, 8)
-        self.bn9 = torch.nn.BatchNorm1d(7)
 
         self.unpool9 = GraphUnpool(7, 15)
         self.gconv9 = GraphConv(16, 4)
-        self.bn10 = torch.nn.BatchNorm1d(15)
 
         self.unpool10 = GraphUnpool(15, 29)
         self.gconv10 = GraphConv(8, out_features, activation=None)
@@ -104,19 +100,15 @@ class GraphUNetBatchNorm(torch.nn.Module):
 
         X_6 = self.unpool6(global_features)
         X_6 = self.gconv6(self._get_decoder_input(X_4, X_6), self.A_4)
-        X_6 = self.bn7(X_6)
 
         X_7 = self.unpool7(X_6)
         X_7 = self.gconv7(self._get_decoder_input(X_3, X_7), self.A_3)
-        X_7 = self.bn8(X_7)
 
         X_8 = self.unpool8(X_7)
         X_8 = self.gconv8(self._get_decoder_input(X_2, X_8), self.A_2)
-        X_8 = self.bn9(X_8)
 
         X_9 = self.unpool9(X_8)
         X_9 = self.gconv9(self._get_decoder_input(X_1, X_9), self.A_1)
-        X_9 = self.bn10(X_9)
 
         X_10 = self.unpool10(X_9)
         X_10 = self.gconv10(self._get_decoder_input(X_0, X_10), self.A_0)
