@@ -34,7 +34,7 @@ def kp2d_augment(keypoints):
     "In addition to the samples in the FPHA dataset, we augment the 2D points with Gaussian noise
     (μ = 0, σ = 10) to help improve robustness to errors."
     """
-    std, prob = 10, 0.5
+    std, prob = 10, 0.75
     if np.random.choice([True, False], p=[prob, 1-prob]):
         return keypoints + (std * torch.randn(keypoints.shape))
     else:

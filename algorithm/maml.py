@@ -103,7 +103,7 @@ class MAMLTrainer(BaseTrainer):
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
         if optimizer == "adam":
-            opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+            opt = torch.optim.Adam(maml.parameters(), lr=meta_lr, betas=(0.0, 0.999))
         elif optimizer == "sgd":
             opt = torch.optim.SGD(maml.parameters(), lr=meta_lr)
         else:
