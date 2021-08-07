@@ -123,12 +123,16 @@ class GraphNetBatchNorm(torch.nn.Module):
         self.A_hat = Parameter(torch.eye(29).float().cuda(), requires_grad=True)
 
         self.gconv1 = GraphConv(in_features, 128)
+        self.bn1 = torch.nn.BatchNorm1d(2)
         self.gconv2 = GraphConv(128, 16)
+        self.bn2 = torch.nn.BatchNorm1d(2)
         self.gconv3 = GraphConv(16, out_features, activation=None)
 
     def forward(self, X):
         X_0 = self.gconv1(X, self.A_hat)
+        X_0 = self.bn1(X_0)
         X_1 = self.gconv2(X_0, self.A_hat)
+        X_1 = self.bn2(X_1)
         X_2 = self.gconv3(X_1, self.A_hat)
 
         return X_2

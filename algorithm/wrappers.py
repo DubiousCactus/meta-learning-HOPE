@@ -18,7 +18,7 @@ from algorithm.anil import ANILTrainer
 from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
 
-from model.graphnet import GraphUNetBatchNorm
+from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
 from model.cnn import ResNet, MobileNet
 from model.hopenet import HOPENet
 
@@ -438,13 +438,14 @@ class Regular_GraphNetTrainer(RegularTrainer):
         self,
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
+        cnn_def: str,
         resnet_path: str,
         model_path: str = None,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            GraphNet(
+            GraphNetBatchNorm(
                 in_features=514, out_features=2
             ),  # 514 for the output features of resnet10
             dataset,
@@ -453,7 +454,20 @@ class Regular_GraphNetTrainer(RegularTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
-        self._resnet = select_model("resnet10")
+        cnn_def = cnn_def.lower()
+        if cnn_def == "resnet10":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet18":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet34":
+            cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "mobilenetv3-small":
+            cnn = MobileNet(model="v3-small", pretrained=True)
+        elif cnn_def == "mobilenetv3-large":
+            cnn = MobileNet(model="v3-large", pretrained=True)
+        else:
+            raise ValueError(f"{cnn_def} is not a valid CNN definition!")
+        self._resnet = cnn
         if use_cuda and torch.cuda.is_available():
             self._resnet = self._resnet.cuda()
             if resnet_path:
