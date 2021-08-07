@@ -456,18 +456,18 @@ class Regular_GraphNetTrainer(RegularTrainer):
         self._resnet = select_model("resnet10")
         if use_cuda and torch.cuda.is_available():
             self._resnet = self._resnet.cuda()
+            if resnet_path:
+                print(f"[*] Loading ResNet state dict form {resnet_path}")
+                ckpt = torch.load(resnet_path)
+                new_state_dict = OrderedDict()
+                for k, v in ckpt["model_state_dict"].items():
+                    if "module" in k:
+                        k = k.replace("module.", "")
+                    new_state_dict[k] = v
+                self._resnet.load_state_dict(new_state_dict)
+            else:
+                print("[!] ResNet is randomly initialized!")
             self._resnet = torch.nn.DataParallel(self._resnet, device_ids=gpu_numbers)
-        if resnet_path:
-            print(f"[*] Loading ResNet state dict form {resnet_path}")
-            ckpt = torch.load(resnet_path)
-            new_state_dict = OrderedDict()
-            for k, v in ckpt["model_state_dict"].items():
-                if "module" in k:
-                    k = k.replace("module.", "")
-                new_state_dict[k] = v
-            self._resnet.load_state_dict(new_state_dict)
-        else:
-            print("[!] ResNet is randomly initialized!")
         self._resnet.eval()
 
     def _training_step(self, batch: tuple):
