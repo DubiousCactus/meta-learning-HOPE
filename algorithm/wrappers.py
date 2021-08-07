@@ -22,6 +22,7 @@ from model.graphnet import GraphUNetBatchNorm
 from model.cnn import ResNet, MobileNet
 from model.hopenet import HOPENet
 
+from collections import OrderedDict
 from typing import List
 from tqdm import tqdm
 
@@ -459,7 +460,12 @@ class Regular_GraphNetTrainer(RegularTrainer):
         if resnet_path:
             print(f"[*] Loading ResNet state dict form {resnet_path}")
             ckpt = torch.load(resnet_path)
-            self._resnet.load_state_dict(ckpt["model_state_dict"])
+            new_state_dict = OrderedDict()
+            for k, v in ckpt["model_state_dict"].items():
+                if "module" in k:
+                    k = k.replace("module.", "")
+                new_state_dict[k] = v
+            self._resnet.load_state_dict(new_state_dict)
         else:
             print("[!] ResNet is randomly initialized!")
         self._resnet.eval()
