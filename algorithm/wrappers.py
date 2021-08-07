@@ -463,6 +463,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
                 for k, v in ckpt["model_state_dict"].items():
                     if "module" in k:
                         k = k.replace("module.", "")
+                        k = k.replace("resnet.", "")
                     new_state_dict[k] = v
                 self._resnet.load_state_dict(new_state_dict)
             else:
