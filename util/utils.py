@@ -10,6 +10,8 @@
 Utility functions for data loading and processing.
 """
 
+from collections import OrderedDict
+
 import numpy as np
 import trimesh
 import pickle
@@ -144,3 +146,16 @@ def fast_load_obj(file_obj, **kwargs):
     file_obj.close()
 
     return meshes
+
+def load_state_dict(module, resnet_path):
+    """
+    Load a state_dict in a module agnostic way (when DataParallel is used, the module is
+    wrapped and the saved state dict is not applicable to non-wrapped modules).
+    """
+    ckpt = torch.load(resnet_path)
+    new_state_dict = OrderedDict()
+    for k, v in ckpt["model_state_dict"].items():
+        if "module" in k:
+            k = k.replace("module.", "")
+        new_state_dict[k] = v
+    module.load_state_dict(new_state_dict)

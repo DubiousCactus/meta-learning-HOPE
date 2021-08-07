@@ -22,6 +22,8 @@ from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
 from model.cnn import ResNet, MobileNet
 from model.hopenet import HOPENet
 
+from util.utils import load_state_dict
+
 from collections import OrderedDict
 from typing import List
 from tqdm import tqdm
@@ -472,14 +474,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
             self._resnet = self._resnet.cuda()
             if resnet_path:
                 print(f"[*] Loading ResNet state dict form {resnet_path}")
-                ckpt = torch.load(resnet_path)
-                new_state_dict = OrderedDict()
-                for k, v in ckpt["model_state_dict"].items():
-                    if "module" in k:
-                        k = k.replace("module.", "")
-                        k = k.replace("resnet.", "")
-                    new_state_dict[k] = v
-                self._resnet.load_state_dict(new_state_dict)
+                load_state_dict(self._resnet, resnet_path)
             else:
                 print("[!] ResNet is randomly initialized!")
             self._resnet = torch.nn.DataParallel(self._resnet, device_ids=gpu_numbers)
