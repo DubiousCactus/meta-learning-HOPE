@@ -13,6 +13,7 @@ Custom HOPE-Net
 import torch
 
 from HOPE.models.graphunet import GraphUNet, GraphNet
+from model.graphnet import GraphUNetBatchNorm
 from model.cnn import ResNet, MobileNet
 from util.utils import load_state_dict
 
@@ -37,7 +38,7 @@ class HOPENet(torch.nn.Module):
             raise ValueError(f"{cnn_def} is not a valid CNN definition!")
         self.resnet = cnn
         self.graphnet = GraphNet(in_features=514, out_features=2)
-        self.graphunet = GraphUNet(in_features=2, out_features=3)
+        self.graphunet = GraphUNetBatchNorm(in_features=2, out_features=3)
         if resnet_path:
             print(f"[*] Loading ResNet state dict form {resnet_path}")
             load_state_dict(self.resnet, resnet_path)
