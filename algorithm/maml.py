@@ -179,14 +179,19 @@ class MAMLTrainer(BaseTrainer):
                 # instead of modifying the original code, this simple check will do).
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
+
+            # Plot the average gradients norm
+            avg_norm = []
+            for p in maml.parameters():
+                if p.grad is not None:
+                    avg_norm.append(torch.linalg.vector_norm(p.grad))
+            avg_norm = torch.tensor(avg_norm).mean().item()
+            print(f"Average gradient norm: {avg_norm:.2f}")
+            wandb.log({"avg_grad_norm": avg_norm}, step=epoch)
             # Gradient clipping
             if max_grad_norm:
-                max_norm = float(
-                    torch.nn.utils.clip_grad_norm_(
-                        maml.parameters(), max_grad_norm
-                    ).item()
-                )
-                print(f"Max gradient norm: {max_norm:.2f}")
+                torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+
             opt.step()
             if use_scheduler:
                 scheduler.step()
