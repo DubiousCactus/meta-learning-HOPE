@@ -15,16 +15,12 @@ from algorithm.maml import MAMLTrainer, MetaBatch
 from algorithm.regular import RegularTrainer
 from algorithm.anil import ANILTrainer
 
-from HOPE.models.graphunet import GraphNet
-from HOPE.utils.model import select_model
-
-from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
+from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm, VanillaGraphUNet
 from model.cnn import ResNet, MobileNet
 from model.hopenet import HOPENet
 
 from util.utils import load_state_dict
 
-from collections import OrderedDict
 from typing import List
 from tqdm import tqdm
 
@@ -288,7 +284,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            "graphunet",
+            VanillaGraphUNet(),
             dataset,
             checkpoint_path,
             k_shots,
@@ -314,14 +310,32 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             q_labels2d = q_labels2d.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
+        # with torch.no_grad():
+            # avg_norm = []
+            # for p in learner.parameters():
+                # avg_norm.append(torch.linalg.norm(p.data))
+            # print(torch.tensor(avg_norm))
+            # avg_norm = torch.tensor(avg_norm).mean().item()
+        #     print(f"Average inner weight norm: {avg_norm:.2f}")
+
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
             outputs3d = learner(s_labels2d)
+            # print(outputs3d)
             if torch.isnan(outputs3d).any():
                 print(f"Support outputs contains NaN!")
             support_loss = self.inner_criterion(outputs3d, s_labels3d)
             learner.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
+
+        print("-----Adapted-----")
+        with torch.no_grad():
+            avg_norm = []
+            for p in learner.parameters():
+                avg_norm.append(torch.linalg.norm(p.data))
+            # print(torch.tensor(avg_norm))
+            avg_norm = torch.tensor(avg_norm).mean().item()
+            print(f"Average inner weight norm: {avg_norm:.2f}")
 
         # Evaluate the adapted model on the query set
         e_outputs3d = learner(q_labels2d)
@@ -402,7 +416,7 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            GraphUNetBatchNorm(),
+            VanillaGraphUNet(),
             dataset,
             checkpoint_path,
             model_path=model_path,
@@ -594,58 +608,18 @@ class Regular_HOPENetTester(RegularTrainer):
     def _training_step(self, batch: tuple):
         raise NotImplementedError
 
-    def _testing_step(self, batch: tuple, compute="3d_ho_pcp", threshold=0):
-        inputs, labels2d, labels3d = batch
+    def _testing_step(self, batch: tuple, compute="3d_ho_pcp"):
+        inputs, _, labels3d = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
-            labels2d = labels2d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
-            outputs2d_init, outputs2d, outputs3d = self.model(inputs)
+            _, _, outputs3d = self.model(inputs)
             if compute == "mse":
                 return F.mse_loss(outputs3d, labels3d).detach()
             elif compute == "mae":
                 return F.l1_loss(outputs3d, labels3d).detach()
-            elif compute == "3d_ho_pcp":
-                # Percentage of Correct (hand-object) Poses (3D-PCP for hand-object):
-                mean_norms = torch.mean(
-                    torch.norm((outputs3d - labels3d), dim=2),
-                    dim=1,
-                )
-                return int(
-                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
-                )
-            elif compute == "3d_hand_pcp":
-                # Percentage of Correct (hand) Poses (3D-PCP for hands):
-                mean_norms = torch.mean(
-                    torch.norm((outputs3d[:, :21, :] - labels3d[:, :21, :]), dim=2),
-                    dim=1,
-                )
-                return int(
-                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
-                )
-            elif compute == "2d_obj_pcp":
-                # Percentage of Correct (object) Poses (2D-PCP for objects, after graph
-                # convolutions):
-                mean_norms = torch.mean(
-                    torch.norm((outputs2d[:, 21:, :] - labels2d[:, 21:, :]), dim=2),
-                    dim=1,
-                )
-                return int(
-                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
-                )
-            elif compute == "2dinit_obj_pcp":
-                # Percentage of Correct (object) Poses (2D-PCP for objects, after resnet):
-                mean_norms = torch.mean(
-                    torch.norm(
-                        (outputs2d_init[:, 21:, :] - labels2d[:, 21:, :]), dim=2
-                    ),
-                    dim=1,
-                )
-                return int(
-                    torch.where(mean_norms < threshold, 1, 0).count_nonzero().item()
-                )
             else:
                 raise NotImplementedError(f"No implementation for {compute}")
 
@@ -663,9 +637,24 @@ class Regular_HOPENetTester(RegularTrainer):
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
         avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
+        err3d, err3d_hands, err2d, err2d_init = [], [], [], []
+        eps = 1e-5
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
                 return
+            inputs, labels2d, labels3d = batch
+            if self._use_cuda:
+                inputs = inputs.float().cuda(device=self._gpu_number)
+                labels3d = labels3d.float().cuda(device=self._gpu_number)
+                labels2d = labels2d.float().cuda(device=self._gpu_number)
+
+            with torch.no_grad():
+                for i, input_sample in enumerate(inputs):
+                    outputs2d_init, outputs2d, outputs3d = self.model(torch.unsqueeze(input_sample, dim=0))
+                    err3d.append(torch.mean(torch.linalg.norm((outputs3d - labels3d[i]), dim=0)))
+                    err3d_hands.append(torch.mean(torch.linalg.norm((outputs3d[:, :21, :] - labels3d[i, :21, :]), dim=0)))
+                    err2d.append(torch.mean(torch.linalg.norm((outputs2d - labels2d[i]), dim=0)))
+                    err2d_init.append(torch.mean(torch.linalg.norm((outputs2d_init - labels2d[i]), dim=0)))
             mae_losses.append(self._testing_step(batch, compute="mae"))
             mse_losses.append(self._testing_step(batch, compute="mse"))
         avg_mse_loss = torch.Tensor(mse_losses).mean().item()
@@ -673,35 +662,16 @@ class Regular_HOPENetTester(RegularTrainer):
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
         print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
 
-        # Code tested and correct
-        max_thresh, thresh_step = 100, 5
-        (correct_ho_poses, correct_hand_poses,) = (
-            [0] * (max_thresh // thresh_step),
-            [0] * (max_thresh // thresh_step),
-        )
-        for i, thresh in tqdm(
-            enumerate(range(0, max_thresh, thresh_step)),
-            total=max_thresh // thresh_step,
-            dynamic_ncols=True,
-        ):
-            for batch in self.dataset.test:
-                if self._exit:
-                    return
-                correct_ho_poses[i] += self._testing_step(
-                    batch, compute="3d_ho_pcp", threshold=thresh
-                )
-                correct_hand_poses[i] += self._testing_step(
-                    batch, compute="3d_hand_pcp", threshold=thresh
-                )
+        print(err3d[:15])
+        max_thresh, thresh_step = 80, 5
+        correct_ho_poses, correct_hand_poses = [], []
+        for thresh in range(0, max_thresh, thresh_step):
+            if self._exit:
+                return
+            correct_ho_poses.append(len(torch.where(torch.tensor(err3d) <= thresh)[0]) * 100. / (len(err3d)+eps))
+            correct_hand_poses.append(len(torch.where(torch.tensor(err3d_hands) <= thresh)[0]) * 100. / (len(err3d_hands)+eps))
 
-            for correct_poses in [
-                correct_ho_poses,
-                correct_hand_poses,
-            ]:
-                correct_poses[i] = int(
-                    (correct_poses[i] * 100) / len(self.dataset.test.dataset)
-                )
-
+        print(correct_ho_poses)
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
         plt.xlabel("mm Threshold")
         plt.ylabel("Percentage of Correct Poses")
@@ -718,33 +688,13 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.savefig("h_pcp3d.png")
         plt.clf()
 
-        max_thresh, thresh_step = 100, 5
-        (correct_obj_poses, correct_obj_init_poses,) = (
-            [0] * (max_thresh // thresh_step),
-            [0] * (max_thresh // thresh_step),
-        )
-        for i, thresh in tqdm(
-            enumerate(range(0, max_thresh, thresh_step)),
-            total=max_thresh // thresh_step,
-            dynamic_ncols=True,
-        ):
-            for batch in self.dataset.test:
-                if self._exit:
-                    return
-                correct_obj_poses[i] += self._testing_step(
-                    batch, compute="2d_obj_pcp", threshold=thresh
-                )
-                correct_obj_init_poses[i] += self._testing_step(
-                    batch, compute="2dinit_obj_pcp", threshold=thresh
-                )
-
-            for correct_poses in [
-                correct_obj_poses,
-                correct_obj_init_poses,
-            ]:
-                correct_poses[i] = int(
-                    (correct_poses[i] * 100) / len(self.dataset.test.dataset)
-                )
+        max_thresh, thresh_step = 50, 5
+        correct_obj_poses, correct_obj_init_poses = [], []
+        for thresh in range(0, max_thresh, thresh_step):
+            if self._exit:
+                return
+            correct_obj_poses.append(len(torch.where(torch.tensor(err2d) <= thresh)[0]) * 100. / (len(err2d)+eps))
+            correct_obj_init_poses.append(len(torch.where(torch.tensor(err2d_init) <= thresh)[0]) * 100.  / (len(err2d_init)+eps))
 
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_poses)
         plt.xlabel("pixel Threshold")
