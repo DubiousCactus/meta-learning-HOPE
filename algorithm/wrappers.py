@@ -447,7 +447,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            GraphNetBatchNorm(
+            GraphNet(
                 in_features=514, out_features=2
             ),  # 514 for the output features of resnet10
             dataset,
