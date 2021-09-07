@@ -311,11 +311,11 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         # with torch.no_grad():
-            # avg_norm = []
-            # for p in learner.parameters():
-                # avg_norm.append(torch.linalg.norm(p.data))
-            # print(torch.tensor(avg_norm))
-            # avg_norm = torch.tensor(avg_norm).mean().item()
+        # avg_norm = []
+        # for p in learner.parameters():
+        # avg_norm.append(torch.linalg.norm(p.data))
+        # print(torch.tensor(avg_norm))
+        # avg_norm = torch.tensor(avg_norm).mean().item()
         #     print(f"Average inner weight norm: {avg_norm:.2f}")
 
         # Adapt the model on the support set
@@ -609,13 +609,14 @@ class Regular_HOPENetTester(RegularTrainer):
         raise NotImplementedError
 
     def _testing_step(self, batch: tuple, compute="3d_ho_pcp"):
-        inputs, _, labels3d = batch
+        inputs, labels2d, labels3d = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
+            labels2d = labels3d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
-            _, _, outputs3d = self.model(inputs)
+            _, _, outputs3d = self.model(inputs, gt_2d=None)
             if compute == "mse":
                 return F.mse_loss(outputs3d, labels3d).detach()
             elif compute == "mae":
@@ -637,11 +638,18 @@ class Regular_HOPENetTester(RegularTrainer):
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
         avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
-        err3d, err3d_hands, err2d, err2d_init = [], [], [], []
+        err3d, err3d_hands, err2d_obj, err2d_init_obj, err2d_ho, err2d_init_ho = (
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
         eps = 1e-5
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
-                return
+                break
             inputs, labels2d, labels3d = batch
             if self._use_cuda:
                 inputs = inputs.float().cuda(device=self._gpu_number)
@@ -650,11 +658,42 @@ class Regular_HOPENetTester(RegularTrainer):
 
             with torch.no_grad():
                 for i, input_sample in enumerate(inputs):
-                    outputs2d_init, outputs2d, outputs3d = self.model(torch.unsqueeze(input_sample, dim=0))
-                    err3d.append(torch.mean(torch.linalg.norm((outputs3d - labels3d[i]), dim=0)))
-                    err3d_hands.append(torch.mean(torch.linalg.norm((outputs3d[:, :21, :] - labels3d[i, :21, :]), dim=0)))
-                    err2d.append(torch.mean(torch.linalg.norm((outputs2d - labels2d[i]), dim=0)))
-                    err2d_init.append(torch.mean(torch.linalg.norm((outputs2d_init - labels2d[i]), dim=0)))
+                    gt2d = torch.unsqueeze(labels2d[i, :, :], dim=0)
+                    outputs2d_init, outputs2d, outputs3d = self.model(
+                        torch.unsqueeze(input_sample, dim=0), gt_2d=None
+                    )
+                    err3d.append(
+                        torch.mean(torch.linalg.norm((outputs3d - labels3d[i]), dim=0))
+                    )
+                    err3d_hands.append(
+                        torch.mean(
+                            torch.linalg.norm(
+                                (outputs3d[:, :21, :] - labels3d[i, :21, :]), dim=0
+                            )
+                        )
+                    )
+                    err2d_obj.append(
+                        torch.mean(
+                            torch.linalg.norm(
+                                (outputs2d[:, 21:, :] - labels2d[i, 21:, :]), dim=0
+                            )
+                        )
+                    )
+                    err2d_init_obj.append(
+                        torch.mean(
+                            torch.linalg.norm(
+                                (outputs2d_init[:, 21:, :] - labels2d[i, 21:, :]), dim=0
+                            )
+                        )
+                    )
+                    err2d_ho.append(
+                        torch.mean(torch.linalg.norm((outputs2d - labels2d[i]), dim=0))
+                    )
+                    err2d_init_ho.append(
+                        torch.mean(
+                            torch.linalg.norm((outputs2d_init - labels2d[i]), dim=0)
+                        )
+                    )
             mae_losses.append(self._testing_step(batch, compute="mae"))
             mse_losses.append(self._testing_step(batch, compute="mse"))
         avg_mse_loss = torch.Tensor(mse_losses).mean().item()
@@ -666,10 +705,18 @@ class Regular_HOPENetTester(RegularTrainer):
         max_thresh, thresh_step = 80, 5
         correct_ho_poses, correct_hand_poses = [], []
         for thresh in range(0, max_thresh, thresh_step):
-            if self._exit:
-                return
-            correct_ho_poses.append(len(torch.where(torch.tensor(err3d) <= thresh)[0]) * 100. / (len(err3d)+eps))
-            correct_hand_poses.append(len(torch.where(torch.tensor(err3d_hands) <= thresh)[0]) * 100. / (len(err3d_hands)+eps))
+            # if self._exit:
+            # return
+            correct_ho_poses.append(
+                len(torch.where(torch.tensor(err3d) <= thresh)[0])
+                * 100.0
+                / (len(err3d) + eps)
+            )
+            correct_hand_poses.append(
+                len(torch.where(torch.tensor(err3d_hands) <= thresh)[0])
+                * 100.0
+                / (len(err3d_hands) + eps)
+            )
 
         print(correct_ho_poses)
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
@@ -690,26 +737,45 @@ class Regular_HOPENetTester(RegularTrainer):
 
         max_thresh, thresh_step = 50, 5
         correct_obj_poses, correct_obj_init_poses = [], []
+        correct_ho_poses, correct_ho_init_poses = [], []
         for thresh in range(0, max_thresh, thresh_step):
-            if self._exit:
-                return
-            correct_obj_poses.append(len(torch.where(torch.tensor(err2d) <= thresh)[0]) * 100. / (len(err2d)+eps))
-            correct_obj_init_poses.append(len(torch.where(torch.tensor(err2d_init) <= thresh)[0]) * 100.  / (len(err2d_init)+eps))
+            # if self._exit:
+            #     return
+            correct_obj_poses.append(
+                len(torch.where(torch.tensor(err2d_obj) <= thresh)[0])
+                * 100.0
+                / (len(err2d_obj) + eps)
+            )
+            correct_obj_init_poses.append(
+                len(torch.where(torch.tensor(err2d_init_obj) <= thresh)[0])
+                * 100.0
+                / (len(err2d_init_obj) + eps)
+            )
+            correct_ho_poses.append(
+                len(torch.where(torch.tensor(err2d_ho) <= thresh)[0])
+                * 100.0
+                / (len(err2d_ho) + eps)
+            )
+            correct_ho_init_poses.append(
+                len(torch.where(torch.tensor(err2d_init_ho) <= thresh)[0])
+                * 100.0
+                / (len(err2d_init_ho) + eps)
+            )
 
-        plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_poses)
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
         plt.xlabel("pixel Threshold")
         plt.ylabel("Percentage of Correct Poses")
-        plt.title("Percentage of Correct Object Poses (2D)")
+        plt.title("Percentage of Correct Hand-Object Poses (2D)")
         plt.grid(True, linestyle="dashed")
-        plt.savefig("o_pcp2d.png")
+        plt.savefig("ho_pcp2d.png")
         plt.clf()
 
-        plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_init_poses)
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_init_poses)
         plt.xlabel("pixel Threshold")
         plt.ylabel("Percentage of Correct Poses")
-        plt.title("Percentage of Correct Object Initial Poses (2D)")
+        plt.title("Percentage of Correct Hand-Object Initial Poses (2D)")
         plt.grid(True, linestyle="dashed")
-        plt.savefig("o_pcp2d_init.png")
+        plt.savefig("ho_pcp2d_init.png")
 
         with open("test_results.pkl", "wb") as file:
             pickle.dump(

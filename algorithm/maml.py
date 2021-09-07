@@ -121,6 +121,7 @@ class MAMLTrainer(BaseTrainer):
             meta_train_losses, meta_val_mse_losses, meta_val_mae_losses = [], [], []
             meta_val_mse_loss, meta_val_mae_loss = 0.0, 0.0
             opt.zero_grad()
+            maml.zero_grad()
             # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
             for _ in tqdm(range(batch_size), dynamic_ncols=True):
                 if self._exit:
@@ -174,27 +175,37 @@ class MAMLTrainer(BaseTrainer):
             print("============================================")
 
             # Average the accumulated gradients and optimize
-            for p in maml.parameters():
-                # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
-                # instead of modifying the original code, this simple check will do).
-                if p.grad is not None:
-                    p.grad.data.mul_(1.0 / batch_size)
+            with torch.no_grad():
+                for p in maml.parameters():
+                    # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
+                    # instead of modifying the original code, this simple check will do).
+                    if p.grad is not None:
+                        p.grad.data.mul_(1.0 / batch_size)
 
-            # Plot the average gradients norm
-            avg_norm = []
-            for p in maml.parameters():
-                if p.grad is not None:
-                    avg_norm.append(torch.linalg.vector_norm(p.grad))
-            avg_norm = torch.tensor(avg_norm).mean().item()
-            print(f"Average gradient norm: {avg_norm:.2f}")
-            wandb.log({"avg_grad_norm": avg_norm}, step=epoch)
             # Gradient clipping
-            if max_grad_norm:
-                torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+            # if max_grad_norm:
+            # torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
 
             opt.step()
             if use_scheduler:
                 scheduler.step()
+
+            with torch.no_grad():
+                # Plot the average gradients norm
+                avg_norm, avg_grad_norm = [], []
+                for p in maml.parameters():
+                    # print(torch.linalg.norm(p.data))
+                    avg_norm.append(torch.linalg.norm(p.data))
+                    if p.grad is not None:
+                        avg_grad_norm.append(torch.linalg.vector_norm(p.grad))
+                avg_grad_norm = torch.tensor(avg_grad_norm).mean().item()
+                avg_norm = torch.tensor(avg_norm).mean().item()
+                print(f"Average gradient norm: {avg_grad_norm:.2f}")
+                print(f"Average weight norm: {avg_norm:.2f}")
+                wandb.log(
+                    {"avg_grad_norm": avg_grad_norm, "avg_weight_norm": avg_norm},
+                    step=epoch,
+                )
 
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and meta_val_mse_loss < past_val_loss:

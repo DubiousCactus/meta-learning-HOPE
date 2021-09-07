@@ -55,11 +55,15 @@ class HOPENet(torch.nn.Module):
         else:
             print("[!] GraphUNet is randomly initialized!")
 
-    def forward(self, x):
-        points2D_init, features = self.resnet(x)
-        features = features.unsqueeze(1).repeat(1, 29, 1)
-        # batch = points2D.shape[0]
-        in_features = torch.cat([points2D_init, features], dim=2)
-        points2D = self.graphnet(in_features)
+    def forward(self, x, gt_2d=None):
+        if gt_2d is None:
+            points2D_init, features = self.resnet(x)
+            features = features.unsqueeze(1).repeat(1, 29, 1)
+            # batch = points2D.shape[0]
+            in_features = torch.cat([points2D_init, features], dim=2)
+            points2D = self.graphnet(in_features)
+        else:
+            points2D_init = gt_2d
+            points2D = gt_2d
         points3D = self.graphunet(points2D)
         return points2D_init, points2D, points3D

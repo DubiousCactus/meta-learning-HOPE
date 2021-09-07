@@ -147,6 +147,7 @@ def fast_load_obj(file_obj, **kwargs):
 
     return meshes
 
+
 def load_state_dict(module, resnet_path):
     """
     Load a state_dict in a module agnostic way (when DataParallel is used, the module is
