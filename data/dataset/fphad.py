@@ -35,7 +35,7 @@ def kp2d_augment(keypoints):
     (μ = 0, σ = 10) to help improve robustness to errors."
     """
     std, prob = 10, 0.25
-    if np.random.choice([True, False], p=[prob, 1-prob]):
+    if np.random.choice([True, False], p=[prob, 1 - prob]):
         return keypoints + (std * torch.randn(keypoints.shape))
     else:
         return keypoints
@@ -254,7 +254,11 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         print(f"[*] Generating dataset in pinned memory...")
         transform = None
         if normalize_keypoints and self._augment_2d:
-            transform = (lambda kp: kp2d_transform(kp2d_augment(kp))) if split == "train" else kp2d_transform
+            transform = (
+                (lambda kp: kp2d_transform(kp2d_augment(kp)))
+                if split == "train"
+                else kp2d_transform
+            )
         elif normalize_keypoints:
             transform = kp2d_transform
         elif self._augment_2d:

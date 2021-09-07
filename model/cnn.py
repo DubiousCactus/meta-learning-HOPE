@@ -47,8 +47,8 @@ class ResNet(torch.nn.Module):
         self.resnet = network
         del self.resnet.fc
         self.fc = torch.nn.Sequential(
-            #torch.nn.Linear(n_features, 128),
-            #torch.nn.ReLU(),
+            # torch.nn.Linear(n_features, 128),
+            # torch.nn.ReLU(),
             torch.nn.Linear(n_features, 29 * 2),
         )
 

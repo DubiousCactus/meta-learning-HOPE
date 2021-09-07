@@ -24,7 +24,6 @@ import torch
 import os
 
 
-
 def kp2d_transform(keypoints):
     _min, _max = -319.3636, 1541.3502
     return (keypoints - _min) / (_max - _min)
@@ -64,7 +63,9 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         )
         self._seq_splits = {"train": None, "val": "MC6", "test": None}
         if test:
-            self.test = self._load(object_as_task, "test", "evaluation", False, normalize_keypoints)
+            self.test = self._load(
+                object_as_task, "test", "evaluation", False, normalize_keypoints
+            )
         else:
             self.train, self.val = self._load(
                 object_as_task, "train", "train", True, normalize_keypoints
