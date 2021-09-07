@@ -470,25 +470,33 @@ class Regular_GraphNetTrainer(RegularTrainer):
         else:
             raise ValueError(f"{cnn_def} is not a valid CNN definition!")
         self._resnet = cnn
+        self._training_resnet = False
         if use_cuda and torch.cuda.is_available():
             self._resnet = self._resnet.cuda()
             if resnet_path:
                 print(f"[*] Loading ResNet state dict form {resnet_path}")
                 load_state_dict(self._resnet, resnet_path)
+                self._resnet.eval()
             else:
-                print("[!] ResNet is randomly initialized!")
+                print("[!] ResNet is randomly initialized! It will be trained...")
+                self._training_resnet = True
+                self._resnet.train()
             self._resnet = torch.nn.DataParallel(self._resnet, device_ids=gpu_numbers)
-        self._resnet.eval()
 
     def _training_step(self, batch: tuple):
         inputs, labels2d, _ = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels2d = labels2d.float().cuda(device=self._gpu_number)
-        with torch.no_grad():
+        if self._training_resnet:
             points2D_init, features = self._resnet(inputs)
             features = features.unsqueeze(1).repeat(1, 29, 1)
             in_features = torch.cat([points2D_init, features], dim=2)
+        else:
+            with torch.no_grad():
+                points2D_init, features = self._resnet(inputs)
+                features = features.unsqueeze(1).repeat(1, 29, 1)
+                in_features = torch.cat([points2D_init, features], dim=2)
         points2D = self.model(in_features)
         loss = self.inner_criterion(points2D, labels2d)
         loss.backward()
