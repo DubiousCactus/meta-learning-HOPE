@@ -19,8 +19,8 @@ from HOPE.models.graphunet import GraphNet
 from HOPE.utils.model import select_model
 
 from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
+from model.hopenet import HOPENet, GraphNetwResNet
 from model.cnn import ResNet, MobileNet
-from model.hopenet import HOPENet
 
 from util.utils import load_state_dict
 
@@ -470,33 +470,25 @@ class Regular_GraphNetTrainer(RegularTrainer):
         else:
             raise ValueError(f"{cnn_def} is not a valid CNN definition!")
         self._resnet = cnn
-        self._training_resnet = False
         if use_cuda and torch.cuda.is_available():
             self._resnet = self._resnet.cuda()
             if resnet_path:
                 print(f"[*] Loading ResNet state dict form {resnet_path}")
                 load_state_dict(self._resnet, resnet_path)
-                self._resnet.eval()
             else:
                 print("[!] ResNet is randomly initialized! It will be trained...")
-                self._training_resnet = True
-                self._resnet.train()
             self._resnet = torch.nn.DataParallel(self._resnet, device_ids=gpu_numbers)
+        self._resnet.eval()
 
     def _training_step(self, batch: tuple):
         inputs, labels2d, _ = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels2d = labels2d.float().cuda(device=self._gpu_number)
-        if self._training_resnet:
+        with torch.no_grad():
             points2D_init, features = self._resnet(inputs)
             features = features.unsqueeze(1).repeat(1, 29, 1)
             in_features = torch.cat([points2D_init, features], dim=2)
-        else:
-            with torch.no_grad():
-                points2D_init, features = self._resnet(inputs)
-                features = features.unsqueeze(1).repeat(1, 29, 1)
-                in_features = torch.cat([points2D_init, features], dim=2)
         points2D = self.model(in_features)
         loss = self.inner_criterion(points2D, labels2d)
         loss.backward()
@@ -516,6 +508,56 @@ class Regular_GraphNetTrainer(RegularTrainer):
                 return F.mse_loss(points2D, labels2d).detach()
             elif compute == "mae":
                 return F.l1_loss(points2D, labels2d).detach()
+            else:
+                raise NotImplementedError(f"No implementation for {compute}")
+
+
+class Regular_GraphNetwResNetTrainer(RegularTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        cnn_def: str,
+        resnet_path: str,
+        model_path: str = None,
+        use_cuda: int = False,
+        gpu_numbers: List = [0],
+    ):
+        super().__init__(
+            GraphNetwResNet(cnn_def, resnet_path),
+            dataset,
+            checkpoint_path,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_numbers=gpu_numbers,
+        )
+        print("[*] Training ResNet with GraphNet end-to-end")
+
+    def _training_step(self, batch: tuple):
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+
+        outputs2d_init, outputs2d = self.model(inputs)
+        loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
+        loss2d = self.inner_criterion(outputs2d, labels2d)
+        loss = loss2d_init +  loss2d
+        loss.backward()
+        return loss.detach()
+
+    def _testing_step(self, batch: tuple, compute="mse"):
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+
+        with torch.no_grad():
+            _, outputs2d = self.model(inputs)
+            if compute == "mse":
+                return F.mse_loss(outputs2d, labels2d).detach()
+            elif compute == "mae":
+                return F.l1_loss(outputs2d, labels2d).detach()
             else:
                 raise NotImplementedError(f"No implementation for {compute}")
 
