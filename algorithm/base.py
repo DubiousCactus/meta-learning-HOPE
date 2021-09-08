@@ -61,7 +61,7 @@ class BaseTrainer(ABC):
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_numbers)
-        if rinit and not checkpoint_path:
+        if rinit and not model_path:
             print("[!] Applying random weights initialization...")
             self.model.apply(initialize_weights)
         self.dataset = dataset
