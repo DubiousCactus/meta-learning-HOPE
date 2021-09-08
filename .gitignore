@@ -9,6 +9,7 @@ wandb/
 temp.*
 *.png
 *.tgz
+.idea/
 
 # ------------ Python-specific------------
 # Byte-compiled / optimized / DLL files

@@ -15,9 +15,12 @@ from algorithm.maml import MAMLTrainer, MetaBatch
 from algorithm.regular import RegularTrainer
 from algorithm.anil import ANILTrainer
 
-from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm, VanillaGraphUNet
+from HOPE.models.graphunet import GraphNet
+from HOPE.utils.model import select_model
+
+from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
+from model.hopenet import HOPENet, GraphNetwResNet
 from model.cnn import ResNet, MobileNet
-from model.hopenet import HOPENet
 
 from util.utils import load_state_dict
 
@@ -284,7 +287,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            VanillaGraphUNet(),
+            GraphUNetBatchNorm(),
             dataset,
             checkpoint_path,
             k_shots,
@@ -416,7 +419,7 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            VanillaGraphUNet(),
+            GraphUNetBatchNorm(),
             dataset,
             checkpoint_path,
             model_path=model_path,
@@ -461,7 +464,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            GraphNetBatchNorm(
+            GraphNet(
                 in_features=514, out_features=2
             ),  # 514 for the output features of resnet10
             dataset,
@@ -490,7 +493,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
                 print(f"[*] Loading ResNet state dict form {resnet_path}")
                 load_state_dict(self._resnet, resnet_path)
             else:
-                print("[!] ResNet is randomly initialized!")
+                print("[!] ResNet is randomly initialized! It will be trained...")
             self._resnet = torch.nn.DataParallel(self._resnet, device_ids=gpu_numbers)
         self._resnet.eval()
 
@@ -522,6 +525,56 @@ class Regular_GraphNetTrainer(RegularTrainer):
                 return F.mse_loss(points2D, labels2d).detach()
             elif compute == "mae":
                 return F.l1_loss(points2D, labels2d).detach()
+            else:
+                raise NotImplementedError(f"No implementation for {compute}")
+
+
+class Regular_GraphNetwResNetTrainer(RegularTrainer):
+    def __init__(
+        self,
+        dataset: BaseDatasetTaskLoader,
+        checkpoint_path: str,
+        cnn_def: str,
+        resnet_path: str,
+        model_path: str = None,
+        use_cuda: int = False,
+        gpu_numbers: List = [0],
+    ):
+        super().__init__(
+            GraphNetwResNet(cnn_def, resnet_path),
+            dataset,
+            checkpoint_path,
+            model_path=model_path,
+            use_cuda=use_cuda,
+            gpu_numbers=gpu_numbers,
+        )
+        print("[*] Training ResNet with GraphNet end-to-end")
+
+    def _training_step(self, batch: tuple):
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+
+        outputs2d_init, outputs2d = self.model(inputs)
+        loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
+        loss2d = self.inner_criterion(outputs2d, labels2d)
+        loss = loss2d_init +  loss2d
+        loss.backward()
+        return loss.detach()
+
+    def _testing_step(self, batch: tuple, compute="mse"):
+        inputs, labels2d, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
+
+        with torch.no_grad():
+            _, outputs2d = self.model(inputs)
+            if compute == "mse":
+                return F.mse_loss(outputs2d, labels2d).detach()
+            elif compute == "mae":
+                return F.l1_loss(outputs2d, labels2d).detach()
             else:
                 raise NotImplementedError(f"No implementation for {compute}")
 

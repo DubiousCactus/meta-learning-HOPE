@@ -16,6 +16,7 @@ from data.dataset.fphad import FPHADTaskLoader
 from data.dataset.ho3d import HO3DTaskLoader
 from hydra.utils import to_absolute_path
 from algorithm.wrappers import (
+    Regular_GraphNetwResNetTrainer,
     Regular_GraphUNetTrainer,
     Regular_GraphNetTrainer,
     Regular_HOPENetTrainer,
@@ -151,8 +152,8 @@ class AlgorithmFactory:
             elif model_def == "graphunet":
                 trainer = Regular_GraphUNetTrainer
             elif model_def == "graphnet":
-                trainer = Regular_GraphNetTrainer
                 resnet_path = config.experiment.resnet_model_path
+                trainer = Regular_GraphNetTrainer if resnet_path else Regular_GraphNetwResNetTrainer
                 args = [cnn_def, to_absolute_path(resnet_path) if resnet_path else None]
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
