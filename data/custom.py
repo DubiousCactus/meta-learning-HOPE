@@ -47,6 +47,8 @@ class CustomDataset(TorchDataset):
 
         def load_sample(img_path, p_2d, p_3d) -> tuple:
             images.append(img_path)
+            p_2d[:, 0] = p_2d[:, 0] * 224.0 / 1920.0
+            p_2d[:, 1] = p_2d[:, 1] * 224.0 / 1080.0
             if self._pin_memory:
                 p_2d.pin_memory()
                 p_3d.pin_memory()

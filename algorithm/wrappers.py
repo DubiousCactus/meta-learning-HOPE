@@ -687,6 +687,7 @@ class Regular_HOPENetTester(RegularTrainer):
         fast_lr: float = 0.01,
         meta_lr: float = None,
     ):
+        import numpy as np
         if not self._model_path:
             print(f"[!] Testing a (partly) randomly initialized model!")
         else:
@@ -836,6 +837,7 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.title("Percentage of Correct Object Initial Poses (2D)")
         plt.grid(True, linestyle="dashed")
         plt.savefig("o_pcp2d_init.png")
+        plt.clf()
 
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses2d)
         plt.xlabel("pixel Threshold")

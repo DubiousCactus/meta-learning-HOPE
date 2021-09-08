@@ -28,7 +28,6 @@ def kp2d_transform(keypoints):
     _min, _max = -5737.2490, 3297.0396
     return (keypoints - _min) / (_max - _min)
 
-
 def kp2d_augment(keypoints):
     """
     "In addition to the samples in the FPHA dataset, we augment the 2D points with Gaussian noise
