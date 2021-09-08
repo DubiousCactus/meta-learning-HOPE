@@ -118,7 +118,17 @@ class BaseTrainer(ABC):
     def _restore(self, opt, scheduler, resume_training: bool = True) -> float:
         print(f"[*] Restoring from checkpoint: {self._model_path}")
         checkpoint = torch.load(self._model_path)
-        self.model.load_state_dict(checkpoint["model_state_dict"])
+        try:
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+        except Exception as e:
+            print("[!] Could not load state dict! Loading matching parameters...")
+            resume_training = False
+            count = 0
+            for n, p in self.model.named_parameters():
+                if n in checkpoint["model_state_dict"]:
+                    p = checkpoint["model_state_dict"][n]
+                    count += 1
+            print(f"[*] Loaded {count} parameters")
         val_loss = float("+inf")
         if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
