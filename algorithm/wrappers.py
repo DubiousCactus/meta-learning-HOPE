@@ -701,12 +701,9 @@ class Regular_HOPENetTester(RegularTrainer):
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
         print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
 
-        print(err3d[:15])
         max_thresh, thresh_step = 80, 5
         correct_ho_poses, correct_hand_poses = [], []
         for thresh in range(0, max_thresh, thresh_step):
-            # if self._exit:
-            # return
             correct_ho_poses.append(
                 len(torch.where(torch.tensor(err3d) <= thresh)[0])
                 * 100.0
@@ -736,33 +733,46 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.clf()
 
         max_thresh, thresh_step = 50, 5
-        correct_obj_poses, correct_obj_init_poses = [], []
-        correct_ho_poses, correct_ho_init_poses = [], []
+        correct_obj_poses2d, correct_obj_init_poses2d = [], []
+        correct_ho_poses2d, correct_ho_init_poses2d = [], []
         for thresh in range(0, max_thresh, thresh_step):
-            # if self._exit:
-            #     return
-            correct_obj_poses.append(
+            correct_obj_poses2d.append(
                 len(torch.where(torch.tensor(err2d_obj) <= thresh)[0])
                 * 100.0
                 / (len(err2d_obj) + eps)
             )
-            correct_obj_init_poses.append(
+            correct_obj_init_poses2d.append(
                 len(torch.where(torch.tensor(err2d_init_obj) <= thresh)[0])
                 * 100.0
                 / (len(err2d_init_obj) + eps)
             )
-            correct_ho_poses.append(
+            correct_ho_poses2d.append(
                 len(torch.where(torch.tensor(err2d_ho) <= thresh)[0])
                 * 100.0
                 / (len(err2d_ho) + eps)
             )
-            correct_ho_init_poses.append(
+            correct_ho_init_poses2d.append(
                 len(torch.where(torch.tensor(err2d_init_ho) <= thresh)[0])
                 * 100.0
                 / (len(err2d_init_ho) + eps)
             )
 
-        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_poses2d)
+        plt.xlabel("pixel Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.title("Percentage of Correct Object Poses (2D)")
+        plt.grid(True, linestyle="dashed")
+        plt.savefig("o_pcp2d.png")
+        plt.clf()
+
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_init_poses2d)
+        plt.xlabel("pixel Threshold")
+        plt.ylabel("Percentage of Correct Poses")
+        plt.title("Percentage of Correct Object Initial Poses (2D)")
+        plt.grid(True, linestyle="dashed")
+        plt.savefig("o_pcp2d_init.png")
+
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses2d)
         plt.xlabel("pixel Threshold")
         plt.ylabel("Percentage of Correct Poses")
         plt.title("Percentage of Correct Hand-Object Poses (2D)")
@@ -770,7 +780,7 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.savefig("ho_pcp2d.png")
         plt.clf()
 
-        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_init_poses)
+        plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_init_poses2d)
         plt.xlabel("pixel Threshold")
         plt.ylabel("Percentage of Correct Poses")
         plt.title("Percentage of Correct Hand-Object Initial Poses (2D)")
@@ -782,8 +792,10 @@ class Regular_HOPENetTester(RegularTrainer):
                 {
                     "correct_ho_poses": correct_ho_poses,
                     "correct_hand_poses": correct_hand_poses,
-                    "correct_obj_poses": correct_obj_poses,
-                    "correct_obj_init_poses": correct_obj_init_poses,
+                    "correct_ho_poses2d": correct_ho_poses2d,
+                    "correct_ho_init_poses2d": correct_ho_init_poses2d,
+                    "correct_obj_poses2d": correct_obj_poses2d,
+                    "correct_obj_init_poses2d": correct_obj_init_poses2d,
                     "avg_mse": avg_mse_loss,
                     "avg_mae": avg_mae_loss,
                 },
