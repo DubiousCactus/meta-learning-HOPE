@@ -669,11 +669,15 @@ class Regular_HOPENetTester(RegularTrainer):
             labels2d = labels3d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
-            _, _, outputs3d = self.model(inputs, gt_2d=None)
+            _, outputs2d, outputs3d = self.model(inputs, gt_2d=None)
             if compute == "mse":
                 return F.mse_loss(outputs3d, labels3d).detach()
             elif compute == "mae":
                 return F.l1_loss(outputs3d, labels3d).detach()
+            elif compute == "mse2d":
+                return F.mse_loss(outputs2d, labels2d).detach()
+            elif compute == "mae2d":
+                return F.l1_loss(outputs2d, labels2d).detach()
             else:
                 raise NotImplementedError(f"No implementation for {compute}")
 
@@ -690,7 +694,7 @@ class Regular_HOPENetTester(RegularTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
+        avg_mse_loss, avg_mae_loss, mse_losses, mse_losses2d, mae_losses, mae_losses2d = 0.0, 0.0, [], [], [], []
         err3d, err3d_hands, err2d_obj, err2d_init_obj, err2d_ho, err2d_init_ho = (
             [],
             [],
@@ -749,10 +753,16 @@ class Regular_HOPENetTester(RegularTrainer):
                     )
             mae_losses.append(self._testing_step(batch, compute="mae"))
             mse_losses.append(self._testing_step(batch, compute="mse"))
+            mae_losses2d.append(self._testing_step(batch, compute="mae2d"))
+            mse_losses2d.append(self._testing_step(batch, compute="mse2d"))
         avg_mse_loss = torch.Tensor(mse_losses).mean().item()
+        avg_mse2d_loss = torch.Tensor(mse_losses2d).mean().item()
         avg_mae_loss = torch.Tensor(mae_losses).mean().item()
+        avg_mae2d_loss = torch.Tensor(mae_losses2d).mean().item()
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
         print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
+        print(f"[*] Average MSE 2D test loss: {avg_mse2d_loss:.6f}")
+        print(f"[*] Average MAE 2D test loss: {avg_mae2d_loss:.6f}")
 
         max_thresh, thresh_step = 80, 5
         correct_ho_poses, correct_hand_poses = [], []
@@ -769,6 +779,7 @@ class Regular_HOPENetTester(RegularTrainer):
             )
 
         print(f"[*] Percentages of correct hand-object 3D poses: {correct_ho_poses}")
+        print(f"[*] Percentages of correct hand 3D poses: {correct_hand_poses}")
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
         plt.xlabel("mm Threshold")
         plt.ylabel("Percentage of Correct Poses")
@@ -811,6 +822,7 @@ class Regular_HOPENetTester(RegularTrainer):
             )
 
         print(f"[*] Percentages of correct hand-object 2D poses: {correct_ho_poses2d}")
+        print(f"[*] Percentages of correct object 2D poses: {correct_obj_poses2d}")
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_poses2d)
         plt.xlabel("pixel Threshold")
         plt.ylabel("Percentage of Correct Poses")
