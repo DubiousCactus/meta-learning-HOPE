@@ -242,6 +242,8 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                     torch.max(kp_2d),
                 )
                 print(min_2d, max_2d)
+        # if rescale_2D_keypoints:
+        #     print(f"[*] Rescaling 2D keypoints to 224x224 range")
 
         if object_as_task:
             print(
