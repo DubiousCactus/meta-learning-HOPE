@@ -768,7 +768,7 @@ class Regular_HOPENetTester(RegularTrainer):
                 / (len(err3d_hands) + eps)
             )
 
-        print(correct_ho_poses)
+        print(f"[*] Percentages of correct hand-object 3D poses: {correct_ho_poses}")
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_ho_poses)
         plt.xlabel("mm Threshold")
         plt.ylabel("Percentage of Correct Poses")
@@ -785,7 +785,7 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.savefig("h_pcp3d.png")
         plt.clf()
 
-        max_thresh, thresh_step = 50, 5
+        max_thresh, thresh_step = 100, 5
         correct_obj_poses2d, correct_obj_init_poses2d = [], []
         correct_ho_poses2d, correct_ho_init_poses2d = [], []
         for thresh in range(0, max_thresh, thresh_step):
@@ -810,6 +810,7 @@ class Regular_HOPENetTester(RegularTrainer):
                 / (len(err2d_init_ho) + eps)
             )
 
+        print(f"[*] Percentages of correct hand-object 2D poses: {correct_ho_poses2d}")
         plt.plot(list(range(0, max_thresh, thresh_step)), correct_obj_poses2d)
         plt.xlabel("pixel Threshold")
         plt.ylabel("Percentage of Correct Poses")
