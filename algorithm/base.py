@@ -22,6 +22,7 @@ import os
 
 
 def initialize_weights(m):
+    print("[!] Applying random weights initialization...")
     if isinstance(m, torch.nn.Conv2d):
         torch.nn.init.kaiming_uniform_(m.weight.data, nonlinearity="relu")
         if m.bias is not None:
@@ -54,10 +55,15 @@ class BaseTrainer(ABC):
             self.model: torch.nn.Module = select_model(model)
         else:
             self.model: torch.nn.Module = model
+        try:
+            rinit = self.model.randomly_initialize_weights
+        except Exception as e:
+            rinit = True
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.model = torch.nn.DataParallel(self.model, device_ids=gpu_numbers)
-        self.model.apply(initialize_weights)
+        if rinit:
+            self.model.apply(initialize_weights)
         self.dataset = dataset
         self._checkpoint_path = checkpoint_path
         if not os.path.isdir(self._checkpoint_path):

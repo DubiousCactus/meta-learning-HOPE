@@ -688,7 +688,7 @@ class Regular_HOPENetTester(RegularTrainer):
         meta_lr: float = None,
     ):
         if not self._model_path:
-            print(f"[!] Testing a randomly initialized model!")
+            print(f"[!] Testing a (partly) randomly initialized model!")
         else:
             print(f"[*] Restoring from checkpoint: {self._model_path}")
             checkpoint = torch.load(self._model_path)
@@ -715,9 +715,8 @@ class Regular_HOPENetTester(RegularTrainer):
 
             with torch.no_grad():
                 for i, input_sample in enumerate(inputs):
-                    gt2d = torch.unsqueeze(labels2d[i, :, :], dim=0)
                     outputs2d_init, outputs2d, outputs3d = self.model(
-                        torch.unsqueeze(input_sample, dim=0), gt_2d=None
+                        torch.unsqueeze(input_sample, dim=0)
                     )
                     err3d.append(
                         torch.mean(torch.linalg.norm((outputs3d - labels3d[i]), dim=0))

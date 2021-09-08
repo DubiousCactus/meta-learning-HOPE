@@ -15,8 +15,10 @@ from torch.nn.parameter import Parameter
 
 import torch
 
+from model.wrapper import InitWrapper
 
-class GraphUNetBatchNorm(torch.nn.Module):
+
+class GraphUNetBatchNorm(InitWrapper, torch.nn.Module):
     def __init__(self, in_features=2, out_features=3):
         super(GraphUNetBatchNorm, self).__init__()
 
@@ -116,7 +118,7 @@ class GraphUNetBatchNorm(torch.nn.Module):
         return X_10
 
 
-class VanillaGraphUNet(torch.nn.Module):
+class VanillaGraphUNet(InitWrapper, torch.nn.Module):
     def __init__(self, in_features=2, out_features=3):
         super().__init__()
 
@@ -222,7 +224,7 @@ class VanillaGraphUNet(torch.nn.Module):
         return X_10
 
 
-class GraphNetBatchNorm(torch.nn.Module):
+class GraphNetBatchNorm(InitWrapper, torch.nn.Module):
     def __init__(self, in_features=2, out_features=2):
         super().__init__()
 

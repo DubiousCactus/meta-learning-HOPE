@@ -15,12 +15,13 @@ import torch
 from HOPE.models.graphunet import GraphUNet, GraphNet
 from model.graphnet import GraphUNetBatchNorm
 from model.cnn import ResNet, MobileNet
+from model.wrapper import InitWrapper
 from util.utils import load_state_dict
 
 
-class HOPENet(torch.nn.Module):
+class HOPENet(InitWrapper, torch.nn.Module):
     def __init__(
-        self, cnn_def: str, resnet_path: str, graphnet_path: str, graphunet_path: str
+            self, cnn_def: str, resnet_path: str, graphnet_path: str, graphunet_path: str
     ):
         super().__init__()
         cnn_def = cnn_def.lower()
@@ -40,17 +41,20 @@ class HOPENet(torch.nn.Module):
         self.graphnet = GraphNet(in_features=514, out_features=2)
         self.graphunet = GraphUNetBatchNorm(in_features=2, out_features=3)
         if resnet_path:
-            print(f"[*] Loading ResNet state dict form {resnet_path}")
+            print(f"[*] Loading ResNet state dict from {resnet_path}")
+            self.randomly_initialize_weights = False
             load_state_dict(self.resnet, resnet_path)
         else:
             print("[!] ResNet is randomly initialized!")
         if graphnet_path:
-            print(f"[*] Loading GraphNet state dict form {graphnet_path}")
+            print(f"[*] Loading GraphNet state dict from {graphnet_path}")
+            self.randomly_initialize_weights = False
             load_state_dict(self.graphnet, graphnet_path)
         else:
             print("[!] GraphNet is randomly initialized!")
         if graphunet_path:
-            print(f"[*] Loading GraphUNet state dict form {graphunet_path}")
+            print(f"[*] Loading GraphUNet state dict from {graphunet_path}")
+            self.randomly_initialize_weights = False
             load_state_dict(self.graphunet, graphunet_path)
         else:
             print("[!] GraphUNet is randomly initialized!")
@@ -69,9 +73,9 @@ class HOPENet(torch.nn.Module):
         return points2D_init, points2D, points3D
 
 
-class GraphNetwResNet(torch.nn.Module):
+class GraphNetwResNet(InitWrapper, torch.nn.Module):
     def __init__(
-        self, cnn_def: str, resnet_path: str
+            self, cnn_def: str, resnet_path: str
     ):
         super().__init__()
         cnn_def = cnn_def.lower()
@@ -91,6 +95,7 @@ class GraphNetwResNet(torch.nn.Module):
         self.graphnet = GraphNet(in_features=514, out_features=2)
         if resnet_path:
             print(f"[*] Loading ResNet state dict form {resnet_path}")
+            self.randomly_initialize_weights = False
             load_state_dict(self.resnet, resnet_path)
         else:
             print("[!] ResNet is randomly initialized!")

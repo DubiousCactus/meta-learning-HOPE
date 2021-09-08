@@ -19,6 +19,8 @@ import torchvision.models as models
 import torch.nn.functional as F
 import torch
 
+from model.wrapper import InitWrapper
+
 
 class Lambda(torch.nn.Module):
     def __init__(self, fn):
@@ -29,7 +31,7 @@ class Lambda(torch.nn.Module):
         return self.fn(x)
 
 
-class ResNet(torch.nn.Module):
+class ResNet(InitWrapper, torch.nn.Module):
     def __init__(self, model="18", pretrained=True):
         super().__init__()
         if model == "10":
@@ -102,7 +104,7 @@ class ResNet(torch.nn.Module):
         return self.fc
 
 
-class MobileNet(torch.nn.Module):
+class MobileNet(InitWrapper, torch.nn.Module):
     def __init__(self, model="v3-small", pretrained=True):
         super().__init__()
         if model == "v3-small":
