@@ -128,6 +128,10 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                     meta = np.load(meta_file, allow_pickle=True)
                     try:
                         points_2d, points_3d = self._compute_labels(split, meta)
+                        # Rescale the 2D keypoints, because the images are rescaled from 640x480 to
+                        # 224x224! This improves the performance of the 2D KP estimation GREATLY.
+                        points_2d[:, 0] = points_2d[:, 0] * 224.0 / 640.0
+                        points_2d[:, 1] = points_2d[:, 1] * 224.0 / 480.0
                     except ValueError:
                         failed += 1
                     obj_class_id = meta["objLabel"]

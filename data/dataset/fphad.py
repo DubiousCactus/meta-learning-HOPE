@@ -220,6 +220,10 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                         points_2d, points_3d = self._compute_labels(
                             file_name, obj_name, subject, action_name, seq_idx
                         )
+                        # Rescale the 2D keypoints, because the images are rescaled from 1920x1080
+                        # to 224x224! This improves the performance of the 2D KP estimation GREATLY.
+                        points_2d[:, 0] = points_2d[:, 0] * 224.0 / 1920.0
+                        points_2d[:, 1] = points_2d[:, 1] * 224.0 / 1080.0
                         if object_as_task:
                             obj_class_id = self._object_class.index(obj_name)
                             if obj_class_id not in samples.keys():
@@ -232,6 +236,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving {split} split into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
+
         if normalize_keypoints:
             print(f"[*] Normalizing 2D and 3D keypoints...")
             if object_as_task:
@@ -242,8 +247,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
                     torch.max(kp_2d),
                 )
                 print(min_2d, max_2d)
-        # if rescale_2D_keypoints:
-        #     print(f"[*] Rescaling 2D keypoints to 224x224 range")
 
         if object_as_task:
             print(

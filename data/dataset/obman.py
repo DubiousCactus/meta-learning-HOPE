@@ -171,6 +171,10 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
                     meta_obj = pickle.load(meta_file)
                     img_path = os.path.join(root, "rgb", f"{idx}.jpg")
                     coord_2d, coord_3d = self._compute_labels(meta_obj)
+                    # Rescale the 2D keypoints, because the images are rescaled from 256x256 to
+                    # 224x224! This improves the performance of the 2D KP estimation GREATLY.
+                    coord_2d[:, 0] = coord_2d[:, 0] * 224.0 / 256.0
+                    coord_2d[:, 1] = coord_2d[:, 1] * 224.0 / 256.0
                     if object_as_task:
                         obj_id = meta_obj["class_id"]
                         if obj_id in class_ids:
