@@ -666,7 +666,7 @@ class Regular_HOPENetTester(RegularTrainer):
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
-            labels2d = labels3d.float().cuda(device=self._gpu_number)
+            labels2d = labels2d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
             _, outputs2d, outputs3d = self.model(inputs, gt_2d=None)
