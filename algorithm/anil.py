@@ -123,10 +123,10 @@ class ANILTrainer(BaseTrainer):
         else:
             raise ValueError(f"{optimizer} is not a valid outer optimizer")
 
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
+        # From How to Train Your MAML:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            opt, T_max=iterations, eta_min=0.00001, last_epoch=self._epoch
         )
-        scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
@@ -202,7 +202,9 @@ class ANILTrainer(BaseTrainer):
                     p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
             if max_grad_norm:
-                grad_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+                grad_norm = torch.nn.utils.clip_grad_norm_(
+                    maml.parameters(), max_grad_norm
+                )
             opt.step()
             if use_scheduler:
                 scheduler.step()
@@ -225,4 +227,3 @@ class ANILTrainer(BaseTrainer):
                     state_dicts,
                 )
                 past_val_loss = meta_val_mse_loss
-

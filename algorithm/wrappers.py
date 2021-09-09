@@ -254,16 +254,13 @@ class ANIL_CNNTrainer(ANILTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             outputs2d_init = head(s_inputs).view(-1, 29, 2)
-            if torch.isnan(outputs2d_init).any():
-                print(f"Support outputs contains NaN!")
+            # TODO: Multi-Step loss
             support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
             head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
 
         # Evaluate the adapted model on the query set
         q_inputs = features(q_inputs)
         e_outputs2d_init = head(q_inputs).view(-1, 29, 2)
-        if torch.isnan(e_outputs2d_init).any():
-            print(f"Query outputs contains NaN!")
         query_loss = criterion(e_outputs2d_init, q_labels2d)
         return query_loss
 
@@ -559,7 +556,7 @@ class Regular_GraphNetwResNetTrainer(RegularTrainer):
         outputs2d_init, outputs2d = self.model(inputs)
         loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
         loss2d = self.inner_criterion(outputs2d, labels2d)
-        loss = loss2d_init +  loss2d
+        loss = loss2d_init + loss2d
         loss.backward()
         return loss.detach()
 
@@ -688,6 +685,7 @@ class Regular_HOPENetTester(RegularTrainer):
         meta_lr: float = None,
     ):
         import numpy as np
+
         if not self._model_path:
             print(f"[!] Testing a (partly) randomly initialized model!")
         else:
@@ -695,7 +693,14 @@ class Regular_HOPENetTester(RegularTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_mse_loss, avg_mae_loss, mse_losses, mse_losses2d, mae_losses, mae_losses2d = 0.0, 0.0, [], [], [], []
+        (
+            avg_mse_loss,
+            avg_mae_loss,
+            mse_losses,
+            mse_losses2d,
+            mae_losses,
+            mae_losses2d,
+        ) = (0.0, 0.0, [], [], [], [])
         err3d, err3d_hands, err2d_obj, err2d_init_obj, err2d_ho, err2d_init_ho = (
             [],
             [],

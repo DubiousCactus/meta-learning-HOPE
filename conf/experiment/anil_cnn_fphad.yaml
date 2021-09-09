@@ -4,3 +4,8 @@ model_def: ResNet10
 dataset: fphad
 dataset_path: ../FPHAD
 name: anil_resnet_fphad
+fast_lr: 0.1
+optimizer: adam
+max_grad_norm: null
+steps: 10
+batch_size: 16

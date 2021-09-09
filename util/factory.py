@@ -153,7 +153,11 @@ class AlgorithmFactory:
                 trainer = Regular_GraphUNetTrainer
             elif model_def == "graphnet":
                 resnet_path = config.experiment.resnet_model_path
-                trainer = Regular_GraphNetTrainer if resnet_path else Regular_GraphNetwResNetTrainer
+                trainer = (
+                    Regular_GraphNetTrainer
+                    if resnet_path
+                    else Regular_GraphNetwResNetTrainer
+                )
                 args = [cnn_def, to_absolute_path(resnet_path) if resnet_path else None]
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
