@@ -24,6 +24,7 @@ import torch
 import wandb
 import os
 
+# TODO: Refactor this? It could simply inherit from MAMLTrainer
 MetaBatch = namedtuple("MetaBatch", "support query")
 
 
@@ -58,11 +59,9 @@ class ANILTrainer(BaseTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
-        print(type(model))
         self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
-        print(type(self.model))
         self._k_shots = k_shots
         self._n_querries = n_querries
         self._steps = inner_steps
@@ -101,14 +100,13 @@ class ANILTrainer(BaseTrainer):
         meta_lr: float = 0.01,
         lr_step: int = 100,
         lr_step_gamma: float = 0.5,
+        max_grad_norm: float = 25.0,
+        optimizer: str = "adam",
         val_every: int = 100,
         resume: bool = True,
         use_scheduler: bool = True,
     ):
         wandb.watch(self.model)
-        print("ANIL")
-        print("HEAD: ", all(p.is_cuda for p in self.model.head.parameters()))
-        print("FEATURES: ", all(p.is_cuda for p in self.model.features.parameters()))
         maml = l2l.algorithms.MAML(
             self.model.head,
             lr=fast_lr,
@@ -118,12 +116,17 @@ class ANILTrainer(BaseTrainer):
         all_parameters = list(self.model.features.parameters()) + list(
             maml.parameters()
         )
-        opt = torch.optim.Adam(all_parameters, lr=meta_lr)
+        if optimizer == "adam":
+            opt = torch.optim.Adam(all_parameters, lr=meta_lr)
+        elif optimizer == "sgd":
+            opt = torch.optim.SGD(all_parameters, lr=meta_lr)
+        else:
+            raise ValueError(f"{optimizer} is not a valid outer optimizer")
+
         scheduler = torch.optim.lr_scheduler.StepLR(
             opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
         )
         scheduler.last_epoch = self._epoch
-        max_grad_norm = 5.0
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
@@ -198,9 +201,8 @@ class ANILTrainer(BaseTrainer):
                 if p.grad is not None:
                     p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
-            grad_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
-            if grad_norm > max_grad_norm:
-                print(f"Clipped gradients norm from {grad_norm}")
+            if max_grad_norm:
+                grad_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
             opt.step()
             if use_scheduler:
                 scheduler.step()
@@ -223,3 +225,4 @@ class ANILTrainer(BaseTrainer):
                     state_dicts,
                 )
                 past_val_loss = meta_val_mse_loss
+

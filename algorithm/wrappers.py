@@ -253,7 +253,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            outputs2d_init, _ = head(s_inputs)
+            outputs2d_init = head(s_inputs).view(-1, 29, 2)
             if torch.isnan(outputs2d_init).any():
                 print(f"Support outputs contains NaN!")
             support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
@@ -261,7 +261,7 @@ class ANIL_CNNTrainer(ANILTrainer):
 
         # Evaluate the adapted model on the query set
         q_inputs = features(q_inputs)
-        e_outputs2d_init, _ = head(q_inputs)
+        e_outputs2d_init = head(q_inputs).view(-1, 29, 2)
         if torch.isnan(e_outputs2d_init).any():
             print(f"Query outputs contains NaN!")
         query_loss = criterion(e_outputs2d_init, q_labels2d)
