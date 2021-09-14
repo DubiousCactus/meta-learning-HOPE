@@ -21,7 +21,7 @@ from util.utils import load_state_dict
 
 class HOPENet(InitWrapper, torch.nn.Module):
     def __init__(
-            self, cnn_def: str, resnet_path: str, graphnet_path: str, graphunet_path: str
+        self, cnn_def: str, resnet_path: str, graphnet_path: str, graphunet_path: str
     ):
         super().__init__()
         cnn_def = cnn_def.lower()
@@ -74,9 +74,7 @@ class HOPENet(InitWrapper, torch.nn.Module):
 
 
 class GraphNetwResNet(InitWrapper, torch.nn.Module):
-    def __init__(
-            self, cnn_def: str, resnet_path: str
-    ):
+    def __init__(self, cnn_def: str, resnet_path: str):
         super().__init__()
         cnn_def = cnn_def.lower()
         if cnn_def == "resnet10":

@@ -559,7 +559,7 @@ class Regular_GraphNetwResNetTrainer(RegularTrainer):
         outputs2d_init, outputs2d = self.model(inputs)
         loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
         loss2d = self.inner_criterion(outputs2d, labels2d)
-        loss = loss2d_init +  loss2d
+        loss = loss2d_init + loss2d
         loss.backward()
         return loss.detach()
 
@@ -609,13 +609,14 @@ class Regular_HOPENetTrainer(RegularTrainer):
             labels3d = labels3d.float().cuda(device=self._gpu_number)
 
         outputs2d_init, outputs2d, outputs3d = self.model(inputs)
+        print(inputs.shape, labels2d, outputs2d, labels3d, outputs3d)
         loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
         loss2d = self.inner_criterion(outputs2d, labels2d)
         loss3d = self.inner_criterion(outputs3d, labels3d)
         loss = (
-            (self._lambda1) * loss2d_init
-            + (self._lambda1) * loss2d
-            + (self._lambda2) * loss3d
+            (self._lambda1 * loss2d_init)
+            + (self._lambda1 * loss2d)
+            + (self._lambda2 * loss3d)
         )
         loss.backward()
         return loss.detach()
@@ -688,6 +689,7 @@ class Regular_HOPENetTester(RegularTrainer):
         meta_lr: float = None,
     ):
         import numpy as np
+
         if not self._model_path:
             print(f"[!] Testing a (partly) randomly initialized model!")
         else:
@@ -695,7 +697,14 @@ class Regular_HOPENetTester(RegularTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_mse_loss, avg_mae_loss, mse_losses, mse_losses2d, mae_losses, mae_losses2d = 0.0, 0.0, [], [], [], []
+        (
+            avg_mse_loss,
+            avg_mae_loss,
+            mse_losses,
+            mse_losses2d,
+            mae_losses,
+            mae_losses2d,
+        ) = (0.0, 0.0, [], [], [], [])
         err3d, err3d_hands, err2d_obj, err2d_init_obj, err2d_ho, err2d_init_ho = (
             [],
             [],

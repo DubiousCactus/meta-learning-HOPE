@@ -202,7 +202,9 @@ class ANILTrainer(BaseTrainer):
                     p.grad.data.mul_(1.0 / batch_size)
             # Gradient clipping
             if max_grad_norm:
-                grad_norm = torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+                grad_norm = torch.nn.utils.clip_grad_norm_(
+                    maml.parameters(), max_grad_norm
+                )
             opt.step()
             if use_scheduler:
                 scheduler.step()
@@ -225,4 +227,3 @@ class ANILTrainer(BaseTrainer):
                     state_dicts,
                 )
                 past_val_loss = meta_val_mse_loss
-
