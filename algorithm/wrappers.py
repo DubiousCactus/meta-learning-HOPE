@@ -627,9 +627,9 @@ class Regular_HOPENetTrainer(RegularTrainer):
         loss2d = self.inner_criterion(outputs2d, labels2d)
         loss3d = self.inner_criterion(outputs3d, labels3d)
         loss = (
-            (self._lambda1) * loss2d_init
-            + (self._lambda1) * loss2d
-            + (self._lambda2) * loss3d
+            (self._lambda1 * loss2d_init)
+            + (self._lambda1 * loss2d)
+            + (self._lambda2 * loss3d)
         )
         loss.backward()
         return loss.detach()
@@ -818,7 +818,7 @@ class Regular_HOPENetTester(RegularTrainer):
         plt.savefig("h_pcp3d.png")
         plt.clf()
 
-        max_thresh, thresh_step = 100, 5
+        max_thresh, thresh_step = 50, 5
         correct_obj_poses2d, correct_obj_init_poses2d = [], []
         correct_ho_poses2d, correct_ho_init_poses2d = [], []
         for thresh in range(0, max_thresh, thresh_step):

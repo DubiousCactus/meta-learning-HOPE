@@ -44,6 +44,9 @@ class HOPENet(InitWrapper, torch.nn.Module):
             print(f"[*] Loading ResNet state dict from {resnet_path}")
             self.randomly_initialize_weights = False
             load_state_dict(self.resnet, resnet_path)
+            print(f"[*] Freezing ResNet parameters!")
+            for p in self.resnet.parameters():
+                p.requires_grad = False
         else:
             print("[!] ResNet is randomly initialized!")
         if graphnet_path:
@@ -63,7 +66,6 @@ class HOPENet(InitWrapper, torch.nn.Module):
         if gt_2d is None:
             points2D_init, features = self.resnet(x)
             features = features.unsqueeze(1).repeat(1, 29, 1)
-            # batch = points2D.shape[0]
             in_features = torch.cat([points2D_init, features], dim=2)
             points2D = self.graphnet(in_features)
         else:
