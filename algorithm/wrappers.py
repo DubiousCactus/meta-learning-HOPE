@@ -608,16 +608,9 @@ class Regular_HOPENetTrainer(RegularTrainer):
             labels2d = labels2d.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
 
-        outputs2d_init, outputs2d, outputs3d = self.model(inputs)
-        print(inputs.shape, labels2d, outputs2d, labels3d, outputs3d)
-        loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
+        outputs2d, outputs3d = self.model(inputs)
         loss2d = self.inner_criterion(outputs2d, labels2d)
-        loss3d = self.inner_criterion(outputs3d, labels3d)
-        loss = (
-            (self._lambda1 * loss2d_init)
-            + (self._lambda1 * loss2d)
-            + (self._lambda2 * loss3d)
-        )
+        loss = self.inner_criterion(outputs3d, labels3d)
         loss.backward()
         return loss.detach()
 
@@ -628,7 +621,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
             labels3d = labels3d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
-            _, _, outputs3d = self.model(inputs)
+            _, outputs3d = self.model(inputs)
             if compute == "mse":
                 return F.mse_loss(outputs3d, labels3d).detach()
             elif compute == "mae":

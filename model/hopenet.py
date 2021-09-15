@@ -38,7 +38,7 @@ class HOPENet(InitWrapper, torch.nn.Module):
         else:
             raise ValueError(f"{cnn_def} is not a valid CNN definition!")
         self.resnet = cnn
-        self.graphnet = GraphNet(in_features=514, out_features=2)
+        # self.graphnet = GraphNet(in_features=514, out_features=2)
         self.graphunet = GraphUNetBatchNorm(in_features=2, out_features=3)
         if resnet_path:
             print(f"[*] Loading ResNet state dict from {resnet_path}")
@@ -48,8 +48,8 @@ class HOPENet(InitWrapper, torch.nn.Module):
             print("[!] ResNet is randomly initialized!")
         if graphnet_path:
             print(f"[*] Loading GraphNet state dict from {graphnet_path}")
-            self.randomly_initialize_weights = False
-            load_state_dict(self.graphnet, graphnet_path)
+            # self.randomly_initialize_weights = False
+            # load_state_dict(self.graphnet, graphnet_path)
         else:
             print("[!] GraphNet is randomly initialized!")
         if graphunet_path:
@@ -58,19 +58,21 @@ class HOPENet(InitWrapper, torch.nn.Module):
             load_state_dict(self.graphunet, graphunet_path)
         else:
             print("[!] GraphUNet is randomly initialized!")
+        for p in self.resnet.parameters():
+            p.requires_grad = False
 
     def forward(self, x, gt_2d=None):
         if gt_2d is None:
-            points2D_init, features = self.resnet(x)
-            features = features.unsqueeze(1).repeat(1, 29, 1)
+            points2D, _ = self.resnet(x)
+            # features = features.unsqueeze(1).repeat(1, 29, 1)
             # batch = points2D.shape[0]
-            in_features = torch.cat([points2D_init, features], dim=2)
-            points2D = self.graphnet(in_features)
+            # in_features = torch.cat([points2D_init, features], dim=2)
+            # points2D = self.graphnet(in_features)
         else:
-            points2D_init = gt_2d
+            # points2D_init = gt_2d
             points2D = gt_2d
         points3D = self.graphunet(points2D)
-        return points2D_init, points2D, points3D
+        return points2D, points3D
 
 
 class GraphNetwResNet(InitWrapper, torch.nn.Module):
