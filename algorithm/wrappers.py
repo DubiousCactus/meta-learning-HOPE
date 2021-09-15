@@ -609,7 +609,6 @@ class Regular_HOPENetTrainer(RegularTrainer):
             labels3d = labels3d.float().cuda(device=self._gpu_number)
 
         outputs2d_init, outputs2d, outputs3d = self.model(inputs)
-        print(inputs.shape, labels2d, outputs2d, labels3d, outputs3d)
         loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
         loss2d = self.inner_criterion(outputs2d, labels2d)
         loss3d = self.inner_criterion(outputs3d, labels3d)
