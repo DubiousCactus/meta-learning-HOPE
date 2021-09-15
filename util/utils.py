@@ -158,5 +158,7 @@ def load_state_dict(module, resnet_path):
     for k, v in ckpt["model_state_dict"].items():
         if "module" in k:
             k = k.replace("module.", "")
+        if k not in module.state_dict():
+            continue
         new_state_dict[k] = v
     module.load_state_dict(new_state_dict)
