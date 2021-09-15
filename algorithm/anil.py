@@ -24,7 +24,7 @@ import torch
 import wandb
 import os
 
-# TODO: Refactor this? It could simply inherit from MAMLTrainer
+# TODO: Refactor this class It could simply inherit from MAMLTrainer
 MetaBatch = namedtuple("MetaBatch", "support query")
 
 
@@ -66,6 +66,24 @@ class ANILTrainer(BaseTrainer):
         self._n_querries = n_querries
         self._steps = inner_steps
         self._first_order = first_order
+        self._step_weights = torch.ones(inner_steps) * (1.0 / inner_steps)
+        self._msl_num_epochs = 5000
+        self._msl_decay_rate = 1.0 / self._steps / self._msl_num_epochs
+        self._msl_min_value_for_non_final_losses = 0.03 / self._steps
+
+    def _anneal_step_weights(self, iteration):
+        step_weights = torch.ones(self._steps) * (1.0 / self._steps)
+        # TODO: Vectorize this?
+        for i in range(self._steps - 1):
+            curr_value = torch.maximum(step_weights[i] - (iteration * self._msl_decay_rate),
+                    torch.tensor(self._msl_min_value_for_non_final_losses))
+            step_weights[i] = curr_value
+
+        curr_value = torch.minimum(
+                step_weights[-1] + (iteration * (self._steps - 1) * self._msl_decay_rate),
+                torch.tensor(1.0 - ((self._steps - 1) * self._msl_min_value_for_non_final_losses)))
+        step_weights[-1] = curr_value
+        self._step_weights = step_weights
 
     def _split_batch(self, batch: tuple) -> MetaBatch:
         """
@@ -117,7 +135,7 @@ class ANILTrainer(BaseTrainer):
             maml.parameters()
         )
         if optimizer == "adam":
-            opt = torch.optim.Adam(all_parameters, lr=meta_lr)
+            opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
         elif optimizer == "sgd":
             opt = torch.optim.SGD(all_parameters, lr=meta_lr)
         else:
@@ -125,7 +143,7 @@ class ANILTrainer(BaseTrainer):
 
         # From How to Train Your MAML:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            opt, T_max=iterations, eta_min=0.00001, last_epoch=self._epoch
+            opt, T_max=iterations, eta_min=0.00001, last_epoch=self._epoch-1,
         )
         past_val_loss = float("+inf")
         if self._model_path:
@@ -144,7 +162,7 @@ class ANILTrainer(BaseTrainer):
                 head = maml.clone()
                 meta_batch = self._split_batch(self.dataset.train.sample())
                 inner_loss = self._training_step(
-                    meta_batch, head, self.model.features, clip_grad_norm=max_grad_norm
+                    meta_batch, head, self.model.features, clip_grad_norm=max_grad_norm, msl=True
                 )
                 if torch.isnan(inner_loss).any():
                     raise ValueError("Inner loss is Nan!")
@@ -208,6 +226,8 @@ class ANILTrainer(BaseTrainer):
             opt.step()
             if use_scheduler:
                 scheduler.step()
+
+            self._anneal_step_weights(epoch)
 
             # Model checkpointing
             if (epoch + 1) % val_every == 0 and meta_val_mse_loss < past_val_loss:

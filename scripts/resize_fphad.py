@@ -13,7 +13,7 @@ import shutil
 import os
 
 
-whole_path = "/home/tmorales/RescaledFPHAD/"
+whole_path = "/home/cactus/Code/FPHAD/"
 file_root = os.path.join(whole_path, "Video_files")
 size = (224, 224)
 
