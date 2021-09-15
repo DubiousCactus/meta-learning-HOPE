@@ -419,7 +419,7 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            GraphUNetBatchNorm(),
+            "graphunet",
             dataset,
             checkpoint_path,
             model_path=model_path,
@@ -600,6 +600,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
+        self._train_resnet = resnet_path is not None
 
     def _training_step(self, batch: tuple):
         inputs, labels2d, labels3d = batch
@@ -609,8 +610,12 @@ class Regular_HOPENetTrainer(RegularTrainer):
             labels3d = labels3d.float().cuda(device=self._gpu_number)
 
         outputs2d, outputs3d = self.model(inputs)
-        loss2d = self.inner_criterion(outputs2d, labels2d)
-        loss = self.inner_criterion(outputs3d, labels3d)
+        if self._train_resnet:
+            loss2d = self.inner_criterion(outputs2d, labels2d)
+            loss3d = self.inner_criterion(outputs3d, labels3d)
+            loss = (self._lambda1 * loss2d) + (self._lambda2 * loss3d)
+        else:
+            loss = self.inner_criterion(outputs3d, labels3d)
         loss.backward()
         return loss.detach()
 

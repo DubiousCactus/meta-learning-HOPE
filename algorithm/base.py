@@ -138,8 +138,9 @@ class BaseTrainer(ABC):
         val_loss = float("+inf")
         if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
-            opt.load_state_dict(checkpoint["opt_state_dict"])
-            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            if scheduler:
+                opt.load_state_dict(checkpoint["opt_state_dict"])
+                scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
             val_loss = checkpoint["val_loss"]
         return val_loss
 

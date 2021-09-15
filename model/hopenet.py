@@ -43,6 +43,9 @@ class HOPENet(InitWrapper, torch.nn.Module):
             print(f"[*] Loading ResNet state dict from {resnet_path}")
             self.randomly_initialize_weights = False
             load_state_dict(self.resnet, resnet_path)
+            print(f"[*] Freezing ResNet parameters")
+            for p in self.resnet.parameters():
+                p.requires_grad = False
         else:
             print("[!] ResNet is randomly initialized!")
         if graphnet_path:
@@ -57,8 +60,6 @@ class HOPENet(InitWrapper, torch.nn.Module):
             load_state_dict(self.graphunet, graphunet_path)
         else:
             print("[!] GraphUNet is randomly initialized!")
-        for p in self.resnet.parameters():
-            p.requires_grad = False
 
     def forward(self, x, gt_2d=None):
         if gt_2d is None:
