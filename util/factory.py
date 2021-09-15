@@ -133,7 +133,11 @@ class AlgorithmFactory:
                 args += [model_def]
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
-            kargs = {"first_order": algorithm == "foanil"}
+            kargs = {
+                "first_order": algorithm == "foanil",
+                "multi_step_loss": config.experiment.multi_step_loss,
+                "msl_num_epochs": config.experiment.msl_num_epochs,
+            }
         elif algorithm == "regular":
             if model_def == "hopenet":
                 trainer = Regular_HOPENetTester if test_mode else Regular_HOPENetTrainer

@@ -207,6 +207,8 @@ class ANIL_CNNTrainer(ANILTrainer):
         cnn_def: str,
         model_path: str = None,
         first_order: bool = False,
+        multi_step_loss: bool = True,
+        msl_num_epochs: int = 1000,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -231,12 +233,20 @@ class ANIL_CNNTrainer(ANILTrainer):
             inner_steps,
             model_path=model_path,
             first_order=first_order,
+            multi_step_loss=multi_step_loss,
+            msl_num_epochs=msl_num_epochs,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
 
     def _training_step(
-        self, batch: MetaBatch, head, features, clip_grad_norm=None, compute="mse", msl=True
+        self,
+        batch: MetaBatch,
+        head,
+        features,
+        clip_grad_norm=None,
+        compute="mse",
+        msl=True,
     ):
         criterion = self.inner_criterion
         if compute == "mae":
@@ -257,10 +267,12 @@ class ANIL_CNNTrainer(ANILTrainer):
             outputs2d_init = head(s_inputs).view(-1, 29, 2)
             support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
             head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
-            if msl: # Multi-step loss
+            if msl:  # Multi-step loss
                 q_inputs_s = features(q_inputs)
                 q_outputs2d_init = head(q_inputs_s).view(-1, 29, 2)
-                query_loss += self._step_weights[step] * criterion(q_outputs2d_init, q_labels2d)
+                query_loss += self._step_weights[step] * criterion(
+                    q_outputs2d_init, q_labels2d
+                )
 
         # Evaluate the adapted model on the query set
         if not msl:
