@@ -11,8 +11,8 @@ Almost No Inner-Loop meta-learning algorithm.
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from algorithm.maml import MAMLTrainer, MetaBatch
 from model.cnn import ResNet, MobileNet
-from algorithm.base import BaseTrainer
 from collections import namedtuple
 from typing import List, Union
 from tqdm import tqdm
@@ -24,11 +24,8 @@ import torch
 import wandb
 import os
 
-# TODO: Refactor this class It could simply inherit from MAMLTrainer
-MetaBatch = namedtuple("MetaBatch", "support query")
 
-
-class ANILTrainer(BaseTrainer):
+class ANILTrainer(MAMLTrainer):
     def __init__(
         self,
         model: torch.nn.Module,
@@ -44,30 +41,21 @@ class ANILTrainer(BaseTrainer):
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
-        assert (
-            dataset.k_shots == k_shots
-        ), "Dataset's K-shots does not match MAML's K-shots!"
-        assert (
-            dataset.n_querries == n_querries
-        ), "Dataset's N-querries does not match MAML's N-querries!"
-        assert type(model) in [ResNet, MobileNet] or (
-            type(model) is str and "resnet" in model
-        ), "Only CNN models can be trained with ANIL!"
         super().__init__(
             model,
             dataset,
             checkpoint_path,
+            k_shots,
+            n_querries,
+            inner_steps,
             model_path=model_path,
+            first_order=first_order,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
         self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
-        self._k_shots = k_shots
-        self._n_querries = n_querries
-        self._steps = inner_steps
-        self._first_order = first_order
         self._step_weights = torch.ones(inner_steps) * (1.0 / inner_steps)
         self._msl = multi_step_loss
         self._msl_decay_rate = 1.0 / self._steps / msl_num_epochs
@@ -85,31 +73,6 @@ class ANILTrainer(BaseTrainer):
             self._step_weights[-1] + ((self._steps - 1) * self._msl_decay_rate),
             self._msl_max_value_for_final_loss,
         )
-
-    def _split_batch(self, batch: tuple) -> MetaBatch:
-        """
-        Separate data batch into adaptation/evalutation sets.
-        """
-        images, labels_2d, labels_3d = batch
-        batch_size = self._k_shots + self._n_querries
-        indices = torch.randperm(batch_size)
-        support_indices = indices[: self._k_shots]
-        query_indices = indices[self._k_shots :]
-        return MetaBatch(
-            (
-                images[support_indices],
-                labels_2d[support_indices],
-                labels_3d[support_indices],
-            ),
-            (images[query_indices], labels_2d[query_indices], labels_3d[query_indices]),
-        )
-
-    def _restore(self, maml, opt, scheduler, resume_training: bool = True) -> float:
-        val_loss = super()._restore(opt, scheduler, resume_training=resume_training)
-        checkpoint = torch.load(self._model_path)
-        if resume_training and "backup" not in checkpoint.keys():
-            maml.load_state_dict(checkpoint["maml_state_dict"])
-        return val_loss
 
     def train(
         self,
