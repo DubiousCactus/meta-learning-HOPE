@@ -158,7 +158,14 @@ def load_state_dict(module, resnet_path):
     for k, v in ckpt["model_state_dict"].items():
         if "module" in k:
             k = k.replace("module.", "")
-        if k not in module.state_dict():
-            continue
         new_state_dict[k] = v
-    module.load_state_dict(new_state_dict)
+    try:
+        module.load_state_dict(new_state_dict)
+    except Exception as e:
+        print("[!] Could not load state dict! Loading matching parameters...")
+        count = 0
+        for n, p in module.named_parameters():
+            if n in new_state_dict:
+                p = new_state_dict[n]
+                count += 1
+        print(f"[*] Loaded {count} parameters")
