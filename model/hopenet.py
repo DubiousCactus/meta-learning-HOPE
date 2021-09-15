@@ -13,6 +13,7 @@ Custom HOPE-Net
 import torch
 
 from HOPE.models.graphunet import GraphUNet, GraphNet
+from algorithm.base import initialize_weights
 from model.graphnet import GraphUNetBatchNorm
 from model.cnn import ResNet, MobileNet
 from model.wrapper import InitWrapper
@@ -55,12 +56,14 @@ class HOPENet(InitWrapper, torch.nn.Module):
             load_state_dict(self.graphnet, graphnet_path)
         else:
             print("[!] GraphNet is randomly initialized!")
+            self.graphnet.apply(initialize_weights)
         if graphunet_path:
             print(f"[*] Loading GraphUNet state dict from {graphunet_path}")
             self.randomly_initialize_weights = False
             load_state_dict(self.graphunet, graphunet_path)
         else:
             print("[!] GraphUNet is randomly initialized!")
+            self.graphunet.apply(initialize_weights)
 
     def forward(self, x, gt_2d=None):
         if gt_2d is None:
