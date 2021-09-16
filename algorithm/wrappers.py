@@ -614,7 +614,6 @@ class Regular_HOPENetTrainer(RegularTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
-        self._train_resnet = resnet_path is not None
 
     def _training_step(self, batch: tuple):
         inputs, labels2d, labels3d = batch
@@ -624,22 +623,14 @@ class Regular_HOPENetTrainer(RegularTrainer):
             labels3d = labels3d.float().cuda(device=self._gpu_number)
 
         outputs2d_init, outputs2d, outputs3d = self.model(inputs)
-        if self._train_resnet:
-            loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
-            loss2d = self.inner_criterion(outputs2d, labels2d)
-            loss3d = self.inner_criterion(outputs3d, labels3d)
-            loss = (
-                (self._lambda1 * loss2d_init)
-                + (self._lambda1 * loss2d)
-                + (self._lambda2 * loss3d)
-            )
-        else:
-            loss2d = self.inner_criterion(outputs2d, labels2d)
-            loss3d = self.inner_criterion(outputs3d, labels3d)
-            loss = (
-                + (self._lambda1 * loss2d)
-                + (self._lambda2 * loss3d)
-            )
+        loss2d_init = self.inner_criterion(outputs2d_init, labels2d)
+        loss2d = self.inner_criterion(outputs2d, labels2d)
+        loss3d = self.inner_criterion(outputs3d, labels3d)
+        loss = (
+            (self._lambda1 * loss2d_init)
+            + (self._lambda1 * loss2d)
+            + (self._lambda2 * loss3d)
+        )
         loss.backward()
         return loss.detach()
 
