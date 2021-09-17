@@ -1,0 +1,11 @@
+defaults:
+    - base_anil
+model_def: ResNet10
+dataset: ho3d
+dataset_path: ../HO3D_v3
+name: anil_resnet_ho3d
+fast_lr: 0.1
+optimizer: adam
+max_grad_norm: null
+steps: 5
+batch_size: 25
