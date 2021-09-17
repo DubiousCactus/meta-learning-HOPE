@@ -65,7 +65,11 @@ class RegularTrainer(BaseTrainer):
             raise ValueError(f"{optimizer} is not a valid outer optimizer")
 
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                opt, T_max=iterations, eta_min=0.00001, last_epoch=self._epoch - 1, verbose=True
+            opt,
+            T_max=iterations,
+            eta_min=0.00001,
+            last_epoch=self._epoch - 1,
+            verbose=True,
         )
         past_val_loss = float("+inf")
         if self._model_path:

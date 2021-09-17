@@ -60,8 +60,8 @@ class ANILTrainer(MAMLTrainer):
         self._msl = multi_step_loss
         self._msl_decay_rate = 1.0 / self._steps / msl_num_epochs
         self._msl_min_value_for_non_final_losses = torch.tensor(0.03 / self._steps)
-        self._msl_max_value_for_final_loss = torch.tensor(
-            1.0 - ((self._steps - 1) * self._msl_min_value_for_non_final_losses)
+        self._msl_max_value_for_final_loss = 1.0 - (
+            (self._steps - 1) * self._msl_min_value_for_non_final_losses
         )
 
     def _anneal_step_weights(self):
