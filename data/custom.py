@@ -22,7 +22,7 @@ import torch
 class CustomDataset(TorchDataset):
     def __init__(
         self,
-        samples: any,
+        samples: Union[dict, list],
         img_transform=None,
         kp2d_transform=None,
         object_as_task: bool = False,

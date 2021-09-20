@@ -37,6 +37,7 @@ import os
 class DatasetFactory:
     @abstractmethod
     def make_data_loader(
+        config,
         shapenet_root,
         dataset: str,
         dataset_root: str,
@@ -64,6 +65,7 @@ class DatasetFactory:
             kargs = {"augment_2d": augment_fphad}
         elif dataset == "ho3d":
             datasetClass = HO3DTaskLoader
+            kargs = {"hold_out": config.experiment.hold_out}
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
         return datasetClass(

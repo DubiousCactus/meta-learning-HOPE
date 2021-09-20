@@ -1,5 +1,6 @@
 defaults:
     - base_regular_cnn
+    - base_ho3d
 dataset: ho3d
 dataset_path: ../HO3D_v3
 name: regular_resnet_ho3d

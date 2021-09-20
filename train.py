@@ -25,6 +25,7 @@ def main(cfg: DictConfig):
     wandb.init(project="HOPE-Net", config=cfg)
 
     dataset = DatasetFactory.make_data_loader(
+        cfg,
         to_absolute_path(cfg.shapenet_root),
         cfg.experiment.dataset,
         to_absolute_path(cfg.experiment.dataset_path),
