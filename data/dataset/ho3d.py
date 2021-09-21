@@ -35,6 +35,18 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
     """
     The official spltis won't be used for this dataset. Custom splits will be used, with a
     specified hold-out value for how many object categories to hold out of the training set.
+
+    Object categories:
+    1: Banana
+    2: Potted meat can
+    3: Mustard bottl
+    4: Sugar box
+    5: Power drill
+    6: Scissors
+    7: Bleach cleanser
+    8: Mug
+    9: Cracker box
+    10: Pitcher base <- in the evaluation set, no joint poses for the hand except the wrist
     """
 
     def __init__(
@@ -42,7 +54,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         root: str,
         batch_size: int,
         k_shots: int,
-        n_querries: int,
+        n_queries: int,
         test: bool = False,
         object_as_task: bool = True,
         hold_out: int = 0,
@@ -54,7 +66,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             root,
             batch_size,
             k_shots,
-            n_querries,
+            n_queries,
             test,
             object_as_task,
             normalize_keypoints,
@@ -69,8 +81,22 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         self._cam_extr = np.array(
             [[1.0, 0.0, 0.0], [0, -1.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float32
         )
-        self._split_categories = self._make_split_categories(hold_out)
-        print(self._split_categories)
+        self._obj_labels = [
+            "011_banana",
+            "010_potted_meat_can",
+            "006_mustard_bottle",
+            "004_sugar_box",
+            "035_power_drill",
+            "037_scissors",
+            "021_bleach_cleanser",
+            "025_mug",
+            "003_cracker_box",
+            # "019_pitcher_base",
+        ]
+        self._split_categories = self._make_split_categories(hold_out, manual=True)
+        print(f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}")
+        print(f"[*] Validating with {', '.join([self._obj_labels[i] for i in self._split_categories['val']])}")
+        print(f"[*] Testing with {', '.join([self._obj_labels[i] for i in self._split_categories['test']])}")
         # Don't auto load, this is a custom loading
         if test:
             self.test = self._load(
@@ -95,22 +121,30 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 normalize_keypoints,
             )
 
-    def _make_split_categories(self, hold_out) -> dict:
+    def _make_split_categories(self, hold_out, manual=False) -> dict:
         """
         HO-3D contains 9 object categories. This method distributes those categories per split,
         according to "hold_out" which corresponds to how many are held out of the train split.
         However if N categories are held out, 2*N categories must be effectively held out because
         they can't be the same for the validation and test splits!
         """
-        categories = list(range(9))
+        categories = list(range(len(self._obj_labels)))
         assert (
-            10 - (2 * hold_out) >= 1
+            len(self._obj_labels) - (2 * hold_out) >= 1
         ), "There must remain at least one category in the train split"
-        return {
-            "train": categories[: -2 * hold_out],
-            "val": categories[-2 * hold_out : -hold_out],
-            "test": categories[-hold_out:],
-        }
+        if manual and hold_out == 2:
+            splits = {
+                "train": [1, 2, 3, 6, 8],
+                "val": [0, 7], # Banana and Mug
+                "test": [4, 5] # Power drill and Scissors
+            }
+        else:
+            splits = {
+                "train": categories[: -2 * hold_out],
+                "val": categories[-2 * hold_out : -hold_out],
+                "test": categories[-hold_out:],
+            }
+        return splits
 
     def _compute_labels(
         self, root: str, meta: dict
@@ -131,7 +165,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         hand_obj_2d = (hand_obj_2d / hand_obj_2d[:, 2:])[:, :2]
         return torch.Tensor(hand_obj_2d), torch.Tensor(hand_obj_3d)
 
-    def _make_samples(
+    def _make_dataset(
         self,
         split: str,
         dataset_root: str,
@@ -158,7 +192,6 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                     raise Exception(
                         f"{self._root} directory does not contain the '{rel_root}' folder!"
                     )
-                print(root)
                 for subject in os.listdir(root):
                     s_path = os.path.join(root, subject)
                     if not os.path.isdir(s_path):
@@ -178,7 +211,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                         except ValueError:
                             failed += 1
                             continue
-                        obj_class_id = meta["objLabel"]
+                        obj_class_id = self._obj_labels.index(meta["objName"])
                         if obj_class_id not in samples.keys():
                             samples[obj_class_id] = []
                         samples[obj_class_id].append((img_path, points_2d, points_3d))
@@ -205,7 +238,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
         )
         print(f"[*] Total object categories: {len(samples.keys())}")
-        if not object_as_task: # Transform to list
+        if not object_as_task:  # Transform to list
             samples = list(itertools.chain.from_iterable(samples.values()))
         print(f"[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
@@ -225,7 +258,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         shuffle: bool,
         normalize_keypoints: bool,
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
-        split_task_set = self._make_samples(
+        dataset = self._make_dataset(
             split,
             self._root,
             split_folders,
@@ -234,21 +267,22 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         )
         if object_as_task:
             split_dataset = l2l.data.MetaDataset(
-                split_task_set, indices_to_labels=split_task_set.class_labels
+                dataset, indices_to_labels=dataset.class_labels
             )
             split_dataset_loader = l2l.data.TaskDataset(
                 split_dataset,
                 [
                     l2l.data.transforms.NWays(split_dataset, n=1),
                     l2l.data.transforms.KShots(
-                        split_dataset, k=self.k_shots + self.n_querries
+                        split_dataset, k=self.k_shots + self.n_queries
                     ),
                     l2l.data.transforms.LoadData(split_dataset),
                 ],
+                num_tasks=(-1 if split == "train" else (len(dataset) / (self.k_shots + self.n_queries))),
             )
         else:
             split_dataset_loader = DataLoader(
-                split_task_set,
+                dataset,
                 batch_size=self._batch_size,
                 shuffle=shuffle,
                 num_workers=8,
