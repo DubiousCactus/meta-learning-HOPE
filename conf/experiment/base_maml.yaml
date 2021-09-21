@@ -1,8 +1,8 @@
 defaults:
     - base
 algorithm: maml
-val_every: 500
-fast_lr: 0.01
+val_every: 5
+fast_lr: 0.1
 meta_lr: 0.001
 lr_step: 1000
 lr_step_gamma: 0.5
@@ -10,7 +10,7 @@ k_shots: 15
 n_queries: 30
 steps: 1
 batch_size: 32
-iterations: 50000
+iterations: 5000
 object_as_task: True
 max_grad_norm: 25.0
 optimizer: sgd

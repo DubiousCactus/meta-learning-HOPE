@@ -34,7 +34,7 @@ class BaseDatasetTaskLoader(ABC):
         root: str,
         batch_size: int,
         k_shots: int,
-        n_querries: int,
+        n_queries: int,
         test: bool,
         object_as_task: bool,
         normalize_keypoints: bool,
@@ -45,7 +45,7 @@ class BaseDatasetTaskLoader(ABC):
         self._root = root
         self._batch_size = batch_size
         self.k_shots = k_shots
-        self.n_querries = n_querries
+        self.n_queries = n_queries
         self._use_cuda = use_cuda
         self._gpu_number = gpu_number
         self.train, self.val, self.test = None, None, None

@@ -39,7 +39,7 @@ class MAML_HOPETrainer(MAMLTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
-        n_querries,
+        n_queries,
         inner_steps: int,
         cnn_def: str,
         resnet_path: str,
@@ -55,7 +55,7 @@ class MAML_HOPETrainer(MAMLTrainer):
             dataset,
             checkpoint_path,
             k_shots,
-            n_querries,
+            n_queries,
             inner_steps,
             model_path=model_path,
             first_order=first_order,
@@ -127,7 +127,7 @@ class MAML_CNNTrainer(MAMLTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
-        n_querries,
+        n_queries,
         inner_steps: int,
         cnn_def: str,
         model_path: str = None,
@@ -152,7 +152,7 @@ class MAML_CNNTrainer(MAMLTrainer):
             dataset,
             checkpoint_path,
             k_shots,
-            n_querries,
+            n_queries,
             inner_steps,
             model_path=model_path,
             first_order=first_order,
@@ -202,7 +202,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
-        n_querries,
+        n_queries,
         inner_steps: int,
         cnn_def: str,
         model_path: str = None,
@@ -229,7 +229,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             dataset,
             checkpoint_path,
             k_shots,
-            n_querries,
+            n_queries,
             inner_steps,
             model_path=model_path,
             first_order=first_order,
@@ -284,7 +284,28 @@ class ANIL_CNNTrainer(ANILTrainer):
     def _testing_step(
         self, meta_batch: MetaBatch, head, features, clip_grad_norm=None, compute="mse"
     ):
-        return self._training_step(meta_batch, head, features, clip_grad_norm, compute)
+        criterion = self.inner_criterion
+        if compute == "mae":
+            criterion = F.l1_loss
+        s_inputs, s_labels2d, _ = meta_batch.support
+        q_inputs, q_labels2d, _ = meta_batch.query
+        if self._use_cuda:
+            s_inputs = s_inputs.float().cuda(device=self._gpu_number)
+            s_labels2d = s_labels2d.float().cuda(device=self._gpu_number)
+            q_inputs = q_inputs.float().cuda(device=self._gpu_number)
+            q_labels2d = q_labels2d.float().cuda(device=self._gpu_number)
+
+        s_inputs = features(s_inputs)
+        # Adapt the model on the support set
+        for _ in range(self._steps):
+            # forward + backward + optimize
+            outputs2d_init = head(s_inputs).view(-1, 29, 2)
+            support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
+            head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
+
+        q_inputs = features(q_inputs)
+        q_outputs2d_init = head(q_inputs).view(-1, 29, 2)
+        return criterion(q_outputs2d_init, q_labels2d)
 
 
 class MAML_GraphUNetTrainer(MAMLTrainer):
@@ -293,7 +314,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
-        n_querries: int,
+        n_queries: int,
         inner_steps: int,
         model_path: str = None,
         first_order: bool = False,
@@ -305,7 +326,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             dataset,
             checkpoint_path,
             k_shots,
-            n_querries,
+            n_queries,
             inner_steps,
             model_path=model_path,
             first_order=first_order,

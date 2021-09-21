@@ -32,7 +32,7 @@ class ANILTrainer(MAMLTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
-        n_querries: int,
+        n_queries: int,
         inner_steps: int,
         model_path: str = None,
         first_order: bool = False,
@@ -46,7 +46,7 @@ class ANILTrainer(MAMLTrainer):
             dataset,
             checkpoint_path,
             k_shots,
-            n_querries,
+            n_queries,
             inner_steps,
             model_path=model_path,
             first_order=first_order,
@@ -105,10 +105,14 @@ class ANILTrainer(MAMLTrainer):
         else:
             raise ValueError(f"{optimizer} is not a valid outer optimizer")
 
+        iter_per_epoch = (
+            len(self.dataset.train.dataset)
+            // (batch_size * (self._k_shots + self._n_queries))
+        ) + 1
         # From How to Train Your MAML:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt,
-            T_max=iterations,
+            T_max=iterations*iter_per_epoch,
             eta_min=0.00001,
             last_epoch=self._epoch - 1,
         )
@@ -117,33 +121,62 @@ class ANILTrainer(MAMLTrainer):
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
-            opt.zero_grad()
             meta_train_losses, meta_val_mse_losses, meta_val_mae_losses = [], [], []
-            meta_val_mse_loss, meta_val_mae_loss = 0.0, 0.0
-            # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
-            for _ in tqdm(range(batch_size), dynamic_ncols=True):
-                if self._exit:
-                    self._backup()
-                    return
-                # Compute the meta-training loss
-                head = maml.clone()
-                meta_batch = self._split_batch(self.dataset.train.sample())
-                inner_loss = self._training_step(
-                    meta_batch,
-                    head,
-                    self.model.features,
-                    clip_grad_norm=max_grad_norm,
-                    msl=self._msl,
-                )
-                if torch.isnan(inner_loss).any():
-                    raise ValueError("Inner loss is Nan!")
-                inner_loss.backward()
-                meta_train_losses.append(inner_loss.detach())
-
-                if (epoch + 1) % val_every == 0:
-                    # Compute the meta-validation loss
+            for _ in tqdm(range(iter_per_epoch), dynamic_ncols=True):
+                opt.zero_grad()
+                # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
+                for _ in range(batch_size):
+                    if self._exit:
+                        self._backup()
+                        return
+                    # Compute the meta-training loss
                     head = maml.clone()
-                    meta_batch = self._split_batch(self.dataset.val.sample())
+                    # Randomly sample a task (which is created by randomly sampling images, so the
+                    # same image sample can appear in several tasks during one epoch, and some
+                    # images can not appear during one epoch)
+                    meta_batch = self._split_batch(self.dataset.train.sample())
+                    inner_loss = self._training_step(
+                        meta_batch,
+                        head,
+                        self.model.features,
+                        clip_grad_norm=max_grad_norm,
+                        msl=self._msl,
+                    )
+                    if torch.isnan(inner_loss).any():
+                        raise ValueError("Inner loss is Nan!")
+                    inner_loss.backward()
+                    meta_train_losses.append(inner_loss.detach())
+
+                # Average the accumulated gradients and optimize
+                for p in maml.parameters():
+                    # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
+                    # instead of modifying the original code, this simple check will do).
+                    if p.grad is not None:
+                        p.grad.data.mul_(1.0 / batch_size)
+                # Gradient clipping
+                if max_grad_norm:
+                    torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+                opt.step()
+                if use_scheduler:
+                    scheduler.step()
+
+                if self._msl:
+                    self._anneal_step_weights()
+
+            meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
+
+            wandb.log({"meta_train_loss": meta_train_loss}, step=epoch)
+            print(f"==========[Epoch {epoch}]==========")
+            print(f"Meta-training Loss: {meta_train_loss:.6f}")
+
+            # ====== Validation ======
+            if (epoch + 1) % val_every == 0:
+                # Compute the meta-validation loss
+                # Go through the entire validation set, which shouldn't be shuffled, and
+                # which tasks should not be continuously resampled from!
+                for task in tqdm(self.dataset.val):
+                    head = maml.clone()
+                    meta_batch = self._split_batch(task)
                     inner_mse_loss = self._testing_step(
                         meta_batch,
                         head,
@@ -160,18 +193,13 @@ class ANILTrainer(MAMLTrainer):
                     )
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())
-            meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
-            if (epoch + 1) % val_every == 0:
                 meta_val_mse_loss = float(
                     torch.Tensor(meta_val_mse_losses).mean().item()
                 )
                 meta_val_mae_loss = float(
                     torch.Tensor(meta_val_mae_losses).mean().item()
                 )
-            wandb.log({"meta_train_loss": meta_train_loss}, step=epoch)
-            print(f"==========[Epoch {epoch}]==========")
-            print(f"Meta-training Loss: {meta_train_loss:.6f}")
-            if (epoch + 1) % val_every == 0:
+
                 wandb.log(
                     {
                         "meta_val_mse_loss": meta_val_mse_loss,
@@ -181,41 +209,25 @@ class ANILTrainer(MAMLTrainer):
                 )
                 print(f"Meta-validation MSE Loss: {meta_val_mse_loss:.6f}")
                 print(f"Meta-validation MAE Loss: {meta_val_mae_loss:.6f}")
+
+                # Model checkpointing
+                if meta_val_mse_loss < past_val_loss:
+                    state_dicts = {
+                        "epoch": epoch,
+                        "model_state_dict": self.model.state_dict(),
+                        "maml_state_dict": maml.state_dict(),
+                        "meta_opt_state_dict": opt.state_dict(),
+                        "scheduler_state_dict": scheduler.state_dict(),
+                        "val_meta_loss": meta_val_mse_loss,
+                    }
+                    self._checkpoint(
+                        epoch,
+                        meta_train_loss,
+                        meta_val_mse_loss,
+                        meta_val_mae_loss,
+                        state_dicts,
+                    )
+                    past_val_loss = meta_val_mse_loss
+            # ============
+
             print("============================================")
-
-            # Average the accumulated gradients and optimize
-            for p in maml.parameters():
-                # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
-                # instead of modifying the original code, this simple check will do).
-                if p.grad is not None:
-                    p.grad.data.mul_(1.0 / batch_size)
-            # Gradient clipping
-            if max_grad_norm:
-                grad_norm = torch.nn.utils.clip_grad_norm_(
-                    maml.parameters(), max_grad_norm
-                )
-            opt.step()
-            if use_scheduler:
-                scheduler.step()
-
-            if self._msl:
-                self._anneal_step_weights()
-
-            # Model checkpointing
-            if (epoch + 1) % val_every == 0 and meta_val_mse_loss < past_val_loss:
-                state_dicts = {
-                    "epoch": epoch,
-                    "model_state_dict": self.model.state_dict(),
-                    "maml_state_dict": maml.state_dict(),
-                    "meta_opt_state_dict": opt.state_dict(),
-                    "scheduler_state_dict": scheduler.state_dict(),
-                    "val_meta_loss": meta_val_mse_loss,
-                }
-                self._checkpoint(
-                    epoch,
-                    meta_train_loss,
-                    meta_val_mse_loss,
-                    meta_val_mae_loss,
-                    state_dicts,
-                )
-                past_val_loss = meta_val_mse_loss

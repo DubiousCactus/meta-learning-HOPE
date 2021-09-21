@@ -33,7 +33,7 @@ class MAMLTrainer(BaseTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         k_shots: int,
-        n_querries: int,
+        n_queries: int,
         inner_steps: int,
         model_path: str = None,
         first_order: bool = False,
@@ -44,8 +44,8 @@ class MAMLTrainer(BaseTrainer):
             dataset.k_shots == k_shots
         ), "Dataset's K-shots does not match MAML's K-shots!"
         assert (
-            dataset.n_querries == n_querries
-        ), "Dataset's N-querries does not match MAML's N-querries!"
+            dataset.n_queries == n_queries
+        ), "Dataset's N-queries does not match MAML's N-queries!"
         super().__init__(
             model,
             dataset,
@@ -55,7 +55,7 @@ class MAMLTrainer(BaseTrainer):
             gpu_numbers=gpu_numbers,
         )
         self._k_shots = k_shots
-        self._n_querries = n_querries
+        self._n_queries = n_queries
         self._steps = inner_steps
         self._first_order = first_order
 
@@ -64,7 +64,7 @@ class MAMLTrainer(BaseTrainer):
         Separate data batch into adaptation/evalutation sets.
         """
         images, labels_2d, labels_3d = batch
-        batch_size = self._k_shots + self._n_querries
+        batch_size = self._k_shots + self._n_queries
         indices = torch.randperm(batch_size)
         support_indices = indices[: self._k_shots]
         query_indices = indices[self._k_shots :]
