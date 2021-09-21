@@ -121,8 +121,9 @@ class ANILTrainer(MAMLTrainer):
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
-            meta_train_losses, meta_val_mse_losses, meta_val_mae_losses = [], [], []
+            epoch_meta_train_loss = .0
             for _ in tqdm(range(iter_per_epoch), dynamic_ncols=True):
+                meta_train_losses = []
                 opt.zero_grad()
                 # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
                 for _ in range(batch_size):
@@ -147,6 +148,8 @@ class ANILTrainer(MAMLTrainer):
                     inner_loss.backward()
                     meta_train_losses.append(inner_loss.detach())
 
+                epoch_meta_train_loss += torch.Tensor(meta_train_losses).mean().item()
+
                 # Average the accumulated gradients and optimize
                 for p in maml.parameters():
                     # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
@@ -163,17 +166,18 @@ class ANILTrainer(MAMLTrainer):
                 if self._msl:
                     self._anneal_step_weights()
 
-            meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
+            epoch_meta_train_loss /= iterations
 
-            wandb.log({"meta_train_loss": meta_train_loss}, step=epoch)
+            wandb.log({"meta_train_loss": epoch_meta_train_loss}, step=epoch)
             print(f"==========[Epoch {epoch}]==========")
-            print(f"Meta-training Loss: {meta_train_loss:.6f}")
+            print(f"Meta-training Loss: {epoch_meta_train_loss:.6f}")
 
             # ====== Validation ======
             if (epoch + 1) % val_every == 0:
                 # Compute the meta-validation loss
                 # Go through the entire validation set, which shouldn't be shuffled, and
                 # which tasks should not be continuously resampled from!
+                meta_val_mse_losses, meta_val_mae_losses = [], []
                 for task in tqdm(self.dataset.val):
                     head = maml.clone()
                     meta_batch = self._split_batch(task)
@@ -222,7 +226,7 @@ class ANILTrainer(MAMLTrainer):
                     }
                     self._checkpoint(
                         epoch,
-                        meta_train_loss,
+                        epoch_meta_train_loss,
                         meta_val_mse_loss,
                         meta_val_mae_loss,
                         state_dicts,
