@@ -138,6 +138,12 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 "val": [0, 7], # Banana and Mug
                 "test": [4, 5] # Power drill and Scissors
             }
+        elif manual and hold_out == 1:
+            splits = {
+                "train": [0, 1, 2, 3, 6, 7, 8],
+                "val": [5], # Scissors
+                "test": [4] # Power drill
+            }
         else:
             splits = {
                 "train": categories[: -2 * hold_out],
