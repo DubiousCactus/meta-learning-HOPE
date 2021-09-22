@@ -112,7 +112,7 @@ class ANILTrainer(MAMLTrainer):
         # From How to Train Your MAML:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt,
-            T_max=iterations*iter_per_epoch,
+            T_max=iterations * iter_per_epoch,
             eta_min=0.00001,
             last_epoch=self._epoch - 1,
         )
@@ -121,7 +121,7 @@ class ANILTrainer(MAMLTrainer):
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
-            epoch_meta_train_loss = .0
+            epoch_meta_train_loss = 0.0
             for _ in tqdm(range(iter_per_epoch), dynamic_ncols=True):
                 meta_train_losses = []
                 opt.zero_grad()
@@ -166,7 +166,7 @@ class ANILTrainer(MAMLTrainer):
                 if self._msl:
                     self._anneal_step_weights()
 
-            epoch_meta_train_loss /= iterations
+            epoch_meta_train_loss /= iter_per_epoch
 
             wandb.log({"meta_train_loss": epoch_meta_train_loss}, step=epoch)
             print(f"==========[Epoch {epoch}]==========")
@@ -178,7 +178,7 @@ class ANILTrainer(MAMLTrainer):
                 # Go through the entire validation set, which shouldn't be shuffled, and
                 # which tasks should not be continuously resampled from!
                 meta_val_mse_losses, meta_val_mae_losses = [], []
-                for task in tqdm(self.dataset.val):
+                for task in tqdm(self.dataset.val, dynamic_ncols=True):
                     head = maml.clone()
                     meta_batch = self._split_batch(task)
                     inner_mse_loss = self._testing_step(
