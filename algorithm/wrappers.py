@@ -215,9 +215,9 @@ class ANIL_CNNTrainer(ANILTrainer):
         if cnn_def == "resnet10":
             cnn = ResNet(model="10", pretrained=True)
         elif cnn_def == "resnet18":
-            cnn = ResNet(model="10", pretrained=True)
+            cnn = ResNet(model="18", pretrained=True)
         elif cnn_def == "resnet34":
-            cnn = ResNet(model="10", pretrained=True)
+            cnn = ResNet(model="34", pretrained=True)
         elif cnn_def == "mobilenetv3-small":
             cnn = MobileNet(model="v3-small", pretrained=True)
         elif cnn_def == "mobilenetv3-large":
@@ -401,9 +401,9 @@ class Regular_CNNTrainer(RegularTrainer):
         if cnn_def == "resnet10":
             cnn = ResNet(model="10", pretrained=True)
         elif cnn_def == "resnet18":
-            cnn = ResNet(model="10", pretrained=True)
+            cnn = ResNet(model="18", pretrained=True)
         elif cnn_def == "resnet34":
-            cnn = ResNet(model="10", pretrained=True)
+            cnn = ResNet(model="34", pretrained=True)
         elif cnn_def == "mobilenetv3-small":
             cnn = MobileNet(model="v3-small", pretrained=True)
         elif cnn_def == "mobilenetv3-large":
