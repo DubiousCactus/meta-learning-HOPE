@@ -42,6 +42,8 @@ class ResNet(InitWrapper, torch.nn.Module):
             network = models.resnet18(pretrained=pretrained)
         elif model == "34":
             network = models.resnet34(pretrained=pretrained)
+        elif model == "50":
+            network = models.resnet50(pretrained=pretrained)
         else:
             raise ValueError(f"No models for {model}")
         n_features = network.fc.in_features
