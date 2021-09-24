@@ -9,4 +9,4 @@ fast_lr: 0.1
 optimizer: adam
 max_grad_norm: null
 steps: 5
-batch_size: 25
+batch_size: 5

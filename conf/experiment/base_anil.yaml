@@ -2,6 +2,7 @@ defaults:
   - base_maml
 algorithm: anil
 multi_step_loss: true
-msl_num_epochs: 1000
+msl_num_epochs: 20
+iterations: 100
 optimizer: adam
 
