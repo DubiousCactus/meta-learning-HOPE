@@ -235,3 +235,47 @@ class ANILTrainer(MAMLTrainer):
             # ============
 
             print("============================================")
+
+    def test(
+        self,
+        batch_size: int = 16,
+        fast_lr: float = 0.01,
+        meta_lr: float = 0.001,
+    ):
+        maml = l2l.algorithms.MAML(
+            self.model.head, lr=fast_lr, first_order=self._first_order, allow_unused=True
+        )
+        all_parameters = list(self.model.features.parameters()) + list(
+            maml.parameters()
+        )
+        opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
+        self._restore(maml, opt, None, resume_training=False)
+
+        meta_mse_losses, meta_mae_losses = [], []
+        for task in tqdm(self.dataset.test, dynamic_ncols=True):
+            head = maml.clone()
+            meta_batch = self._split_batch(task)
+            inner_mse_loss = self._testing_step(
+                meta_batch,
+                head,
+                self.model.features,
+            )
+            head = maml.clone()
+            inner_mae_loss = self._testing_step(
+                meta_batch,
+                head,
+                self.model.features,
+                compute="mae",
+            )
+            meta_mse_losses.append(inner_mse_loss.detach())
+            meta_mae_losses.append(inner_mae_loss.detach())
+        meta_mse_loss = float(
+            torch.Tensor(meta_mse_losses).mean().item()
+        )
+        meta_mae_loss = float(
+            torch.Tensor(meta_mae_losses).mean().item()
+        )
+
+        print("==========[Test Error]==========")
+        print(f"Meta-testing MSE Loss: {meta_mse_loss:.6f}")
+        print(f"Meta-testing MAE Loss: {meta_mae_loss:.6f}")
