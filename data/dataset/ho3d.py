@@ -132,7 +132,13 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         assert (
             len(self._obj_labels) - (2 * hold_out) >= 1
         ), "There must remain at least one category in the train split"
-        if manual and hold_out == 2:
+        if manual and hold_out == 3:
+            splits = {
+                "train": [1, 3, 8],
+                "val": [2, 6, 7], # Mustard bottle, Bleach cleanser, and Mug
+                "test": [4, 5, 0] # Power drill, Scissors and Banana
+            }
+        elif manual and hold_out == 2:
             splits = {
                 "train": [1, 2, 3, 6, 8],
                 "val": [0, 7], # Banana and Mug

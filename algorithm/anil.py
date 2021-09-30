@@ -121,6 +121,8 @@ class ANILTrainer(MAMLTrainer):
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
+            self.model.train()
+            maml.train()
             epoch_meta_train_loss = 0.0
             for _ in tqdm(range(iter_per_epoch), dynamic_ncols=True):
                 meta_train_losses = []
@@ -177,6 +179,8 @@ class ANILTrainer(MAMLTrainer):
                 # Compute the meta-validation loss
                 # Go through the entire validation set, which shouldn't be shuffled, and
                 # which tasks should not be continuously resampled from!
+                self.model.eval()
+                maml.eval()
                 meta_val_mse_losses, meta_val_mae_losses = [], []
                 for task in tqdm(self.dataset.val, dynamic_ncols=True):
                     head = maml.clone()
@@ -242,9 +246,11 @@ class ANILTrainer(MAMLTrainer):
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
     ):
+        self.model.eval()
         maml = l2l.algorithms.MAML(
             self.model.head, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
+        maml.eval()
         all_parameters = list(self.model.features.parameters()) + list(
             maml.parameters()
         )
