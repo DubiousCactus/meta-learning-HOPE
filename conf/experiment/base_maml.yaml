@@ -1,17 +1,19 @@
 defaults:
     - base
 algorithm: maml
-val_every: 5
+val_every: 1
 fast_lr: 0.1
 meta_lr: 0.001
 lr_step: 1000
 lr_step_gamma: 0.5
 k_shots: 15
-n_queries: 30
+n_queries: 15
 steps: 1
 batch_size: 32
-iterations: 5000
+iterations: 200
 object_as_task: True
 max_grad_norm: 25.0
-optimizer: sgd
+optimizer: adam
+multi_step_loss: true
+msl_num_epochs: 50
 name: maml_training

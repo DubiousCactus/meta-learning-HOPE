@@ -255,7 +255,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             criterion = F.l1_loss
         s_inputs, s_labels2d, _ = batch.support
         q_inputs, q_labels2d, _ = batch.query
-        query_loss = 0
+        query_loss = .0
         if self._use_cuda:
             s_inputs = s_inputs.float().cuda(device=self._gpu_number)
             s_labels2d = s_labels2d.float().cuda(device=self._gpu_number)
@@ -320,6 +320,8 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         inner_steps: int,
         model_path: str = None,
         first_order: bool = False,
+        multi_step_loss: bool = True,
+        msl_num_epochs: int = 1000,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -332,18 +334,21 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             inner_steps,
             model_path=model_path,
             first_order=first_order,
+            multi_step_loss=multi_step_loss,
+            msl_num_epochs=msl_num_epochs,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
 
     def _training_step(
-        self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
+        self, batch: MetaBatch, learner, clip_grad_norm=None, compute="mse", msl=True
     ):
         criterion = self.inner_criterion
         if compute == "mae":
             criterion = F.l1_loss
         _, s_labels2d, s_labels3d = batch.support
         _, q_labels2d, q_labels3d = batch.query
+        query_loss = .0
         if self._use_cuda:
             s_labels2d = s_labels2d.float().cuda(device=self._gpu_number)
             s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
@@ -359,35 +364,41 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         #     print(f"Average inner weight norm: {avg_norm:.2f}")
 
         # Adapt the model on the support set
-        for _ in range(self._steps):
+        for step in range(self._steps):
             # forward + backward + optimize
             outputs3d = learner(s_labels2d)
-            # print(outputs3d)
-            if torch.isnan(outputs3d).any():
-                print(f"Support outputs contains NaN!")
+            # if torch.isnan(outputs3d).any():
+            # print(f"Support outputs contains NaN!")
             support_loss = self.inner_criterion(outputs3d, s_labels3d)
             learner.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
+            if msl:  # Multi-step loss
+                q_outputs3d = learner(q_labels2d)
+                query_loss += self._step_weights[step] * criterion(
+                    q_outputs3d, q_labels3d
+                )
 
-        print("-----Adapted-----")
-        with torch.no_grad():
-            avg_norm = []
-            for p in learner.parameters():
-                avg_norm.append(torch.linalg.norm(p.data))
-            # print(torch.tensor(avg_norm))
-            avg_norm = torch.tensor(avg_norm).mean().item()
-            print(f"Average inner weight norm: {avg_norm:.2f}")
+        # with torch.no_grad():
+        # avg_norm = []
+        # for p in learner.parameters():
+        # avg_norm.append(torch.linalg.norm(p.data))
+        # print(torch.tensor(avg_norm))
+        # avg_norm = torch.tensor(avg_norm).mean().item()
+        # print(f"Average inner weight norm: {avg_norm:.2f}")
 
         # Evaluate the adapted model on the query set
-        e_outputs3d = learner(q_labels2d)
-        if torch.isnan(e_outputs3d).any():
-            print(f"Query outputs contains NaN!")
-        query_loss = criterion(e_outputs3d, q_labels3d)
+        if not msl:
+            q_outputs3d = learner(q_labels2d)
+            # if torch.isnan(e_outputs3d).any():
+            # print(f"Query outputs contains NaN!")
+            query_loss = criterion(q_outputs3d, q_labels3d)
         return query_loss
 
     def _testing_step(
         self, meta_batch: MetaBatch, learner, clip_grad_norm=None, compute="mse"
     ):
-        return self._training_step(meta_batch, learner, clip_grad_norm, compute)
+        return self._training_step(
+            meta_batch, learner, clip_grad_norm, compute, msl=False
+        )
 
 
 class Regular_CNNTrainer(RegularTrainer):

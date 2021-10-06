@@ -127,7 +127,11 @@ class AlgorithmFactory:
                 trainer = MAML_GraphUNetTrainer
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
-            kargs = {"first_order": algorithm == "fomaml"}
+            kargs = {
+                "first_order": algorithm == "fomaml",
+                "multi_step_loss": config.experiment.multi_step_loss,
+                "msl_num_epochs": config.experiment.msl_num_epochs,
+            }
         elif algorithm in ["anil", "foanil"]:
             args: List = [k_shots, n_queries, inner_steps]
             if "resnet" in model_def or "mobilenet" in model_def:

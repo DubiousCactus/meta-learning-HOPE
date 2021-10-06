@@ -151,7 +151,7 @@ class MAMLTrainer(BaseTrainer):
                 opt.zero_grad()
                 maml.zero_grad()
                 # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
-                for _ in tqdm(range(batch_size), dynamic_ncols=True):
+                for _ in range(batch_size):
                     if self._exit:
                         self._backup()
                         return
@@ -159,7 +159,7 @@ class MAMLTrainer(BaseTrainer):
                     learner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.train.sample())
                     meta_loss = self._training_step(
-                        meta_batch, learner, clip_grad_norm=max_grad_norm
+                        meta_batch, learner, clip_grad_norm=max_grad_norm, msl=self._msl
                     )
                     if torch.isnan(meta_loss).any():
                         raise ValueError("Inner loss is Nan!")
