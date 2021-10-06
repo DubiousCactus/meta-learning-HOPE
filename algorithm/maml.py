@@ -37,6 +37,8 @@ class MAMLTrainer(BaseTrainer):
         inner_steps: int,
         model_path: str = None,
         first_order: bool = False,
+        multi_step_loss: bool = True,
+        msl_num_epochs: int = 1000,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -58,6 +60,23 @@ class MAMLTrainer(BaseTrainer):
         self._n_queries = n_queries
         self._steps = inner_steps
         self._first_order = first_order
+        self._step_weights = torch.ones(inner_steps) * (1.0 / inner_steps)
+        self._msl = multi_step_loss
+        self._msl_decay_rate = 1.0 / self._steps / msl_num_epochs
+        self._msl_min_value_for_non_final_losses = torch.tensor(0.03 / self._steps)
+        self._msl_max_value_for_final_loss = 1.0 - (
+            (self._steps - 1) * self._msl_min_value_for_non_final_losses
+        )
+
+    def _anneal_step_weights(self):
+        self._step_weights[:-1] = torch.max(
+            self._step_weights[:-1] - self._msl_decay_rate,
+            self._msl_min_value_for_non_final_losses,
+        )
+        self._step_weights[-1] = torch.min(
+            self._step_weights[-1] + ((self._steps - 1) * self._msl_decay_rate),
+            self._msl_max_value_for_final_loss,
+        )
 
     def _split_batch(self, batch: tuple) -> MetaBatch:
         """
@@ -109,39 +128,95 @@ class MAMLTrainer(BaseTrainer):
         else:
             raise ValueError(f"{optimizer} is not a valid outer optimizer")
 
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            opt, step_size=lr_step, gamma=lr_step_gamma, verbose=True
+        iter_per_epoch = (
+            len(self.dataset.train.dataset)
+            // (batch_size * (self._k_shots + self._n_queries))
+        ) + 1
+
+        # From How to Train Your MAML:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            opt,
+            T_max=iterations * iter_per_epoch,
+            eta_min=0.00001,
+            last_epoch=self._epoch - 1,
         )
-        scheduler.last_epoch = self._epoch
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
-            meta_train_losses, meta_val_mse_losses, meta_val_mae_losses = [], [], []
-            meta_val_mse_loss, meta_val_mae_loss = 0.0, 0.0
-            opt.zero_grad()
-            maml.zero_grad()
-            # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
-            for _ in tqdm(range(batch_size), dynamic_ncols=True):
-                if self._exit:
-                    self._backup()
-                    return
-                # Compute the meta-training loss
-                learner = maml.clone()
-                meta_batch = self._split_batch(self.dataset.train.sample())
-                meta_loss = self._training_step(
-                    meta_batch, learner, clip_grad_norm=max_grad_norm
-                )
-                if torch.isnan(meta_loss).any():
-                    raise ValueError("Inner loss is Nan!")
-                meta_loss.backward()
-                meta_train_losses.append(meta_loss.detach())
-
-                if (epoch + 1) % val_every == 0:
-                    # Compute the meta-validation loss
+            epoch_meta_train_loss = 0.0
+            for _ in tqdm(range(iter_per_epoch), dynamic_ncols=True):
+                meta_train_losses = []
+                opt.zero_grad()
+                maml.zero_grad()
+                # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
+                for _ in tqdm(range(batch_size), dynamic_ncols=True):
+                    if self._exit:
+                        self._backup()
+                        return
+                    # Compute the meta-training loss
                     learner = maml.clone()
-                    meta_batch = self._split_batch(self.dataset.val.sample())
+                    meta_batch = self._split_batch(self.dataset.train.sample())
+                    meta_loss = self._training_step(
+                        meta_batch, learner, clip_grad_norm=max_grad_norm
+                    )
+                    if torch.isnan(meta_loss).any():
+                        raise ValueError("Inner loss is Nan!")
+                    meta_loss.backward()
+                    meta_train_losses.append(meta_loss.detach())
+
+                epoch_meta_train_loss += torch.Tensor(meta_train_losses).mean().item()
+
+                # Average the accumulated gradients and optimize
+                with torch.no_grad():
+                    for p in maml.parameters():
+                        # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
+                        # instead of modifying the original code, this simple check will do).
+                        if p.grad is not None:
+                            p.grad.data.mul_(1.0 / batch_size)
+
+                # Gradient clipping
+                if max_grad_norm:
+                    torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
+
+                opt.step()
+                if use_scheduler:
+                    scheduler.step()
+
+                if self._msl:
+                    self._anneal_step_weights()
+
+            epoch_meta_train_loss /= iter_per_epoch
+            wandb.log({"meta_train_loss": epoch_meta_train_loss}, step=epoch)
+            # with torch.no_grad():
+            # # Plot the average gradients norm
+            # avg_norm, avg_grad_norm = [], []
+            # for p in maml.parameters():
+            # # print(torch.linalg.norm(p.data))
+            # avg_norm.append(torch.linalg.norm(p.data))
+            # if p.grad is not None:
+            # avg_grad_norm.append(torch.linalg.vector_norm(p.grad))
+            # avg_grad_norm = torch.tensor(avg_grad_norm).mean().item()
+            # avg_norm = torch.tensor(avg_norm).mean().item()
+            # print(f"Average gradient norm: {avg_grad_norm:.2f}")
+            # print(f"Average weight norm: {avg_norm:.2f}")
+            # wandb.log(
+            # {"avg_grad_norm": avg_grad_norm, "avg_weight_norm": avg_norm},
+            # step=epoch,
+            #     )
+            print(f"==========[Epoch {epoch}]==========")
+            print(f"Meta-training Loss: {epoch_meta_train_loss:.6f}")
+
+            # ======= Validation ========
+            if (epoch + 1) % val_every == 0:
+                # Compute the meta-validation loss
+                # Go through the entire validation set, which shouldn't be shuffled, and
+                # which tasks should not be continuously resampled from!
+                meta_val_mse_losses, meta_val_mae_losses = [], []
+                for task in tqdm(self.dataset.val, dynamic_ncols=True):
+                    learner = maml.clone()
+                    meta_batch = self._split_batch(task)
                     inner_mse_loss = self._testing_step(
                         meta_batch, learner, clip_grad_norm=max_grad_norm
                     )
@@ -151,18 +226,12 @@ class MAMLTrainer(BaseTrainer):
                     )
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())
-            meta_train_loss = torch.Tensor(meta_train_losses).mean().item()
-            if (epoch + 1) % val_every == 0:
                 meta_val_mse_loss = float(
                     torch.Tensor(meta_val_mse_losses).mean().item()
                 )
                 meta_val_mae_loss = float(
                     torch.Tensor(meta_val_mae_losses).mean().item()
                 )
-            wandb.log({"meta_train_loss": meta_train_loss}, step=epoch)
-            print(f"==========[Epoch {epoch}]==========")
-            print(f"Meta-training Loss: {meta_train_loss:.6f}")
-            if (epoch + 1) % val_every == 0:
                 wandb.log(
                     {
                         "meta_val_mse_loss": meta_val_mse_loss,
@@ -172,59 +241,27 @@ class MAMLTrainer(BaseTrainer):
                 )
                 print(f"Meta-validation MSE Loss: {meta_val_mse_loss:.6f}")
                 print(f"Meta-validation MAE Loss: {meta_val_mae_loss:.6f}")
-            print("============================================")
 
-            # Average the accumulated gradients and optimize
-            with torch.no_grad():
-                for p in maml.parameters():
-                    # Some parameters in GraphU-Net are unused but require grad (surely a mistake, but
-                    # instead of modifying the original code, this simple check will do).
-                    if p.grad is not None:
-                        p.grad.data.mul_(1.0 / batch_size)
+                # Model checkpointing
+                if meta_val_mse_loss < past_val_loss:
+                    state_dicts = {
+                        "epoch": epoch,
+                        "model_state_dict": self.model.state_dict(),
+                        "maml_state_dict": maml.state_dict(),
+                        "meta_opt_state_dict": opt.state_dict(),
+                        "scheduler_state_dict": scheduler.state_dict(),
+                        "val_meta_loss": meta_val_mse_loss,
+                    }
+                    self._checkpoint(
+                        epoch,
+                        epoch_meta_train_loss,
+                        meta_val_mse_loss,
+                        meta_val_mae_loss,
+                        state_dicts,
+                    )
+                    past_val_loss = meta_val_mse_loss
 
-            # Gradient clipping
-            # if max_grad_norm:
-            # torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
-
-            opt.step()
-            if use_scheduler:
-                scheduler.step()
-
-            with torch.no_grad():
-                # Plot the average gradients norm
-                avg_norm, avg_grad_norm = [], []
-                for p in maml.parameters():
-                    # print(torch.linalg.norm(p.data))
-                    avg_norm.append(torch.linalg.norm(p.data))
-                    if p.grad is not None:
-                        avg_grad_norm.append(torch.linalg.vector_norm(p.grad))
-                avg_grad_norm = torch.tensor(avg_grad_norm).mean().item()
-                avg_norm = torch.tensor(avg_norm).mean().item()
-                print(f"Average gradient norm: {avg_grad_norm:.2f}")
-                print(f"Average weight norm: {avg_norm:.2f}")
-                wandb.log(
-                    {"avg_grad_norm": avg_grad_norm, "avg_weight_norm": avg_norm},
-                    step=epoch,
-                )
-
-            # Model checkpointing
-            if (epoch + 1) % val_every == 0 and meta_val_mse_loss < past_val_loss:
-                state_dicts = {
-                    "epoch": epoch,
-                    "model_state_dict": self.model.state_dict(),
-                    "maml_state_dict": maml.state_dict(),
-                    "meta_opt_state_dict": opt.state_dict(),
-                    "scheduler_state_dict": scheduler.state_dict(),
-                    "val_meta_loss": meta_val_mse_loss,
-                }
-                self._checkpoint(
-                    epoch,
-                    meta_train_loss,
-                    meta_val_mse_loss,
-                    meta_val_mae_loss,
-                    state_dicts,
-                )
-                past_val_loss = meta_val_mse_loss
+                print("============================================")
 
     def test(
         self,
@@ -235,49 +272,30 @@ class MAMLTrainer(BaseTrainer):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
         )
-        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr)
+        opt = torch.optim.Adam(maml.parameters(), lr=meta_lr, amsgrad=False)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
-        meta_test_loss = 0.0
-        for task in range(batch_size):
+
+        meta_mse_losses, meta_mae_losses = [], []
+        for task in tqdm(self.dataset.test, dynamic_ncols=True):
             learner = maml.clone()
-            meta_batch = self._split_batch(self.dataset.test.sample())
+            meta_batch = self._split_batch(task)
 
-            print("Support")
-            images = meta_batch.support[0]
-            for i in range(images.shape[0]):
-                image = images[i, :].permute(1, 2, 0).cpu().numpy()
-                print(
-                    "2D coordinates: ",
-                    meta_batch.support[1][i].shape,
-                    meta_batch.support[1][i],
-                )
-                print(
-                    "3D coordinates: ",
-                    meta_batch.support[2][i].shape,
-                    meta_batch.support[2][i],
-                )
-                plt.imshow(image)
-                plt.show()
+            inner_mse_loss = self._testing_step(
+                meta_batch,
+                learner,
+            )
+            learner = maml.clone()
+            inner_mae_loss = self._testing_step(
+                meta_batch,
+                learner,
+                compute="mae",
+            )
+            meta_mse_losses.append(inner_mse_loss.detach())
+            meta_mae_losses.append(inner_mae_loss.detach())
+        meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())
+        meta_mae_loss = float(torch.Tensor(meta_mae_losses).mean().item())
 
-            print("Query")
-            images = meta_batch.query[0]
-            for i in range(images.shape[0]):
-                image = images[i, :].permute(1, 2, 0).cpu().numpy()
-                print(
-                    "2D coordinates: ",
-                    meta_batch.query[1][i].shape,
-                    meta_batch.query[1][i],
-                )
-                print(
-                    "3D coordinates: ",
-                    meta_batch.query[2][i].shape,
-                    meta_batch.query[2][i],
-                )
-                plt.imshow(image)
-                plt.show()
-
-            meta_loss = self._training_step(meta_batch, learner)
-            meta_test_loss += meta_loss.item()
         print("==========[Test Error]==========")
-        print(f"Meta-testing Loss: {meta_test_loss:.6f}")
+        print(f"Meta-testing MSE Loss: {meta_mse_loss:.6f}")
+        print(f"Meta-testing MAE Loss: {meta_mae_loss:.6f}")

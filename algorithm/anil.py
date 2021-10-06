@@ -50,29 +50,14 @@ class ANILTrainer(MAMLTrainer):
             inner_steps,
             model_path=model_path,
             first_order=first_order,
+            multi_step_loss=multi_step_loss,
+            msl_num_epochs=msl_num_epochs,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
         self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
-        self._step_weights = torch.ones(inner_steps) * (1.0 / inner_steps)
-        self._msl = multi_step_loss
-        self._msl_decay_rate = 1.0 / self._steps / msl_num_epochs
-        self._msl_min_value_for_non_final_losses = torch.tensor(0.03 / self._steps)
-        self._msl_max_value_for_final_loss = 1.0 - (
-            (self._steps - 1) * self._msl_min_value_for_non_final_losses
-        )
-
-    def _anneal_step_weights(self):
-        self._step_weights[:-1] = torch.max(
-            self._step_weights[:-1] - self._msl_decay_rate,
-            self._msl_min_value_for_non_final_losses,
-        )
-        self._step_weights[-1] = torch.min(
-            self._step_weights[-1] + ((self._steps - 1) * self._msl_decay_rate),
-            self._msl_max_value_for_final_loss,
-        )
 
     def train(
         self,
@@ -121,8 +106,6 @@ class ANILTrainer(MAMLTrainer):
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
         for epoch in range(self._epoch, iterations):
-            self.model.train()
-            maml.train()
             epoch_meta_train_loss = 0.0
             for _ in tqdm(range(iter_per_epoch), dynamic_ncols=True):
                 meta_train_losses = []
@@ -251,7 +234,8 @@ class ANILTrainer(MAMLTrainer):
             maml.parameters()
         )
         opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
-        self._restore(maml, opt, None, resume_training=False)
+        if self._model_path:
+            self._restore(maml, opt, None, resume_training=False)
 
         meta_mse_losses, meta_mae_losses = [], []
         for task in tqdm(self.dataset.test, dynamic_ncols=True):
