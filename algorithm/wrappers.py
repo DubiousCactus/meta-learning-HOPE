@@ -376,7 +376,9 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
                 query_loss += self._step_weights[step] * criterion(
                     q_outputs3d, q_labels3d
                 )
+                print(query_loss)
 
+        print("===")
         # with torch.no_grad():
         # avg_norm = []
         # for p in learner.parameters():

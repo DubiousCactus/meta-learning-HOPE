@@ -152,6 +152,7 @@ class ANILTrainer(MAMLTrainer):
                     self._anneal_step_weights()
 
             epoch_meta_train_loss /= iter_per_epoch
+            del meta_train_losses
 
             wandb.log({"meta_train_loss": epoch_meta_train_loss}, step=epoch)
             print(f"==========[Epoch {epoch}]==========")
@@ -188,6 +189,8 @@ class ANILTrainer(MAMLTrainer):
                 meta_val_mae_loss = float(
                     torch.Tensor(meta_val_mae_losses).mean().item()
                 )
+                del meta_val_mae_losses
+                del meta_val_mse_losses
 
                 wandb.log(
                     {
