@@ -15,12 +15,10 @@ from torch.utils.data import DataLoader
 from data.custom import CustomDataset
 from typing import Union, Tuple, List
 from functools import reduce
-from copy import copy
 
 import learn2learn as l2l
 import numpy as np
 import itertools
-import trimesh
 import pickle
 import torch
 import os
@@ -230,7 +228,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
             with open(pickle_path, "wb") as pickle_file:
-                print(f"[*] Saving {split} split into {pickle_path}...")
+                print(f"[*] Saving dataset into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
         if normalize_keypoints:
             print(f"[*] Normalizing 2D and 3D keypoints...")

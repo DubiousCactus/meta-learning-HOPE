@@ -1,0 +1,12 @@
+defaults:
+    - base_anil
+    - base_ho3d
+model_def: ResNet34
+dataset: dexycb
+dataset_path: ../DexYCB
+name: anil_resnet_dexycb
+fast_lr: 0.1
+optimizer: adam
+max_grad_norm: null
+steps: 5
+batch_size: 5

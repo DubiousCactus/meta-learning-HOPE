@@ -11,18 +11,13 @@ Almost No Inner-Loop meta-learning algorithm.
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
-from algorithm.maml import MAMLTrainer, MetaBatch
-from model.cnn import ResNet, MobileNet
-from collections import namedtuple
-from typing import List, Union
+from algorithm.maml import MAMLTrainer
+from typing import List
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
 import learn2learn as l2l
-import logging
 import torch
 import wandb
-import os
 
 
 class ANILTrainer(MAMLTrainer):

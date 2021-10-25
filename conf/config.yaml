@@ -5,7 +5,7 @@ test_mode: False
 resume_training: True
 use_scheduler: True
 defaults:
-    - experiment: maml_resnet_obman
+    - experiment: regular_cnn_ho3d
 hydra:
     run:
         dir: outputs/${experiment.name}/lr:${experiment.fast_lr}_batchsz:${experiment.batch_size}

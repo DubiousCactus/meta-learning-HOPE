@@ -10,6 +10,7 @@
 Utility classes.
 """
 
+from data.dataset.dex_ycb import DexYCBDatasetTaskLoader
 from data.dataset.base import BaseDatasetTaskLoader
 from data.dataset.obman import ObManTaskLoader
 from data.dataset.fphad import FPHADTaskLoader
@@ -65,6 +66,9 @@ class DatasetFactory:
             kargs = {"augment_2d": augment_fphad}
         elif dataset == "ho3d":
             datasetClass = HO3DTaskLoader
+            kargs = {"hold_out": config.experiment.hold_out}
+        elif dataset == "dexycb":
+            datasetClass = DexYCBDatasetTaskLoader
             kargs = {"hold_out": config.experiment.hold_out}
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")

@@ -16,12 +16,9 @@ from collections import namedtuple
 from typing import List, Union
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
 import learn2learn as l2l
-import logging
 import torch
 import wandb
-import os
 
 MetaBatch = namedtuple("MetaBatch", "support query")
 
