@@ -21,11 +21,16 @@ import yaml
 import os
 
 
+class NoInteractionError(Exception):
+    def __init__(self):
+        super().__init__()
+
+
 class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     _subjects = [
         "20200709-subject-01",
-        # "20200813-subject-02",
-        # "20200820-subject-03",
+        "20200813-subject-02",
+        "20200820-subject-03",
         # "20200903-subject-04",
         # "20200908-subject-05",
         # "20200918-subject-06",
@@ -35,7 +40,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         # "20201022-subject-10",
     ]
 
-    _serials = [
+    _viewpoints = [
         "836212060125",
         "839512060362",
         "840412060917",
@@ -68,6 +73,30 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         "051_large_clamp",
         "052_extra_large_clamp",
         "061_foam_brick",
+    ]
+
+    _hand_2_obj_thresholds = [
+        0.08, # Master chef can
+        0.09, # Cracker box
+        0.09, # Sugar box
+        0.08, # Tomato soup can
+        0.05, # Mustard bottle
+        0.06, # Tuna fish can
+        0.05, # Pudding box
+        0.06, # Gelatin box
+        0.05, # Potted meat can
+        0.08, # Banana
+        0.15, # Pitcher base
+        0.07, # Bleach cleanser
+        0.09, # Bowl
+        0.08, # Mug
+        0.08, # Power drill
+        0.1, # Wood block
+        0.08, # Scissors
+        0.06, # Large marker
+        0.1, # Large clamp
+        0.1, # Extra large clamp
+        0.07, # Foam brick
     ]
 
     def __init__(
@@ -154,7 +183,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         return splits
 
     def _compute_labels(
-            self, cam_intr: np.ndarray, meta: dict, labels: dict, obj_label: str
+            self, cam_intr: np.ndarray, meta: dict, labels: dict, obj_id: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # The target object seems to be consistently the first
         # one. The format is [R; t] with R 3x3 and t 3x1.
@@ -162,10 +191,11 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         obj_file_path = os.path.join(
             self._root,
             "models",
-            obj_label,
+            self._obj_labels[obj_id],
             "textured_simple.obj",
         )
         if obj_file_path not in self._bboxes:
+            print(f"loading {obj_file_path}")
             with open(obj_file_path, "r") as m_f:
                 mesh = fast_load_obj(m_f)[0]
             mesh = trimesh.load(mesh)
@@ -173,13 +203,19 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             self._bboxes[obj_file_path] = vert3d
         else:
             vert3d = self._bboxes[obj_file_path]
+
         # Apply the rotation + translation to the bbox vertices
-        transform = labels["pose_y"][0]
+        transform = labels["pose_y"][meta['ycb_grasp_ind']]
         hom_verts = np.concatenate(
             [vert3d, np.ones([vert3d.shape[0], 1])],
             axis=1,
         )
         vert3d = transform.dot(hom_verts.T).T[:, :3]
+        # If the last vertex of the thumb is further than the mean vertex of the object
+        # boudning box according to a threshold, skip it
+        thumb_2_obj_dist = np.linalg.norm(np.mean(vert3d, axis=0) - labels["joint_3d"][0][4, :])
+        if thumb_2_obj_dist > self._hand_2_obj_thresholds[obj_id]:
+            raise NoInteractionError
         # Project to 2D
         hom_2d_verts = np.dot(cam_intr, vert3d.transpose())
         vert2d = hom_2d_verts / hom_2d_verts[2, :]
@@ -197,18 +233,18 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         normalize_keypoints=False,
     ) -> CustomDataset:
         pickle_path = os.path.join(dataset_root, f"dexycb.pkl")
-        if os.path.isfile(pickle_path):
+        if False:#os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading dataset from {pickle_path}...")
                 samples = pickle.load(pickle_file)
         else:
             print(f"[*] Building dataset...")
             samples = {}
-            failed = 0
+            failed, no_interaction = 0, 0
 
             # Load camera intrinsics for each camera
             intrinsics = {}
-            for s in self._serials:
+            for s in self._viewpoints:
                 intr_file = os.path.join(
                     self._calib_dir,
                     "intrinsics",
@@ -237,7 +273,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                     with open(meta_file, "r") as f:
                         meta = yaml.load(f, Loader=yaml.FullLoader)
                     # # Fetch samples and compute labels for each camera
-                    for c in self._serials:
+                    for c in self._viewpoints:
                         for root, _, files in os.walk(os.path.join(self._root, q, c)):
                             for file in files:
                                 if not file.startswith("color"):
@@ -249,11 +285,15 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                 ) as labels:
                                     if np.all(labels["joint_3d"][0] == -1):
                                         failed += 1
-                                        # continue
+                                        continue
                                     obj_class_id = meta['ycb_ids'][meta["ycb_grasp_ind"]] - 1
-                                    ho2d, ho3d = self._compute_labels(
-                                        intrinsics[c], meta, labels, self._obj_labels[obj_class_id]
-                                    )
+                                    try:
+                                        ho2d, ho3d = self._compute_labels(
+                                            intrinsics[c], meta, labels, obj_class_id, 
+                                        )
+                                    except NoInteractionError:
+                                        no_interaction += 1
+                                        continue
                                     # # Rescale the 2D keypoints, because the images are rescaled from 640x480 to
                                     # # 224x224! This improves the performance of the 2D KP estimation GREATLY.
                                     ho2d[:, 0] = ho2d[:, 0] * 224.0 / self._w
@@ -263,6 +303,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                     samples[obj_class_id].append((img_file, ho2d, ho3d))
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
+            if no_interaction != 0:
+                print(f"[!] {no_interaction} samples with no interaction were removed!")
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving dataset into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
