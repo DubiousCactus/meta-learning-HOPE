@@ -235,31 +235,26 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        from PIL import Image
-        from time import sleep
         meta_mse_losses, meta_mae_losses = [], []
         for task in tqdm(self.dataset.test, dynamic_ncols=True):
             head = maml.clone()
+            if self._exit:
+                return
             meta_batch = self._split_batch(task)
-            img = meta_batch.support[0][0].cpu()
-            img = (img * 255).numpy().astype('uint8')
-            img = Image.fromarray(img)
-            img.show()
-            sleep(3)
-            # inner_mse_loss = self._testing_step(
-                # meta_batch,
-                # head,
-                # self.model.features,
-            # )
-            # head = maml.clone()
-            # inner_mae_loss = self._testing_step(
-                # meta_batch,
-                # head,
-                # self.model.features,
-                # compute="mae",
-            # )
-            # meta_mse_losses.append(inner_mse_loss.detach())
-            # meta_mae_losses.append(inner_mae_loss.detach())
+            inner_mse_loss = self._testing_step(
+                meta_batch,
+                head,
+                self.model.features,
+            )
+            head = maml.clone()
+            inner_mae_loss = self._testing_step(
+                meta_batch,
+                head,
+                self.model.features,
+                compute="mae",
+            )
+            meta_mse_losses.append(inner_mse_loss.detach())
+            meta_mae_losses.append(inner_mae_loss.detach())
         meta_mse_loss = float(
             torch.Tensor(meta_mse_losses).mean().item()
         )
