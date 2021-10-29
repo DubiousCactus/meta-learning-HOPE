@@ -242,7 +242,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         else:
             print(f"[*] Building dataset...")
             samples = {}
-            failed, no_interaction = 0, 0
+            failed, no_interaction = 0, {i: 0 for i in range(len(self._obj_labels))}
 
             # Load camera intrinsics for each camera
             intrinsics = {}
@@ -294,7 +294,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                             intrinsics[c], meta, labels, obj_class_id, 
                                         )
                                     except NoInteractionError:
-                                        no_interaction += 1
+                                        no_interaction[obj_class_id] += 1
                                         continue
                                     # # Rescale the 2D keypoints, because the images are rescaled from 640x480 to
                                     # # 224x224! This improves the performance of the 2D KP estimation GREATLY.
@@ -305,8 +305,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                     samples[obj_class_id].append((img_file, ho2d, ho3d))
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
-            if no_interaction != 0:
-                print(f"[!] {no_interaction} samples with no interaction were removed!")
+            for id, val in no_interaction.items():
+                print(f"[!] {val} samples with no interaction were removed from {self._obj_labels[id]}")
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving dataset into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
