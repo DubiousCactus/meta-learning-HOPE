@@ -10,6 +10,7 @@ from data.custom import CustomDataset
 from util.utils import fast_load_obj
 from typing import Union, Tuple
 from functools import reduce
+from tqdm import tqdm
 
 import learn2learn as l2l
 import numpy as np
@@ -132,7 +133,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._w = 640
         self._bboxes = {}  # Cache
 
-        self._split_categories = self._make_split_categories(hold_out, manual=True)
+        self._split_categories = self._make_split_categories(hold_out, manual=False)
         print(
             f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"
         )
@@ -163,7 +164,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 normalize_keypoints,
             )
 
-    def _make_split_categories(self, hold_out, manual=False, seed=0) -> dict:
+    def _make_split_categories(self, hold_out, manual=False) -> dict:
         """
         HO-3D contains 20 object categories. This method distributes those categories per split,
         according to "hold_out" which corresponds to how many are held out of the train split.
@@ -174,11 +175,13 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         assert (
             len(self._obj_labels) - (2 * hold_out) >= 1
         ), "There must remain at least one category in the train split"
-        # TODO: Random selection
+        np.random.seed(hold_out)
+        idx = list(range(len(categories)))
+        np.random.shuffle(idx)
         splits = {
-            "train": categories[: -2 * hold_out],
-            "val": categories[-2 * hold_out : -hold_out],
-            "test": categories[-hold_out:],
+            "train": list(np.array(categories)[idx[: -2 * hold_out]]),
+            "val": list(np.array(categories)[idx[-2 * hold_out : -hold_out]]),
+            "test": list(np.array(categories)[idx[-hold_out:]]),
         }
         return splits
 
@@ -195,7 +198,6 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             "textured_simple.obj",
         )
         if obj_file_path not in self._bboxes:
-            print(f"loading {obj_file_path}")
             with open(obj_file_path, "r") as m_f:
                 mesh = fast_load_obj(m_f)[0]
             mesh = trimesh.load(mesh)
@@ -272,7 +274,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                     meta_file = os.path.join(self._root, q, "meta.yml")
                     with open(meta_file, "r") as f:
                         meta = yaml.load(f, Loader=yaml.FullLoader)
-                    # # Fetch samples and compute labels for each camera
+                    # Fetch samples and compute labels for each camera
                     for c in self._viewpoints:
                         for root, _, files in os.walk(os.path.join(self._root, q, c)):
                             for file in files:

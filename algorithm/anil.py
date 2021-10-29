@@ -242,7 +242,7 @@ class ANILTrainer(MAMLTrainer):
             head = maml.clone()
             meta_batch = self._split_batch(task)
             img = meta_batch.support[0][0].cpu()
-            img = (img * 255).numpy().astype('uin8')
+            img = (img * 255).numpy().astype('uint8')
             img = Image.fromarray(img)
             img.show()
             sleep(3)
