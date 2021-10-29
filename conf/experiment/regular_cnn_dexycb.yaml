@@ -1,0 +1,6 @@
+defaults:
+    - base_regular_cnn
+    - base_ho3d
+dataset: dexycb
+dataset_path: ../DexYCB
+name: regular_resnet_dexycb
