@@ -140,10 +140,11 @@ class BaseTrainer(ABC):
             self._epoch = checkpoint["epoch"] + 1
             try:
                 opt.load_state_dict(checkpoint["opt_state_dict"])
-                scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+                val_loss = checkpoint["val_loss"]
             except KeyError:
-                pass
-            val_loss = checkpoint["val_loss"]
+                opt.load_state_dict(checkpoint["meta_opt_state_dict"])
+                val_loss = checkpoint["val_meta_loss"]
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
         return val_loss
 
     def _checkpoint(self, epoch, train_loss, val_loss, val_mae_loss, state_dicts):
