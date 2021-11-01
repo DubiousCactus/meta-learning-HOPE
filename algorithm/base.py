@@ -7,7 +7,7 @@
 # Distributed under terms of the MIT license.
 
 """
-Base training class.
+Base training class.051_large_clamp
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
@@ -126,7 +126,7 @@ class BaseTrainer(ABC):
         checkpoint = torch.load(self._model_path)
         try:
             self.model.load_state_dict(checkpoint["model_state_dict"])
-        except Exception as e:
+        except Exception:
             print("[!] Could not load state dict! Loading matching parameters...")
             resume_training = False
             count = 0
@@ -138,8 +138,11 @@ class BaseTrainer(ABC):
         val_loss = float("+inf")
         if resume_training and "backup" not in checkpoint.keys():
             self._epoch = checkpoint["epoch"] + 1
-            opt.load_state_dict(checkpoint["opt_state_dict"])
-            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            try:
+                opt.load_state_dict(checkpoint["opt_state_dict"])
+                scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            except KeyError:
+                pass
             val_loss = checkpoint["val_loss"]
         return val_loss
 

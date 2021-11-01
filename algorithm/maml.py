@@ -98,6 +98,7 @@ class MAMLTrainer(BaseTrainer):
         checkpoint = torch.load(self._model_path)
         if resume_training and "backup" not in checkpoint.keys():
             maml.load_state_dict(checkpoint["maml_state_dict"])
+            opt.load_state_dict(checkpoint["meta_opt_state_dict"])
         return val_loss
 
     def train(
