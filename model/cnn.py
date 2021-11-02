@@ -53,7 +53,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.fc = torch.nn.Sequential(
             # torch.nn.Linear(n_features, 128),
             # torch.nn.ReLU(),
-            torch.nn.Linear(n_features, 29 * 2),
+            torch.nn.Linear(n_features, 29 * 3),
         )
 
     def _load_resnet10_model(self, model: torch.nn.Module):
@@ -84,7 +84,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         x = self.fc(x)
 
         return (
-            (x.view(-1, 29, 2), img_features)
+            (x.view(-1, 29, 3), img_features)
             if not features_only
             else img_features.view(-1, self._n_features)
         )

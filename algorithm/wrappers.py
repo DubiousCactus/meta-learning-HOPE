@@ -253,34 +253,34 @@ class ANIL_CNNTrainer(ANILTrainer):
         criterion = self.inner_criterion
         if compute == "mae":
             criterion = F.l1_loss
-        s_inputs, s_labels2d, _ = batch.support
-        q_inputs, q_labels2d, _ = batch.query
+        s_inputs, _, s_labels3d = batch.support
+        q_inputs, _, q_labels3d = batch.query
         query_loss = .0
         if self._use_cuda:
             s_inputs = s_inputs.float().cuda(device=self._gpu_number)
-            s_labels2d = s_labels2d.float().cuda(device=self._gpu_number)
+            s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
-            q_labels2d = q_labels2d.float().cuda(device=self._gpu_number)
+            q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         s_inputs = features(s_inputs)
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
-            outputs2d_init = head(s_inputs).view(-1, 29, 2)
-            support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
+            outputs3d = head(s_inputs).view(-1, 29, 3)
+            support_loss = self.inner_criterion(outputs3d, s_labels3d)
             head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
             if msl:  # Multi-step loss
                 q_inputs_s = features(q_inputs)
-                q_outputs2d_init = head(q_inputs_s).view(-1, 29, 2)
+                q_outputs3d = head(q_inputs_s).view(-1, 29, 3)
                 query_loss += self._step_weights[step] * criterion(
-                    q_outputs2d_init, q_labels2d
+                    q_outputs3d, q_labels3d
                 )
 
         # Evaluate the adapted model on the query set
         if not msl:
             q_inputs = features(q_inputs)
-            q_outputs2d_init = head(q_inputs).view(-1, 29, 2)
-            query_loss = criterion(q_outputs2d_init, q_labels2d)
+            q_outputs3d = head(q_inputs).view(-1, 29, 3)
+            query_loss = criterion(q_outputs3d, q_labels3d)
         return query_loss
 
     def _testing_step(
@@ -289,25 +289,25 @@ class ANIL_CNNTrainer(ANILTrainer):
         criterion = self.inner_criterion
         if compute == "mae":
             criterion = F.l1_loss
-        s_inputs, s_labels2d, _ = meta_batch.support
-        q_inputs, q_labels2d, _ = meta_batch.query
+        s_inputs, _, s_labels3d = meta_batch.support
+        q_inputs, _, q_labels3d = meta_batch.query
         if self._use_cuda:
             s_inputs = s_inputs.float().cuda(device=self._gpu_number)
-            s_labels2d = s_labels2d.float().cuda(device=self._gpu_number)
+            s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
-            q_labels2d = q_labels2d.float().cuda(device=self._gpu_number)
+            q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         s_inputs = features(s_inputs)
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            outputs2d_init = head(s_inputs).view(-1, 29, 2)
-            support_loss = self.inner_criterion(outputs2d_init, s_labels2d)
+            outputs3d = head(s_inputs).view(-1, 29, 3)
+            support_loss = self.inner_criterion(outputs3d, s_labels3d)
             head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
 
         q_inputs = features(q_inputs)
-        q_outputs2d_init = head(q_inputs).view(-1, 29, 2)
-        return criterion(q_outputs2d_init, q_labels2d)
+        q_outputs3d = head(q_inputs).view(-1, 29, 3)
+        return criterion(q_outputs3d, q_labels3d)
 
 
 class MAML_GraphUNetTrainer(MAMLTrainer):
@@ -435,26 +435,26 @@ class Regular_CNNTrainer(RegularTrainer):
         )
 
     def _training_step(self, batch: tuple):
-        inputs, labels2d, _ = batch
+        inputs, _, labels3d = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
-            labels2d = labels2d.float().cuda(device=self._gpu_number)
-        outputs2d_init, _ = self.model(inputs)
-        loss = self.inner_criterion(outputs2d_init, labels2d)
+            labels3d = labels3d.float().cuda(device=self._gpu_number)
+        outputs3d, _ = self.model(inputs)
+        loss = self.inner_criterion(outputs3d, labels3d)
         loss.backward()
         return loss.detach()
 
     def _testing_step(self, batch: tuple, compute="mse"):
-        inputs, labels2d, _ = batch
+        inputs, _, labels3d = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
-            labels2d = labels2d.float().cuda(device=self._gpu_number)
+            labels3d = labels3d.float().cuda(device=self._gpu_number)
         with torch.no_grad():
-            outputs2d_init, _ = self.model(inputs)
+            outputs3d, _ = self.model(inputs)
             if compute == "mse":
-                return F.mse_loss(outputs2d_init, labels2d).detach()
+                return F.mse_loss(outputs3d, labels3d).detach()
             elif compute == "mae":
-                return F.l1_loss(outputs2d_init, labels2d).detach()
+                return F.l1_loss(outputs3d, labels3d).detach()
             else:
                 raise NotImplementedError(f"No implementation for {compute}")
 
