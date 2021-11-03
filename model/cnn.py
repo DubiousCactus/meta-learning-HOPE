@@ -102,7 +102,6 @@ class ResNet(InitWrapper, torch.nn.Module):
 
     @property
     def head(self):
-        print("head")
         return self.fc
 
 
