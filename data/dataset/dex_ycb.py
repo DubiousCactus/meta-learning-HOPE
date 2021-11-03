@@ -235,7 +235,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         normalize_keypoints=False,
     ) -> CustomDataset:
         pickle_path = os.path.join(dataset_root, f"dexycb.pkl")
-        if False:#os.path.isfile(pickle_path):
+        if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading dataset from {pickle_path}...")
                 samples = pickle.load(pickle_file)
