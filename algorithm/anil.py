@@ -127,7 +127,6 @@ class ANILTrainer(MAMLTrainer):
                         raise ValueError("Inner loss is Nan!")
                     inner_loss.backward()
                     meta_train_losses.append(inner_loss.detach())
-                    inner_loss.delete()
 
                 epoch_meta_train_loss += torch.Tensor(meta_train_losses).detach().mean().item()
 
@@ -179,8 +178,6 @@ class ANILTrainer(MAMLTrainer):
                     )
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())
-                    inner_mae_loss.delete()
-                    inner_mse_loss.delete()
                 meta_val_mse_loss = float(
                     torch.Tensor(meta_val_mse_losses).mean().item()
                 )
