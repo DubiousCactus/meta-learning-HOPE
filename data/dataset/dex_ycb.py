@@ -223,8 +223,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         vert2d = hom_2d_verts / hom_2d_verts[2, :]
         vert2d = vert2d[:2, :].transpose()
         return (
-            torch.cat([torch.Tensor(labels["joint_2d"][0]),torch.Tensor(vert2d)]),
-            torch.cat([torch.Tensor(labels["joint_3d"][0]), torch.Tensor(vert3d)])
+            torch.cat([torch.Tensor(labels["joint_2d"].reshape((21, 2))),torch.Tensor(vert2d)]),
+            torch.cat([torch.Tensor(labels["joint_3d"].reshape((21, 3)) * 1000), torch.Tensor(vert3d) * 1000])
         )
 
     def _make_dataset(
@@ -292,14 +292,14 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                         continue
                                     elif obj_class_id > 18:
                                         obj_class_id -= 1 # Compensate for the one removed in the list
-                                    if np.all(labels["joint_3d"][0] == -1):
+                                    if np.all(labels["joint_3d"].reshape((21, 3)) == -1):
                                         failed += 1
                                         continue
                                     try:
                                         ho2d, ho3d = self._compute_labels(
                                             intrinsics[c], meta, labels, obj_class_id,
                                         )
-                                        print(ho3d)
+                                        wrist, indextip = ho3d[0, :], ho3d[8, :]
                                     except NoInteractionError:
                                         no_interaction[obj_class_id] += 1
                                         continue
