@@ -215,8 +215,6 @@ class ANILTrainer(MAMLTrainer):
                         state_dicts,
                     )
                     past_val_loss = meta_val_mse_loss
-                del meta_val_mse_losses
-                del meta_val_mae_losses
             # ============
 
             print("============================================")
