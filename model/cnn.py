@@ -34,6 +34,7 @@ class Lambda(torch.nn.Module):
 class ResNet(InitWrapper, torch.nn.Module):
     def __init__(self, model="18", pretrained=True):
         super().__init__()
+        self.randomly_initialize_weights = False
         if model == "10":
             network = resnet10(num_classes=29 * 2)
             if pretrained:
@@ -108,6 +109,7 @@ class ResNet(InitWrapper, torch.nn.Module):
 class MobileNet(InitWrapper, torch.nn.Module):
     def __init__(self, model="v3-small", pretrained=True):
         super().__init__()
+        self.randomly_initialize_weights = False
         if model == "v3-small":
             network = models.mobilenet_v3_small(pretrained=pretrained)
         elif model == "v3-large":
