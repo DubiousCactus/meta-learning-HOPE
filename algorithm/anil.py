@@ -127,8 +127,9 @@ class ANILTrainer(MAMLTrainer):
                         raise ValueError("Inner loss is Nan!")
                     inner_loss.backward()
                     meta_train_losses.append(inner_loss.detach())
+                    inner_loss.delete()
 
-                epoch_meta_train_loss += torch.Tensor(meta_train_losses).mean().item()
+                epoch_meta_train_loss += torch.Tensor(meta_train_losses).detach().mean().item()
 
                 # Average the accumulated gradients and optimize
                 for p in maml.parameters():
@@ -178,6 +179,8 @@ class ANILTrainer(MAMLTrainer):
                     )
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())
+                    inner_mae_loss.delete()
+                    inner_mse_loss.delete()
                 meta_val_mse_loss = float(
                     torch.Tensor(meta_val_mse_losses).mean().item()
                 )
@@ -215,6 +218,8 @@ class ANILTrainer(MAMLTrainer):
                         state_dicts,
                     )
                     past_val_loss = meta_val_mse_loss
+                del meta_val_mse_losses
+                del meta_val_mae_losses
             # ============
 
             print("============================================")

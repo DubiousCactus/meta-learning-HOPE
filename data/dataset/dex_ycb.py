@@ -71,7 +71,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         "036_wood_block",
         "037_scissors",
         "040_large_marker",
-        "051_large_clamp",
+        # "051_large_clamp", # Missing
         "052_extra_large_clamp",
         "061_foam_brick",
     ]
@@ -95,7 +95,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         0.1, # Wood block
         0.08, # Scissors
         0.06, # Large marker
-        0.08, # Large clamp
+        # 0.08, # Large clamp
         0.1, # Extra large clamp
         0.07, # Foam brick
     ]
@@ -129,8 +129,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         # better model the joint neighbourings?
         self._calib_dir = os.path.join(self._root, "calibration")
         self._model_dir = os.path.join(self._root, "models")
-        self._h = 480
-        self._w = 640
+        self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
 
         self._split_categories = self._make_split_categories(hold_out, manual=False)
@@ -172,17 +171,18 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         they can't be the same for the validation and test splits!
         """
         categories = list(range(len(self._obj_labels)))
-        assert (
-            len(self._obj_labels) - (2 * hold_out) >= 1
-        ), "There must remain at least one category in the train split"
-        np.random.seed(hold_out)
         idx = list(range(len(categories)))
+        np.random.seed(hold_out)
         np.random.shuffle(idx)
+        n_test, n_val = hold_out, hold_out//2+(hold_out%2)
+        n_train = len(self._obj_labels)-n_test-n_val
+        assert n_train > 0, "There must remain at least one category in the train split"
         splits = {
-            "train": list(np.array(categories)[idx[: -2 * hold_out]]),
-            "val": list(np.array(categories)[idx[-2 * hold_out : -hold_out]]),
-            "test": list(np.array(categories)[idx[-hold_out:]]),
+            "train": list(np.array(categories)[idx[:n_train]]),
+            "val": list(np.array(categories)[idx[n_train:n_train+n_val]]),
+            "test": list(np.array(categories)[idx[-n_test:]]),
         }
+        assert len(set(splits["train"]) & set(splits["val"]) & set(splits["test"])) == 0
         return splits
 
     def _compute_labels(
@@ -235,7 +235,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         normalize_keypoints=False,
     ) -> CustomDataset:
         pickle_path = os.path.join(dataset_root, f"dexycb.pkl")
-        if os.path.isfile(pickle_path):
+        if False:#os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading dataset from {pickle_path}...")
                 samples = pickle.load(pickle_file)
@@ -286,14 +286,20 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                 with np.load(
                                     os.path.join(root, f"labels_{idx}.npz")
                                 ) as labels:
+                                    obj_class_id = meta['ycb_ids'][meta["ycb_grasp_ind"]] - 1
+                                    if obj_class_id == 18:
+                                        # Large clamp missing!
+                                        continue
+                                    elif obj_class_id > 18:
+                                        obj_class_id -= 1 # Compensate for the one removed in the list
                                     if np.all(labels["joint_3d"][0] == -1):
                                         failed += 1
                                         continue
-                                    obj_class_id = meta['ycb_ids'][meta["ycb_grasp_ind"]] - 1
                                     try:
                                         ho2d, ho3d = self._compute_labels(
-                                            intrinsics[c], meta, labels, obj_class_id, 
+                                            intrinsics[c], meta, labels, obj_class_id,
                                         )
+                                        print(ho3d)
                                     except NoInteractionError:
                                         no_interaction[obj_class_id] += 1
                                         continue

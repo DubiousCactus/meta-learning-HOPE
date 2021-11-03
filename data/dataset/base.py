@@ -55,6 +55,7 @@ class BaseDatasetTaskLoader(ABC):
                     object_as_task, "test", False, normalize_keypoints
                 )
             else:
+                print("LOADING")
                 self.train, self.val = self._load(
                     object_as_task, "train", True, normalize_keypoints
                 ), self._load(object_as_task, "val", False, normalize_keypoints)

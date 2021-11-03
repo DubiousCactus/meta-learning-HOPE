@@ -88,7 +88,6 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             n_querries,
             test,
             object_as_task,
-            hold_out,
             normalize_keypoints,
             use_cuda,
             gpu_number,
