@@ -305,8 +305,9 @@ class ANIL_CNNTrainer(ANILTrainer):
             support_loss = self.inner_criterion(outputs3d, s_labels3d)
             head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
 
-        q_inputs = features(q_inputs)
-        q_outputs3d = head(q_inputs).view(-1, 29, 3)
+        with torch.no_grad():
+            q_inputs = features(q_inputs)
+            q_outputs3d = head(q_inputs).view(-1, 29, 3)
         return criterion(q_outputs3d, q_labels3d)
 
 
