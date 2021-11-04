@@ -11,6 +11,7 @@ from util.utils import fast_load_obj
 from typing import Union, Tuple
 from functools import reduce
 from tqdm import tqdm
+from copy import copy
 
 import learn2learn as l2l
 import numpy as np
@@ -359,7 +360,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
         dataset = self._make_dataset(
             split,
-            samples,
+            copy(samples),
             object_as_task=object_as_task,
             normalize_keypoints=normalize_keypoints,
         )
