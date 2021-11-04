@@ -246,6 +246,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         batch: MetaBatch,
         head,
         features,
+        epoch,
         clip_grad_norm=None,
         compute="mse",
         msl=True,
@@ -269,7 +270,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             # forward + backward + optimize
             outputs3d = head(s_inputs).view(-1, 29, 3)
             support_loss = self.inner_criterion(outputs3d, s_labels3d)
-            head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
+            head.adapt(support_loss, epoch=epoch, clip_grad_max_norm=clip_grad_norm)
             if msl:  # Multi-step loss
                 q_outputs3d = head(q_inputs_features).view(-1, 29, 3)
                 query_loss += self._step_weights[step] * criterion(
@@ -283,7 +284,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         return query_loss
 
     def _testing_step(
-        self, meta_batch: MetaBatch, head, features, clip_grad_norm=None, compute="mse"
+        self, meta_batch: MetaBatch, head, features, epoch, clip_grad_norm=None, compute="mse"
     ):
         criterion = self.inner_criterion
         if compute == "mae":
@@ -302,7 +303,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             # forward + backward + optimize
             outputs3d = head(s_inputs).view(-1, 29, 3)
             support_loss = self.inner_criterion(outputs3d, s_labels3d)
-            head.adapt(support_loss, clip_grad_max_norm=clip_grad_norm)
+            head.adapt(support_loss, epoch=epoch, clip_grad_max_norm=clip_grad_norm)
 
         with torch.no_grad():
             q_inputs = features(q_inputs)

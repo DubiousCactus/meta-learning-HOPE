@@ -50,6 +50,7 @@ class ANILTrainer(MAMLTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
+        self._order_annealing_from_epoch = 50
         self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
@@ -73,6 +74,7 @@ class ANILTrainer(MAMLTrainer):
             self.model.head,
             lr=fast_lr,
             first_order=self._first_order,
+            order_annealing_epoch=self._order_annealing_from_epoch,
             allow_unused=True,
         )
         all_parameters = list(self.model.features.parameters()) + list(
@@ -120,6 +122,7 @@ class ANILTrainer(MAMLTrainer):
                         meta_batch,
                         head,
                         self.model.features,
+                        epoch,
                         clip_grad_norm=max_grad_norm,
                         msl=self._msl,
                     )
@@ -160,12 +163,16 @@ class ANILTrainer(MAMLTrainer):
                 # which tasks should not be continuously resampled from!
                 meta_val_mse_losses, meta_val_mae_losses = [], []
                 for task in tqdm(self.dataset.val, dynamic_ncols=True):
+                    if self._exit:
+                        self._backup()
+                        return
                     head = maml.clone()
                     meta_batch = self._split_batch(task)
                     inner_mse_loss = self._testing_step(
                         meta_batch,
                         head,
                         self.model.features,
+                        epoch,
                         clip_grad_norm=max_grad_norm,
                     )
                     head = maml.clone()
@@ -173,6 +180,7 @@ class ANILTrainer(MAMLTrainer):
                         meta_batch,
                         head,
                         self.model.features,
+                        epoch,
                         clip_grad_norm=max_grad_norm,
                         compute="mae",
                     )
