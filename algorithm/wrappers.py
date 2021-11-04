@@ -284,7 +284,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         return query_loss
 
     def _testing_step(
-        self, meta_batch: MetaBatch, head, features, epoch, clip_grad_norm=None, compute="mse"
+        self, meta_batch: MetaBatch, head, features, epoch=None, clip_grad_norm=None, compute="mse"
     ):
         criterion = self.inner_criterion
         if compute == "mae":

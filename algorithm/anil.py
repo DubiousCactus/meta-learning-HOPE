@@ -131,7 +131,9 @@ class ANILTrainer(MAMLTrainer):
                     inner_loss.backward()
                     meta_train_losses.append(inner_loss.detach())
 
-                epoch_meta_train_loss += torch.Tensor(meta_train_losses).detach().mean().item()
+                epoch_meta_train_loss += (
+                    torch.Tensor(meta_train_losses).detach().mean().item()
+                )
 
                 # Average the accumulated gradients and optimize
                 for p in maml.parameters():
@@ -234,7 +236,10 @@ class ANILTrainer(MAMLTrainer):
         meta_lr: float = 0.001,
     ):
         maml = l2l.algorithms.MAML(
-            self.model.head, lr=fast_lr, first_order=self._first_order, allow_unused=True
+            self.model.head,
+            lr=fast_lr,
+            first_order=self._first_order,
+            allow_unused=True,
         )
         all_parameters = list(self.model.features.parameters()) + list(
             maml.parameters()
@@ -263,12 +268,8 @@ class ANILTrainer(MAMLTrainer):
             )
             meta_mse_losses.append(inner_mse_loss.detach())
             meta_mae_losses.append(inner_mae_loss.detach())
-        meta_mse_loss = float(
-            torch.Tensor(meta_mse_losses).mean().item()
-        )
-        meta_mae_loss = float(
-            torch.Tensor(meta_mae_losses).mean().item()
-        )
+        meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())
+        meta_mae_loss = float(torch.Tensor(meta_mae_losses).mean().item())
 
         print("==========[Test Error]==========")
         print(f"Meta-testing MSE Loss: {meta_mse_loss:.6f}")

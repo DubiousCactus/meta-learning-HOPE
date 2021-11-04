@@ -100,6 +100,9 @@ class RegularTrainer(BaseTrainer):
                 val_losses, val_mae_losses = [], []
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val, dynamic_ncols=True):
+                    if self._exit:
+                        self._backup()
+                        return
                     val_losses.append(self._testing_step(batch))
                     val_mae_losses.append(self._testing_step(batch, compute="mae"))
                 avg_val_loss = float(torch.Tensor(val_losses).mean().item())
