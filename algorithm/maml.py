@@ -59,6 +59,7 @@ class MAMLTrainer(BaseTrainer):
         self._first_order = first_order
         self._step_weights = torch.ones(inner_steps) * (1.0 / inner_steps)
         self._msl = multi_step_loss
+        self._msl_num_epochs = msl_num_epochs
         self._msl_decay_rate = 1.0 / self._steps / msl_num_epochs
         self._msl_min_value_for_non_final_losses = torch.tensor(0.03 / self._steps)
         self._msl_max_value_for_final_loss = 1.0 - (
@@ -156,7 +157,10 @@ class MAMLTrainer(BaseTrainer):
                     learner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.train.sample())
                     meta_loss = self._training_step(
-                        meta_batch, learner, clip_grad_norm=max_grad_norm, msl=self._msl
+                        meta_batch,
+                        learner,
+                        clip_grad_norm=max_grad_norm,
+                        msl=(self._msl and epoch < self._msl_num_epochs),
                     )
                     if torch.isnan(meta_loss).any():
                         raise ValueError("Inner loss is Nan!")

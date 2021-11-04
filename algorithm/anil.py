@@ -124,7 +124,7 @@ class ANILTrainer(MAMLTrainer):
                         self.model.features,
                         epoch,
                         clip_grad_norm=max_grad_norm,
-                        msl=self._msl,
+                        msl=(self._msl and epoch < self._msl_num_epochs),
                     )
                     if torch.isnan(inner_loss).any():
                         raise ValueError("Inner loss is Nan!")
