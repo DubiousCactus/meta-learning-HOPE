@@ -132,7 +132,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
 
-        self._split_categories = self._make_split_categories(hold_out, manual=False)
+        self._split_categories = self._make_split_categories(hold_out)
         print(
             f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"
         )
@@ -143,8 +143,10 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             f"[*] Testing with {', '.join([self._obj_labels[i] for i in self._split_categories['test']])}"
         )
         # Don't auto load, this is a custom loading
+        samples = self._make_raw_dataset()
         if test:
             self.test = self._load(
+                samples,
                 object_as_task,
                 "test",
                 False,
@@ -152,18 +154,21 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             )
         else:
             self.train, self.val = self._load(
+                samples,
                 object_as_task,
                 "train",
                 True,
                 normalize_keypoints,
             ), self._load(
+                samples,
                 object_as_task,
                 "val",
                 False,
                 normalize_keypoints,
             )
+        del samples
 
-    def _make_split_categories(self, hold_out, manual=False) -> dict:
+    def _make_split_categories(self, hold_out) -> dict:
         """
         HO-3D contains 20 object categories. This method distributes those categories per split,
         according to "hold_out" which corresponds to how many are held out of the train split.
@@ -227,14 +232,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             torch.cat([torch.Tensor(labels["joint_3d"].reshape((21, 3)) * 1000), torch.Tensor(vert3d) * 1000])
         )
 
-    def _make_dataset(
-        self,
-        split: str,
-        dataset_root: str,
-        object_as_task=False,
-        normalize_keypoints=False,
-    ) -> CustomDataset:
-        pickle_path = os.path.join(dataset_root, f"dexycb.pkl")
+    def _make_raw_dataset(self) -> dict:
+        pickle_path = os.path.join(self._root, f"dexycb.pkl")
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading dataset from {pickle_path}...")
@@ -319,7 +318,16 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving dataset into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
+        return samples
 
+
+    def _make_dataset(
+        self,
+        split: str,
+        samples: dict,
+        object_as_task=False,
+        normalize_keypoints=False,
+    ) -> CustomDataset:
         # Hold out
         keys = samples.copy().keys()
         for category_id, _ in enumerate(keys):
@@ -343,6 +351,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
 
     def _load(
         self,
+        samples: dict,
         object_as_task: bool,
         split: str,
         shuffle: bool,
@@ -350,7 +359,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
         dataset = self._make_dataset(
             split,
-            self._root,
+            samples,
             object_as_task=object_as_task,
             normalize_keypoints=normalize_keypoints,
         )
