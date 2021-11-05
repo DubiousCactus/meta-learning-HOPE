@@ -113,14 +113,13 @@ class ANILTrainer(MAMLTrainer):
                         self._backup()
                         return
                     # Compute the meta-training loss
-                    head = maml.clone()
                     # Randomly sample a task (which is created by randomly sampling images, so the
                     # same image sample can appear in several tasks during one epoch, and some
                     # images can not appear during one epoch)
                     meta_batch = self._split_batch(self.dataset.train.sample())
                     inner_loss = self._training_step(
                         meta_batch,
-                        head,
+                        maml.clone(),
                         self.model.features,
                         epoch,
                         clip_grad_norm=max_grad_norm,
@@ -168,19 +167,17 @@ class ANILTrainer(MAMLTrainer):
                     if self._exit:
                         self._backup()
                         return
-                    head = maml.clone()
                     meta_batch = self._split_batch(task)
                     inner_mse_loss = self._testing_step(
                         meta_batch,
-                        head,
+                        maml.clone(),
                         self.model.features,
                         epoch,
                         clip_grad_norm=max_grad_norm,
                     )
-                    head = maml.clone()
                     inner_mae_loss = self._testing_step(
                         meta_batch,
-                        head,
+                        maml.clone(),
                         self.model.features,
                         epoch,
                         clip_grad_norm=max_grad_norm,
@@ -250,22 +247,21 @@ class ANILTrainer(MAMLTrainer):
 
         meta_mse_losses, meta_mae_losses = [], []
         for task in tqdm(self.dataset.test, dynamic_ncols=True):
-            head = maml.clone()
             if self._exit:
                 return
             meta_batch = self._split_batch(task)
             inner_mse_loss = self._testing_step(
                 meta_batch,
-                head,
+                maml.clone(),
                 self.model.features,
             )
-            head = maml.clone()
             inner_mae_loss = self._testing_step(
                 meta_batch,
-                head,
+                maml.clone(),
                 self.model.features,
                 compute="mae",
             )
+            self._testing_step_vis(meta_batch, maml.clone(), self.model.features)
             meta_mse_losses.append(inner_mse_loss.detach())
             meta_mae_losses.append(inner_mae_loss.detach())
         meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())

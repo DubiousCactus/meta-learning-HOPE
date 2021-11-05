@@ -22,13 +22,17 @@ from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
 from model.hopenet import HOPENet, GraphNetwResNet
 from model.cnn import ResNet, MobileNet
 
-from util.utils import load_state_dict
+from util.utils import load_state_dict, plot_3D_prediction
 
+from PIL import Image, ImageDraw
 from typing import List
+from time import sleep
 from tqdm import tqdm
 
+import torchvision.transforms as transforms
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+import numpy as np
 import pickle
 import torch
 
@@ -256,7 +260,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             criterion = F.l1_loss
         s_inputs, _, s_labels3d = batch.support
         q_inputs, _, q_labels3d = batch.query
-        query_loss = .0
+        query_loss = 0.0
         if self._use_cuda:
             s_inputs = s_inputs.float().cuda(device=self._gpu_number)
             s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
@@ -284,7 +288,13 @@ class ANIL_CNNTrainer(ANILTrainer):
         return query_loss
 
     def _testing_step(
-        self, meta_batch: MetaBatch, head, features, epoch=None, clip_grad_norm=None, compute="mse"
+        self,
+        meta_batch: MetaBatch,
+        head,
+        features,
+        epoch=None,
+        clip_grad_norm=None,
+        compute="mse",
     ):
         criterion = self.inner_criterion
         if compute == "mae":
@@ -310,6 +320,39 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_outputs3d = head(q_inputs).view(-1, 29, 3)
         return criterion(q_outputs3d, q_labels3d)
 
+    def _testing_step_vis(self,
+        meta_batch: MetaBatch,
+        head,
+        features,
+    ):
+        s_inputs, _, s_labels3d = meta_batch.support
+        q_inputs, _, q_labels3d = meta_batch.query
+        if self._use_cuda:
+            s_inputs = s_inputs.float().cuda(device=self._gpu_number)
+            s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
+            q_inputs = q_inputs.float().cuda(device=self._gpu_number)
+            q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
+
+        s_inputs = features(s_inputs)
+        # Adapt the model on the support set
+        for _ in range(self._steps):
+            # forward + backward + optimize
+            outputs3d = head(s_inputs).view(-1, 29, 3)
+            support_loss = self.inner_criterion(outputs3d, s_labels3d)
+            head.adapt(support_loss)
+
+        with torch.no_grad():
+            q_inputs_f = features(q_inputs)
+            outputs3d = head(q_inputs_f).view(-1, 29, 3)
+            mean, std = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32), torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32)
+            unnormalize = transforms.Normalize(mean=(-mean/std).tolist(), std=(1.0/std).tolist())
+            unnormalized_img = unnormalize(q_inputs[0])
+            npimg = (unnormalized_img * 255).cpu().numpy().astype(np.uint8)
+            img = Image.fromarray(npimg.swapaxes(0, 2).swapaxes(0, 1))
+            print(f"MSE={self.inner_criterion(outputs3d, q_labels3d)} - MAE={F.l1_loss(outputs3d, q_labels3d)}")
+            img.show()
+            plot_3D_prediction(outputs3d[0].cpu())
+            plot_3D_prediction(q_labels3d[0].cpu())
 
 class MAML_GraphUNetTrainer(MAMLTrainer):
     def __init__(
@@ -349,7 +392,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             criterion = F.l1_loss
         _, s_labels2d, s_labels3d = batch.support
         _, q_labels2d, q_labels3d = batch.query
-        query_loss = .0
+        query_loss = 0.0
         if self._use_cuda:
             s_labels2d = s_labels2d.float().cuda(device=self._gpu_number)
             s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
@@ -459,6 +502,19 @@ class Regular_CNNTrainer(RegularTrainer):
             else:
                 raise NotImplementedError(f"No implementation for {compute}")
 
+    def _testing_step_vis(self, batch: tuple):
+        inputs, _, _ = batch
+        if self._use_cuda:
+            inputs = inputs.float().cuda(device=self._gpu_number)
+        with torch.no_grad():
+            outputs3d, _ = self.model(inputs)
+            mean, std = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32), torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32)
+            unnormalize = transforms.Normalize(mean=(-mean/std).tolist(), std=(1.0/std).tolist())
+            unnormalized_img = unnormalize(inputs[0])
+            npimg = (unnormalized_img * 255).cpu().numpy().astype(np.uint8)
+            img = Image.fromarray(npimg.swapaxes(0, 2).swapaxes(0, 1))
+            img.show()
+            plot_3D_prediction(outputs3d[0].cpu())
 
 class Regular_GraphUNetTrainer(RegularTrainer):
     def __init__(

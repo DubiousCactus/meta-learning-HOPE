@@ -11,7 +11,9 @@ Utility functions for data loading and processing.
 """
 
 from collections import OrderedDict
+from PIL import ImageDraw
 
+import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
 import pickle
@@ -160,3 +162,72 @@ def load_state_dict(module, resnet_path):
             k = k.replace("module.", "")
         new_state_dict[k] = v
     module.load_state_dict(new_state_dict)
+
+
+def draw_2D_prediction(image, pred):
+    draw = ImageDraw.Draw(image)
+    # Object bbox:
+    obj_pred = pred[21:, :]
+    """
+    draw.line([tuple(obj_pred[0, :]), tuple(obj_pred[1, :])], fill="red", width=0) # 1, 2
+    draw.line([tuple(obj_pred[2, :]), tuple(obj_pred[3, :])], fill="red", width=0) # 5, 6
+    draw.line([tuple(obj_pred[4, :]), tuple(obj_pred[5, :])], fill="red", width=0) # 7, 8
+    draw.line([tuple(obj_pred[6, :]), tuple(obj_pred[7, :])], fill="red", width=0) # 3, 4
+    draw.line([tuple(obj_pred[0, :]), tuple(obj_pred[6, :])], fill="red", width=0) # 1, 3
+    draw.line([tuple(obj_pred[1, :]), tuple(obj_pred[7, :])], fill="red", width=0) # 2, 4
+    draw.line([tuple(obj_pred[2, :]), tuple(obj_pred[4, :])], fill="red", width=0) # 5, 7
+    draw.line([tuple(obj_pred[3, :]), tuple(obj_pred[5, :])], fill="red", width=0) # 6, 8
+
+    draw.line([tuple(obj_pred[0, :]), tuple(obj_pred[2, :])], fill="red", width=0) # 1, 5
+    draw.line([tuple(obj_pred[1, :]), tuple(obj_pred[3, :])], fill="red", width=0) # 2, 6
+    draw.line([tuple(obj_pred[7, :]), tuple(obj_pred[5, :])], fill="red", width=0) # 4, 8
+    draw.line([tuple(obj_pred[6, :]), tuple(obj_pred[4, :])], fill="red", width=0) # 3, 7
+    # Hand vertices:
+    hand_pred = pred[:21, :]
+    draw.line([tuple(hand_pred[0, :]), tuple(hand_pred[2, :])], fill="red", width=0) # 1, 5
+    """
+
+
+def plot_3D_prediction(pred):
+    ax = plt.figure().add_subplot(projection="3d")
+    x = np.linspace(-1, 1, 200)
+    pred /= 1000  # From millimeters
+    # Plot the hand first:
+    prev = pred[0, :]
+    for row in np.ndindex(pred.shape[0] - 8):
+        cur = pred[row, :]
+        if row[0] in [5, 9, 13, 17]:
+            prev = pred[0, :]
+        cur, prev = cur.flatten(), prev.flatten()
+        x, y, z = (
+            np.linspace(prev[0], cur[0], 100),
+            np.linspace(prev[1], cur[1], 100),
+            np.linspace(prev[2], cur[2], 100),
+        )
+        ax.plot(x, y, z, color="red")
+        ax.text(cur[0], cur[1], cur[2], f"{row[0]}", color="red")
+        prev = cur
+    # Plot the object bbox:
+    faces = [
+        [0, 1, 5, 4, 0],
+        [0, 1, 3, 2, 0],
+        [0, 2, 6, 4, 0],
+        [1, 5, 7, 3, 1],
+        [2, 3, 7, 6, 2],
+        [5, 7, 6, 4, 5]
+    ]
+    for face in faces:
+        prev = pred[21+face[0], :]
+        for idx in face:
+            row = 21 + idx
+            cur = pred[row, :]
+            cur, prev = cur.flatten(), prev.flatten()
+            x, y, z = (
+                np.linspace(prev[0], cur[0], 100),
+                np.linspace(prev[1], cur[1], 100),
+                np.linspace(prev[2], cur[2], 100),
+            )
+            ax.plot(x, y, z, color="green")
+            ax.text(cur[0], cur[1], cur[2], f"{row-21}", color="green")
+            prev = cur
+    plt.show()

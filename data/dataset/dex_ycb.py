@@ -126,8 +126,6 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             gpu_number,
             auto_load=False,
         )
-        # TODO: Reorder the joints as in the other datasets? What is it for? For the graph nets to
-        # better model the joint neighbourings?
         self._calib_dir = os.path.join(self._root, "calibration")
         self._model_dir = os.path.join(self._root, "models")
         self._h, self._w = 480, 640
@@ -299,7 +297,6 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                         ho2d, ho3d = self._compute_labels(
                                             intrinsics[c], meta, labels, obj_class_id,
                                         )
-                                        wrist, indextip = ho3d[0, :], ho3d[8, :]
                                     except NoInteractionError:
                                         no_interaction[obj_class_id] += 1
                                         continue
@@ -330,10 +327,10 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         normalize_keypoints=False,
     ) -> CustomDataset:
         # Hold out
-        keys = samples.copy().keys()
-        for category_id, _ in enumerate(keys):
+        keys = list(samples.copy().keys())
+        for category_id in keys:
             if category_id not in self._split_categories[split]:
-                del samples[list(keys)[category_id]]
+                del samples[keys[category_id]]
         print(
             f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
         )
@@ -360,7 +357,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
         dataset = self._make_dataset(
             split,
-            copy(samples),
+            copy(samples), # They will be modified, we'll need them for the other split
             object_as_task=object_as_task,
             normalize_keypoints=normalize_keypoints,
         )
