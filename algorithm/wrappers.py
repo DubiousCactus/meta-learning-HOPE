@@ -22,7 +22,7 @@ from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
 from model.hopenet import HOPENet, GraphNetwResNet
 from model.cnn import ResNet, MobileNet
 
-from util.utils import load_state_dict, plot_3D_prediction
+from util.utils import load_state_dict, plot_3D_pred_gt
 
 from PIL import Image, ImageDraw
 from typing import List
@@ -351,8 +351,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             img = Image.fromarray(npimg.swapaxes(0, 2).swapaxes(0, 1))
             print(f"MSE={self.inner_criterion(outputs3d, q_labels3d)} - MAE={F.l1_loss(outputs3d, q_labels3d)}")
             img.show()
-            plot_3D_prediction(outputs3d[0].cpu())
-            plot_3D_prediction(q_labels3d[0].cpu())
+            plot_3D_pred_gt(outputs3d[0].cpu(), q_labels3d[0].cpu())
 
 class MAML_GraphUNetTrainer(MAMLTrainer):
     def __init__(
@@ -503,7 +502,7 @@ class Regular_CNNTrainer(RegularTrainer):
                 raise NotImplementedError(f"No implementation for {compute}")
 
     def _testing_step_vis(self, batch: tuple):
-        inputs, _, _ = batch
+        inputs, _, labels3d = batch
         if self._use_cuda:
             inputs = inputs.float().cuda(device=self._gpu_number)
         with torch.no_grad():
@@ -514,7 +513,8 @@ class Regular_CNNTrainer(RegularTrainer):
             npimg = (unnormalized_img * 255).cpu().numpy().astype(np.uint8)
             img = Image.fromarray(npimg.swapaxes(0, 2).swapaxes(0, 1))
             img.show()
-            plot_3D_prediction(outputs3d[0].cpu())
+            print(labels3d[0].shape)
+            plot_3D_pred_gt(outputs3d[0].cpu(), labels3d[0].cpu())
 
 class Regular_GraphUNetTrainer(RegularTrainer):
     def __init__(
