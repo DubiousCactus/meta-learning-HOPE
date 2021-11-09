@@ -12,7 +12,7 @@ Custom ResNet and MobileNet
 
 from HOPE.models.resnet import resnet10, model_urls
 from collections import OrderedDict
-from typing import Tuple
+from typing import Tuple, Union
 from torch import Tensor
 
 import torchvision.models as models
@@ -35,16 +35,20 @@ class ResNet(InitWrapper, torch.nn.Module):
     def __init__(self, model="18", pretrained=True):
         super().__init__()
         self.randomly_initialize_weights = False
+        hidden = 128
         if model == "10":
             network = resnet10(num_classes=21 * 2)
             if pretrained:
                 self._load_resnet10_model(network)
         elif model == "18":
             network = models.resnet18(pretrained=pretrained)
+            hidden = 256
         elif model == "34":
             network = models.resnet34(pretrained=pretrained)
+            hidden = 256
         elif model == "50":
             network = models.resnet50(pretrained=pretrained)
+            hidden = 512
         else:
             raise ValueError(f"No models for {model}")
         n_features = network.fc.in_features
@@ -52,9 +56,9 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.resnet = network
         del self.resnet.fc
         self.fc = torch.nn.Sequential(
-            # torch.nn.Linear(n_features, 128),
-            # torch.nn.ReLU(),
-            torch.nn.Linear(n_features, 21 * 3),
+            torch.nn.Linear(n_features, hidden),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden, 21 * 3),
         )
 
     def _load_resnet10_model(self, model: torch.nn.Module):
@@ -64,7 +68,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         del res_18_state_dict["fc.bias"]
         model.load_state_dict(res_18_state_dict, strict=False)
 
-    def _forward_impl(self, x: Tensor, features_only=False) -> Tuple[Tensor, Tensor]:
+    def _forward_impl(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         """
         Original implementation from PyTorch, modified to return the image features vector.
         """
@@ -81,24 +85,23 @@ class ResNet(InitWrapper, torch.nn.Module):
 
         features = self.resnet.avgpool(x)
         x = torch.flatten(features, 1)
-        img_features = x
-        x = self.fc(x)
 
-        return (
-            (x.view(-1, 21, 3), img_features)
-            if not features_only
-            else img_features.view(-1, self._n_features)
-        )
+        if features_only:
+            return x.view(-1, self._n_features)
+        else:
+            img_features = x
+            x = self.fc(x)
+            return (x.view(-1, 21, 3), img_features)
 
-    def forward(self, x: Tensor, features_only=False) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         return self._forward_impl(x, features_only=features_only)
 
     @property
-    def out_features(self):
+    def out_features(self) -> int:
         return self._n_features
 
     @property
-    def features(self):
+    def features(self) -> Lambda:
         return Lambda(lambda x: self(x, features_only=True))
 
     @property
