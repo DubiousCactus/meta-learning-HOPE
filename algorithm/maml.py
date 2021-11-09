@@ -269,6 +269,7 @@ class MAMLTrainer(BaseTrainer):
         batch_size: int = 16,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
+        visualize: bool = False,
     ):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
@@ -292,6 +293,8 @@ class MAMLTrainer(BaseTrainer):
                 learner,
                 compute="mae",
             )
+            if visualize:
+                self._testing_step_vis(meta_batch, maml.clone())
             meta_mse_losses.append(inner_mse_loss.detach())
             meta_mae_losses.append(inner_mae_loss.detach())
         meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())

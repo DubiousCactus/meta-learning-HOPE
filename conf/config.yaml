@@ -2,6 +2,7 @@ shapenet_root: ../ShapeNetCore.v2
 gpu_numbers: [0]
 use_cuda: True
 test_mode: False
+vis: False
 resume_training: True
 use_scheduler: True
 defaults:

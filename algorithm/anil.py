@@ -231,6 +231,7 @@ class ANILTrainer(MAMLTrainer):
         batch_size: int = 16,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
+        visualize: bool = False,
     ):
         maml = l2l.algorithms.MAML(
             self.model.head,
@@ -261,7 +262,8 @@ class ANILTrainer(MAMLTrainer):
                 self.model.features,
                 compute="mae",
             )
-            self._testing_step_vis(meta_batch, maml.clone(), self.model.features)
+            if visualize:
+                self._testing_step_vis(meta_batch, maml.clone(), self.model.features)
             meta_mse_losses.append(inner_mse_loss.detach())
             meta_mae_losses.append(inner_mae_loss.detach())
         meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())

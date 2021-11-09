@@ -99,6 +99,7 @@ class BaseTrainer(ABC):
         batch_size: int = 16,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
+        visualize: bool = False,
     ):
         raise NotImplementedError
 

@@ -78,6 +78,7 @@ def main(cfg: DictConfig):
             batch_size=cfg.experiment.batch_size,
             fast_lr=cfg.experiment.fast_lr,
             meta_lr=cfg.experiment.meta_lr,
+            visualize=cfg.vis,
         )
     else:
         trainer.train(

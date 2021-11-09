@@ -141,6 +141,7 @@ class RegularTrainer(BaseTrainer):
         batch_size: int = 32,
         fast_lr: float = 0.01,
         meta_lr: float = None,
+        visualize: bool = False,
     ):
         if not self._model_path:
             print(f"[!] Testing a randomly initialized model!")
@@ -155,7 +156,8 @@ class RegularTrainer(BaseTrainer):
                 return
             mae_losses.append(self._testing_step(batch, compute="mae"))
             mse_losses.append(self._testing_step(batch, compute="mse"))
-            self._testing_step_vis(batch)
+            if visualize:
+                self._testing_step_vis(batch)
         avg_mse_loss = torch.Tensor(mse_losses).mean().item()
         avg_mae_loss = torch.Tensor(mae_losses).mean().item()
         print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
