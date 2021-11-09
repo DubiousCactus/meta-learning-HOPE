@@ -178,7 +178,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         idx = list(range(len(categories)))
         np.random.seed(hold_out)
         np.random.shuffle(idx)
-        n_test, n_val = hold_out, hold_out//2+(hold_out%2)
+        n_test, n_val = hold_out, min(5, hold_out//2+(hold_out%2))
         n_train = len(self._obj_labels)-n_test-n_val
         assert n_train > 0, "There must remain at least one category in the train split"
         splits = {
