@@ -5,10 +5,11 @@ model_def: ResNet18
 dataset: dexycb
 dataset_path: ../DexYCB
 name: anil_resnet_dexycb
-fast_lr: 0.1
+fast_lr: 1e-5
+meta_lr: 0.01
 optimizer: adam
 max_grad_norm: null
-steps: 5
-batch_size: 5
+steps: 15
+batch_size: 8
 k_shots: 10
 n_queries: 50
