@@ -189,13 +189,12 @@ def draw_2D_prediction(image, pred):
 
 
 
-def plot_3D_pred_gt(pred, gt=None):
+def plot_3D_pred_gt(pred, img, gt=None):
     def plot_pred(ax, pred):
         x = np.linspace(-1, 1, 200)
-        pred /= 1000  # From millimeters
         # Plot the hand first:
         prev = pred[0, :]
-        for row in np.ndindex(pred.shape[0] - 8):
+        for row in np.ndindex(pred.shape[0]):
             cur = pred[row, :]
             if row[0] in [5, 9, 13, 17]:
                 prev = pred[0, :]
@@ -209,35 +208,48 @@ def plot_3D_pred_gt(pred, gt=None):
             ax.text(cur[0], cur[1], cur[2], f"{row[0]}", color="red")
             prev = cur
         # Plot the object bbox:
-        faces = [
-            [0, 1, 5, 4, 0],
-            [0, 1, 3, 2, 0],
-            [0, 2, 6, 4, 0],
-            [1, 5, 7, 3, 1],
-            [2, 3, 7, 6, 2],
-            [5, 7, 6, 4, 5]
-        ]
-        for face in faces:
-            prev = pred[21+face[0], :]
-            for idx in face:
-                row = 21 + idx
-                cur = pred[row, :]
-                cur, prev = cur.flatten(), prev.flatten()
-                x, y, z = (
-                    np.linspace(prev[0], cur[0], 100),
-                    np.linspace(prev[1], cur[1], 100),
-                    np.linspace(prev[2], cur[2], 100),
-                )
-                ax.plot(x, y, z, color="green")
-                ax.text(cur[0], cur[1], cur[2], f"{row-21}", color="green")
-                prev = cur
+        # faces = [
+        #     [0, 1, 5, 4, 0],
+        #     [0, 1, 3, 2, 0],
+        #     [0, 2, 6, 4, 0],
+        #     [1, 5, 7, 3, 1],
+        #     [2, 3, 7, 6, 2],
+        #     [5, 7, 6, 4, 5]
+        # ]
+        # for face in faces:
+        #     prev = pred[21+face[0], :]
+        #     for idx in face:
+        #         row = 21 + idx
+        #         cur = pred[row, :]
+        #         cur, prev = cur.flatten(), prev.flatten()
+        #         x, y, z = (
+        #             np.linspace(prev[0], cur[0], 100),
+        #             np.linspace(prev[1], cur[1], 100),
+        #             np.linspace(prev[2], cur[2], 100),
+        #         )
+        #         ax.plot(x, y, z, color="green")
+        #         ax.text(cur[0], cur[1], cur[2], f"{row-21}", color="green")
+        #         prev = cur
+    fig = plt.figure()
     if gt is not None:
-        fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection='3d'))
+        ax1 = fig.add_subplot(131, projection="3d")
         plot_pred(ax1, pred)
         ax1.set_title("Prediction")
+        ax2 = fig.add_subplot(132, projection="3d")
         plot_pred(ax2, gt)
         ax2.set_title("Ground truth")
+        ax3 = fig.add_subplot(133)
+        ax3.imshow(img)
+        ax3.set_title("Input image")
+        ax3.get_xaxis().set_visible(False)
+        ax3.get_yaxis().set_visible(False)
     else:
-        ax = plt.figure().add_subplot(projection="3d")
-        plot_pred(ax, pred)
+        ax1 = fig.add_subplot(121, projection="3d")
+        plot_pred(ax1, pred)
+        ax1.set_title("Prediction")
+        ax2 = fig.add_subplot(122)
+        ax2.imshow(img)
+        ax2.set_title("Input image")
+        ax2.get_xaxis().set_visible(False)
+        ax2.get_yaxis().set_visible(False)
     plt.show()
