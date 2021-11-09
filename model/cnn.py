@@ -30,6 +30,11 @@ class Lambda(torch.nn.Module):
     def forward(self, x):
         return self.fn(x)
 
+def initialize_weights(m):
+    if isinstance(m, torch.nn.Linear):
+        torch.nn.init.kaiming_uniform_(m.weight.data, nonlinearity="relu")
+        torch.nn.init.constant_(m.bias.data, 0)
+
 
 class ResNet(InitWrapper, torch.nn.Module):
     def __init__(self, model="18", pretrained=True):
@@ -37,7 +42,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.randomly_initialize_weights = False
         hidden = 128
         if model == "10":
-            network = resnet10(num_classes=21 * 2)
+            network = resnet10(num_classes=21 * 3)
             if pretrained:
                 self._load_resnet10_model(network)
         elif model == "18":
@@ -60,6 +65,7 @@ class ResNet(InitWrapper, torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(hidden, 21 * 3),
         )
+        self.fc.apply(initialize_weights)
 
     def _load_resnet10_model(self, model: torch.nn.Module):
         res_18_state_dict = torch.hub.load_state_dict_from_url(model_urls["resnet18"])
