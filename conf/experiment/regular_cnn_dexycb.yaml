@@ -4,3 +4,4 @@ defaults:
 dataset: dexycb
 dataset_path: ../DexYCB
 name: regular_resnet_dexycb
+model_def: ResNet18

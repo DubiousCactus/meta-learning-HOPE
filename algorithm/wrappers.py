@@ -270,21 +270,21 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, 21, 3)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            joints = head(s_inputs).view(-1, 29, 3)
+            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch, clip_grad_max_norm=clip_grad_norm)
             if msl:  # Multi-step loss
-                q_joints = head(q_inputs_features).view(-1, 21, 3)
-                q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+                q_joints = head(q_inputs_features).view(-1, 29, 3)
+                q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
                 query_loss += self._step_weights[step] * criterion(
                     q_joints, q_labels3d
                 )
 
         # Evaluate the adapted model on the query set
         if not msl:
-            q_joints = head(q_inputs_features).view(-1, 21, 3)
-            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            q_joints = head(q_inputs_features).view(-1, 29, 3)
+            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
         return query_loss
 
@@ -312,15 +312,15 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, 21, 3)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            joints = head(s_inputs).view(-1, 29, 3)
+            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch, clip_grad_max_norm=clip_grad_norm)
 
         with torch.no_grad():
             q_inputs = features(q_inputs)
-            q_joints = head(q_inputs).view(-1, 21, 3)
-            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            q_joints = head(q_inputs).view(-1, 29, 3)
+            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
         return criterion(q_joints, q_labels3d)
 
     def _testing_step_vis(self,
@@ -340,15 +340,15 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, 21, 3)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            joints = head(s_inputs).view(-1, 29, 3)
+            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss)
 
         with torch.no_grad():
             q_inputs_f = features(q_inputs)
-            q_joints = head(q_inputs_f).view(-1, 21, 3)
-            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            q_joints = head(q_inputs_f).view(-1, 29, 3)
+            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             mean, std = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32), torch.tensor([0.221, 0.224, 0.225], dtype=torch.float32)
             unnormalize = transforms.Normalize(mean=(-mean/std).tolist(), std=(1.0/std).tolist())
             unnormalized_img = unnormalize(q_inputs[0])
@@ -486,7 +486,7 @@ class Regular_CNNTrainer(RegularTrainer):
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         joints, _ = self.model(inputs)
-        joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+        joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
         loss = self.inner_criterion(joints, labels3d)
         loss.backward()
         return loss.detach()
@@ -498,7 +498,7 @@ class Regular_CNNTrainer(RegularTrainer):
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         with torch.no_grad():
             joints, _ = self.model(inputs)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             if compute == "mse":
                 return F.mse_loss(joints, labels3d).detach()
             elif compute == "mae":
@@ -512,7 +512,7 @@ class Regular_CNNTrainer(RegularTrainer):
             inputs = inputs.float().cuda(device=self._gpu_number)
         with torch.no_grad():
             joints, _ = self.model(inputs)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1) # Root alignment
+            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             mean, std = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32), torch.tensor([0.221, 0.224, 0.225], dtype=torch.float32)
             unnormalize = transforms.Normalize(mean=(-mean/std).tolist(), std=(1.0/std).tolist())
             unnormalized_img = unnormalize(inputs[0])
@@ -614,7 +614,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
             labels2d = labels2d.float().cuda(device=self._gpu_number)
         with torch.no_grad():
             points2D_init, features = self._resnet(inputs)
-            features = features.unsqueeze(1).repeat(1, 21, 1)
+            features = features.unsqueeze(1).repeat(1, 29, 1)
             in_features = torch.cat([points2D_init, features], dim=2)
         points2D = self.model(in_features)
         loss = self.inner_criterion(points2D, labels2d)
@@ -628,7 +628,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
             labels2d = labels2d.float().cuda(device=self._gpu_number)
         with torch.no_grad():
             points2D_init, features = self._resnet(inputs)
-            features = features.unsqueeze(1).repeat(1, 21, 1)
+            features = features.unsqueeze(1).repeat(1, 29, 1)
             in_features = torch.cat([points2D_init, features], dim=2)
             points2D = self.model(in_features)
             if compute == "mse":
