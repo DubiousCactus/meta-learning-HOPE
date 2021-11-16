@@ -94,7 +94,7 @@ class ANILTrainer(MAMLTrainer):
         # From How to Train Your MAML:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt,
-            T_max=iterations * iter_per_epoch,
+            T_max=iterations,
             eta_min=0.00001,
             last_epoch=self._epoch - 1,
             verbose=True,
@@ -145,11 +145,12 @@ class ANILTrainer(MAMLTrainer):
                 if max_grad_norm:
                     torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
                 opt.step()
-                if use_scheduler:
-                    scheduler.step()
 
                 if self._msl:
                     self._anneal_step_weights()
+
+            if use_scheduler:
+                scheduler.step()
 
             epoch_meta_train_loss /= iter_per_epoch
             del meta_train_losses
