@@ -97,6 +97,7 @@ class ANILTrainer(MAMLTrainer):
             T_max=iterations * iter_per_epoch,
             eta_min=0.00001,
             last_epoch=self._epoch - 1,
+            verbose=True,
         )
         past_val_loss = float("+inf")
         if self._model_path:
