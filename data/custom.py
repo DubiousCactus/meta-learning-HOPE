@@ -11,12 +11,8 @@ Custom dataset classes and interfaces.
 """
 
 from torch.utils.data import Dataset as TorchDataset
-from typing import Tuple, Dict, List, Union
-from torch.autograd import Variable
-from torch import Tensor
+from typing import Dict, List, Union
 from PIL import Image
-
-import torch
 
 
 class CustomDataset(TorchDataset):
@@ -45,9 +41,9 @@ class CustomDataset(TorchDataset):
         images, points2d, points3d = [], [], []
         labels, i = {}, 0
 
-        def load_sample(img_path, p_2d, p_3d) -> tuple:
+        def load_sample(img_path, p_2d, p_3d):
             images.append(img_path)
-            p_3d = p_3d - p_3d[0, :] # Root aligned
+            p_3d = p_3d - p_3d[0, :]  # Root aligned
             if self._pin_memory:
                 p_2d.pin_memory()
                 p_3d.pin_memory()

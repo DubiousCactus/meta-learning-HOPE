@@ -42,7 +42,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.randomly_initialize_weights = False
         hidden = 128
         if model == "10":
-            network = resnet10(num_classes=21 * 3)
+            network = resnet10(num_classes=29 * 3)
             if pretrained:
                 self._load_resnet10_model(network)
         elif model == "18":
@@ -63,7 +63,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(n_features, hidden),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden, 21 * 3),
+            torch.nn.Linear(hidden, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 
@@ -97,7 +97,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         else:
             img_features = x
             x = self.fc(x)
-            return (x.view(-1, 21, 3), img_features)
+            return (x.view(-1, 29, 3), img_features)
 
     def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         return self._forward_impl(x, features_only=features_only)
@@ -133,7 +133,7 @@ class MobileNet(InitWrapper, torch.nn.Module):
             # torch.nn.Linear(n_features, wconfig['experiment.hidden']),
             torch.nn.Hardswish(),
             # torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
-            torch.nn.Linear(n_features, 21 * 2),
+            torch.nn.Linear(n_features, 29 * 2),
         )
 
     def _forward_impl(self, x: Tensor) -> Tuple[Tensor, Tensor]:
@@ -148,7 +148,7 @@ class MobileNet(InitWrapper, torch.nn.Module):
 
         x = self.fc(x)
 
-        return x.view(-1, 21, 2), img_features
+        return x.view(-1, 29, 2), img_features
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         return self._forward_impl(x)
