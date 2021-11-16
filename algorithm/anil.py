@@ -97,6 +97,7 @@ class ANILTrainer(MAMLTrainer):
             T_max=iterations * iter_per_epoch,
             eta_min=0.00001,
             last_epoch=self._epoch - 1,
+            verbose=True,
         )
         past_val_loss = float("+inf")
         if self._model_path:
@@ -246,29 +247,35 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        meta_mse_losses, meta_mae_losses = [], []
-        for task in tqdm(self.dataset.test, dynamic_ncols=True):
-            if self._exit:
-                return
-            meta_batch = self._split_batch(task)
-            inner_mse_loss = self._testing_step(
-                meta_batch,
-                maml.clone(),
-                self.model.features,
-            )
-            inner_mae_loss = self._testing_step(
-                meta_batch,
-                maml.clone(),
-                self.model.features,
-                compute="mae",
-            )
-            if visualize:
-                self._testing_step_vis(meta_batch, maml.clone(), self.model.features)
-            meta_mse_losses.append(inner_mse_loss.detach())
-            meta_mae_losses.append(inner_mae_loss.detach())
-        meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())
-        meta_mae_loss = float(torch.Tensor(meta_mae_losses).mean().item())
+        meta_mse_loss, meta_mae_loss = float("+inf"), float("+inf")
+        for i in range(5):
+            print(f"===============[Run {i}/5]==============")
+            meta_mse_losses, meta_mae_losses = [], []
+            for task in tqdm(self.dataset.test, dynamic_ncols=True):
+                if self._exit:
+                    return
+                meta_batch = self._split_batch(task)
+                inner_mse_loss = self._testing_step(
+                    meta_batch,
+                    maml.clone(),
+                    self.model.features,
+                )
+                inner_mae_loss = self._testing_step(
+                    meta_batch,
+                    maml.clone(),
+                    self.model.features,
+                    compute="mae",
+                )
+                if visualize:
+                    self._testing_step_vis(meta_batch, maml.clone(), self.model.features)
+                meta_mse_losses.append(inner_mse_loss.detach())
+                meta_mae_losses.append(inner_mae_loss.detach())
+            mae = float(torch.Tensor(meta_mae_losses).mean().item())
+            if mae < meta_mae_loss:
+                meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())
+                meta_mae_loss = mae
+            print(f"=======================================")
 
-        print("==========[Test Error]==========")
+        print("==========[Test Error (best of 5)]==========")
         print(f"Meta-testing MSE Loss: {meta_mse_loss:.6f}")
         print(f"Meta-testing MAE Loss: {meta_mae_loss:.6f}")

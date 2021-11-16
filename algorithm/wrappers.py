@@ -308,7 +308,8 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
-        s_inputs = features(s_inputs)
+        with torch.no_grad():
+            s_inputs = features(s_inputs)
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
