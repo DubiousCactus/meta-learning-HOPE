@@ -16,7 +16,6 @@ from torch import Tensor
 
 import torchvision.models as models
 import learn2learn as l2l
-import torchsummary
 import torch
 
 from model.wrapper import InitWrapper
