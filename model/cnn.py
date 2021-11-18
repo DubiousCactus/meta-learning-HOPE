@@ -40,7 +40,7 @@ class ResNet12(InitWrapper, torch.nn.Module):
         super().__init__()
         self.randomly_initialize_weights = False
         hidden1, hidden2 = 256, 128
-        n_features = 125440#16000
+        n_features = 125440
         self._n_features = n_features
         self.resnet = l2l.vision.models.ResNet12Backbone(avg_pool=False, wider=True)
         self.fc = torch.nn.Sequential(
@@ -50,6 +50,8 @@ class ResNet12(InitWrapper, torch.nn.Module):
             torch.nn.Linear(hidden1, 29 * 3),
         )
         self.fc.apply(initialize_weights)
+        import torchsummary
+        torchsummary.summary(self.resnet.to('cuda'), input_size=(3, 224, 224))
 
     def _forward_impl(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         f = self.resnet(x)
@@ -106,6 +108,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.resnet = network
         del self.resnet.fc
         self.fc = torch.nn.Sequential(
+            torch.nn.Dropout(p=0.25),
             torch.nn.Linear(n_features, hidden1),
             torch.nn.ReLU(),
             # torch.nn.Linear(hidden1, hidden2),
