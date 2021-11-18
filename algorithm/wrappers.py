@@ -20,7 +20,7 @@ from HOPE.utils.model import select_model
 
 from model.graphnet import GraphUNetBatchNorm, GraphNetBatchNorm
 from model.hopenet import HOPENet, GraphNetwResNet
-from model.cnn import ResNet, MobileNet
+from model.cnn import ResNet, ResNet12, MobileNet
 
 from util.utils import load_state_dict, plot_3D_pred_gt
 
@@ -216,6 +216,8 @@ class ANIL_CNNTrainer(ANILTrainer):
     ):
         if cnn_def == "resnet10":
             cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet12":
+            cnn = ResNet12()
         elif cnn_def == "resnet18":
             cnn = ResNet(model="18", pretrained=True)
         elif cnn_def == "resnet34":
@@ -460,6 +462,8 @@ class Regular_CNNTrainer(RegularTrainer):
     ):
         if cnn_def == "resnet10":
             cnn = ResNet(model="10", pretrained=True)
+        elif cnn_def == "resnet12":
+            cnn = ResNet12()
         elif cnn_def == "resnet18":
             cnn = ResNet(model="18", pretrained=True)
         elif cnn_def == "resnet34":

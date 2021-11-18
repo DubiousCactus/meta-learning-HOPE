@@ -15,6 +15,8 @@ from typing import Tuple, Union
 from torch import Tensor
 
 import torchvision.models as models
+import learn2learn as l2l
+import torchsummary
 import torch
 
 from model.wrapper import InitWrapper
@@ -32,6 +34,50 @@ def initialize_weights(m):
     if isinstance(m, torch.nn.Linear):
         torch.nn.init.kaiming_uniform_(m.weight.data, nonlinearity="relu")
         torch.nn.init.constant_(m.bias.data, 0)
+
+
+class ResNet12(InitWrapper, torch.nn.Module):
+    def __init__(self, pretrained=True):
+        super().__init__()
+        self.randomly_initialize_weights = False
+        hidden1, hidden2 = 256, 128
+        n_features = 16000
+        self._n_features = n_features
+        self.resnet = l2l.vision.models.ResNet12Backbone(avg_pool=False, wider=True)
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(hidden1, hidden2),
+            # torch.nn.Linear(hidden1, hidden2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden2, 29 * 3),
+        )
+        self.fc.apply(initialize_weights)
+
+    def _forward_impl(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
+        f = self.resnet(x)
+        f = torch.flatten(f, 1)
+        print(f.shape)
+
+        if features_only:
+            return f.view(-1, 256)
+        else:
+            x = self.fc(f)
+            return (x.view(-1, 29, 3), f)
+
+    def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
+        return self._forward_impl(x, features_only=features_only)
+
+    @property
+    def out_features(self) -> int:
+        return self._n_features
+
+    @property
+    def features(self) -> Lambda:
+        return Lambda(lambda x: self(x, features_only=True))
+
+    @property
+    def head(self):
+        return self.fc
+
 
 
 class ResNet(InitWrapper, torch.nn.Module):
@@ -57,16 +103,16 @@ class ResNet(InitWrapper, torch.nn.Module):
             hidden2 = 256
         else:
             raise ValueError(f"No models for {model}")
-        n_features = network.fc.in_features
+        n_features = 25088#network.fc.in_features
         self._n_features = n_features
         self.resnet = network
         del self.resnet.fc
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(n_features, hidden1),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden1, hidden2),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden2, 29 * 3),
+            # torch.nn.Linear(hidden1, hidden2),
+            # torch.nn.ReLU(),
+            torch.nn.Linear(hidden1, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 
@@ -92,15 +138,13 @@ class ResNet(InitWrapper, torch.nn.Module):
         x = self.resnet.layer3(x)
         x = self.resnet.layer4(x)
 
-        features = self.resnet.avgpool(x)
-        x = torch.flatten(features, 1)
+        features = torch.flatten(x, 1)
 
         if features_only:
-            return x.view(-1, self._n_features)
+            return features#.view(-1, self._n_features)
         else:
-            img_features = x
-            x = self.fc(x)
-            return (x.view(-1, 29, 3), img_features)
+            x = self.fc(features)
+            return (x.view(-1, 29, 3), features)#.view(-1, self._n_features))
 
     def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         return self._forward_impl(x, features_only=features_only)
