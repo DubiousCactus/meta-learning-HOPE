@@ -40,24 +40,23 @@ class ResNet12(InitWrapper, torch.nn.Module):
         super().__init__()
         self.randomly_initialize_weights = False
         hidden1, hidden2 = 256, 128
-        n_features = 16000
+        n_features = 125440#16000
         self._n_features = n_features
         self.resnet = l2l.vision.models.ResNet12Backbone(avg_pool=False, wider=True)
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(hidden1, hidden2),
+            torch.nn.Linear(n_features, hidden1),
             # torch.nn.Linear(hidden1, hidden2),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden2, 29 * 3),
+            torch.nn.Linear(hidden1, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 
     def _forward_impl(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         f = self.resnet(x)
         f = torch.flatten(f, 1)
-        print(f.shape)
 
         if features_only:
-            return f.view(-1, 256)
+            return f#.view(-1, 256)
         else:
             x = self.fc(f)
             return (x.view(-1, 29, 3), f)
