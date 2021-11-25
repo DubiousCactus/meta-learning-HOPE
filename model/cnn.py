@@ -108,12 +108,11 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.resnet = network
         del self.resnet.fc
         self.fc = torch.nn.Sequential(
-            torch.nn.Dropout(p=0.25),
             torch.nn.Linear(n_features, hidden1),
             torch.nn.ReLU(),
-            # torch.nn.Linear(hidden1, hidden2),
-            # torch.nn.ReLU(),
-            torch.nn.Linear(hidden1, 29 * 3),
+            torch.nn.Linear(hidden1, hidden2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden2, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 
