@@ -11,7 +11,7 @@ Utility functions for data loading and processing.
 """
 
 from collections import OrderedDict
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -164,54 +164,108 @@ def load_state_dict(module, resnet_path):
     module.load_state_dict(new_state_dict)
 
 
-def plot_3D_pred_gt(pred, img, gt=None):
-    def plot_pred(ax, pred):
-        x = np.linspace(-1, 1, 200)
-        # Plot the hand first:
-        prev = pred[0, :]
-        for row in np.ndindex(pred.shape[0] - 8):
-            cur = pred[row, :]
-            if row[0] in [5, 9, 13, 17]:
-                prev = pred[0, :]
+def plot_pose(ax, pose):
+    # Plot the hand first:
+    prev = pose[0, :]
+    for row in np.ndindex(pose.shape[0] - 8):
+        cur = pose[row, :]
+        if row[0] in [5, 9, 13, 17]:
+            prev = pose[0, :]
+        cur, prev = cur.flatten(), prev.flatten()
+        x, y, z = (
+            np.linspace(prev[0], cur[0], 100),
+            np.linspace(prev[1], cur[1], 100),
+            np.linspace(prev[2], cur[2], 100),
+        )
+        ax.plot(x, y, z, color="red")
+        ax.text(cur[0], cur[1], cur[2], f"{row[0]}", color="red")
+        prev = cur
+    # Plot the object bbox:
+    faces = [
+        [0, 1, 2, 3, 0],
+        [0, 1, 5, 4, 0],
+        [0, 3, 7, 4, 0],
+        [1, 5, 6, 2, 1],
+        [2, 3, 7, 6, 2],
+        [5, 6, 7, 4, 5]
+    ]
+    for face in faces:
+        prev = pose[21+face[0], :]
+        for idx in face:
+            row = 21 + idx
+            cur = pose[row, :]
             cur, prev = cur.flatten(), prev.flatten()
             x, y, z = (
                 np.linspace(prev[0], cur[0], 100),
                 np.linspace(prev[1], cur[1], 100),
                 np.linspace(prev[2], cur[2], 100),
             )
-            ax.plot(x, y, z, color="red")
-            ax.text(cur[0], cur[1], cur[2], f"{row[0]}", color="red")
+            ax.plot(x, y, z, color="green")
+            ax.text(cur[0], cur[1], cur[2], f"{row-21}", color="green")
             prev = cur
-        # Plot the object bbox:
-        faces = [
-            [0, 1, 5, 4, 0],
-            [0, 1, 3, 2, 0],
-            [0, 2, 6, 4, 0],
-            [1, 5, 7, 3, 1],
-            [2, 3, 7, 6, 2],
-            [5, 7, 6, 4, 5]
-        ]
-        for face in faces:
-            prev = pred[21+face[0], :]
-            for idx in face:
-                row = 21 + idx
-                cur = pred[row, :]
-                cur, prev = cur.flatten(), prev.flatten()
-                x, y, z = (
-                    np.linspace(prev[0], cur[0], 100),
-                    np.linspace(prev[1], cur[1], 100),
-                    np.linspace(prev[2], cur[2], 100),
-                )
-                ax.plot(x, y, z, color="green")
-                ax.text(cur[0], cur[1], cur[2], f"{row-21}", color="green")
-                prev = cur
+
+#     scaling = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
+#     ax.auto_scale_xyz(*[[np.min(scaling), np.max(scaling)]]*3)
+    world_limits = ax.get_w_lims()
+    ax.set_box_aspect((world_limits[1]-world_limits[0],world_limits[3]-world_limits[2],world_limits[5]-world_limits[4]))
+
+
+def plot_3D_gt(gt, img_path, gt2d):
+    fig = plt.figure()
+    ax1 = fig.add_subplot(121, projection="3d")
+    plot_pose(ax1, gt)
+    ax1.set_title("Ground truth")
+    ax2 = fig.add_subplot(122)
+    img = Image.open(img_path)
+    print(f"Image shape: {img.size}")
+    w, h = img.size
+    if w != 224:
+        size, crop_sz = 256, 224
+        new_size = size, size
+        if w > h:
+            new_size = (size, h*size//w)
+        new_img = img.resize(new_size)
+        width, height = new_img.size   # Get dimensions
+        left = (width - crop_sz)//2
+        top = (height - crop_sz)//2
+        right = (width + crop_sz)//2
+        bottom = (height + crop_sz)//2
+
+        # Crop the center of the image
+        img = new_img.crop((left, top, right, bottom))
+    imgDraw = ImageDraw.Draw(img)
+    faces = [
+        [0, 1, 2, 3, 0],
+        [0, 1, 5, 4, 0],
+        [0, 3, 7, 4, 0],
+        [1, 5, 6, 2, 1],
+        [2, 3, 7, 6, 2],
+        [5, 6, 7, 4, 5]
+    ]
+    for face in faces:
+        prev = gt2d[21+face[0], :]
+        for idx in face:
+            row = 21 + idx
+            cur = gt2d[row, :]
+            cur, prev = cur.flatten(), prev.flatten()
+            imgDraw.line((prev[0], prev[1], cur[0], cur[1]), fill="green")
+            prev = cur
+    ax2.imshow(img)
+    ax2.set_title(f"Input image: {img_path}")
+    ax2.get_xaxis().set_visible(False)
+    ax2.get_yaxis().set_visible(False)
+    plt.show()
+
+
+
+def plot_3D_pred_gt(pred, img, gt=None):
     fig = plt.figure()
     if gt is not None:
         ax1 = fig.add_subplot(131, projection="3d")
-        plot_pred(ax1, pred)
+        plot_pose(ax1, pred)
         ax1.set_title("Prediction")
         ax2 = fig.add_subplot(132, projection="3d")
-        plot_pred(ax2, gt)
+        plot_pose(ax2, gt)
         ax2.set_title("Ground truth")
         ax3 = fig.add_subplot(133)
         ax3.imshow(img)
@@ -220,7 +274,7 @@ def plot_3D_pred_gt(pred, img, gt=None):
         ax3.get_yaxis().set_visible(False)
     else:
         ax1 = fig.add_subplot(121, projection="3d")
-        plot_pred(ax1, pred)
+        plot_pose(ax1, pred)
         ax1.set_title("Prediction")
         ax2 = fig.add_subplot(122)
         ax2.imshow(img)

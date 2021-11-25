@@ -14,7 +14,7 @@ import shutil
 import os
 
 
-_root = "/home/tmorales/DexYCB/"
+_root = "/home/cactus/Code/DexYCB/"
 size = 256
 crop_sz = 224
 

@@ -78,27 +78,27 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     ]
 
     _hand_2_obj_thresholds = [
-        0.08, # Master chef can
-        0.09, # Cracker box
-        0.09, # Sugar box
-        0.08, # Tomato soup can
-        0.05, # Mustard bottle
-        0.06, # Tuna fish can
-        0.05, # Pudding box
-        0.06, # Gelatin box
-        0.05, # Potted meat can
-        0.08, # Banana
-        0.15, # Pitcher base
-        0.07, # Bleach cleanser
-        0.09, # Bowl
-        0.08, # Mug
-        0.08, # Power drill
-        0.1, # Wood block
-        0.08, # Scissors
-        0.06, # Large marker
+        0.08,  # Master chef can
+        0.09,  # Cracker box
+        0.09,  # Sugar box
+        0.08,  # Tomato soup can
+        0.05,  # Mustard bottle
+        0.06,  # Tuna fish can
+        0.05,  # Pudding box
+        0.06,  # Gelatin box
+        0.05,  # Potted meat can
+        0.08,  # Banana
+        0.15,  # Pitcher base
+        0.07,  # Bleach cleanser
+        0.09,  # Bowl
+        0.08,  # Mug
+        0.08,  # Power drill
+        0.1,  # Wood block
+        0.08,  # Scissors
+        0.06,  # Large marker
         # 0.08, # Large clamp
-        0.1, # Extra large clamp
-        0.07, # Foam brick
+        0.1,  # Extra large clamp
+        0.07,  # Foam brick
     ]
 
     def __init__(
@@ -178,22 +178,20 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         idx = list(range(len(categories)))
         np.random.seed(hold_out)
         np.random.shuffle(idx)
-        n_test, n_val = hold_out, min(5, hold_out//2+(hold_out%2))
-        n_train = len(self._obj_labels)-n_test-n_val
+        n_test, n_val = hold_out, min(5, hold_out // 2 + (hold_out % 2))
+        n_train = len(self._obj_labels) - n_test - n_val
         assert n_train > 0, "There must remain at least one category in the train split"
         splits = {
             "train": list(np.array(categories)[idx[:n_train]]),
-            "val": list(np.array(categories)[idx[n_train:n_train+n_val]]),
+            "val": list(np.array(categories)[idx[n_train : n_train + n_val]]),
             "test": list(np.array(categories)[idx[-n_test:]]),
         }
         assert len(set(splits["train"]) & set(splits["val"]) & set(splits["test"])) == 0
         return splits
 
     def _compute_labels(
-            self, cam_intr: np.ndarray, meta: dict, labels: dict, obj_id: int
+        self, cam_intr: np.ndarray, meta: dict, labels: dict, obj_id: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        # The target object seems to be consistently the first
-        # one. The format is [R; t] with R 3x3 and t 3x1.
         # Cache the mesh bounding box
         obj_file_path = os.path.join(
             self._root,
@@ -205,21 +203,30 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             with open(obj_file_path, "r") as m_f:
                 mesh = fast_load_obj(m_f)[0]
             mesh = trimesh.load(mesh)
-            vert3d = np.array(mesh.bounding_box_oriented.vertices)
-            self._bboxes[obj_file_path] = vert3d
+            # From https://github.com/mikedh/trimesh/issues/573
+            half = mesh.bounding_box_oriented.primitive.extents / 2
+            vert3d = trimesh.transform_points(
+                trimesh.bounds.corners([-half, half]),
+                mesh.bounding_box_oriented.primitive.transform,
+            )
+            centroid = mesh.centroid
+            self._bboxes[obj_file_path] = (vert3d, centroid)
         else:
-            vert3d = self._bboxes[obj_file_path]
+            vert3d, centroid = self._bboxes[obj_file_path]
 
         # Apply the rotation + translation to the bbox vertices
-        transform = labels["pose_y"][meta['ycb_grasp_ind']]
+        # The format is [R; t] with R 3x3 and t 3x1.
+        transform = labels["pose_y"][meta["ycb_grasp_ind"]]
         hom_verts = np.concatenate(
             [vert3d, np.ones([vert3d.shape[0], 1])],
             axis=1,
         )
         vert3d = transform.dot(hom_verts.T).T[:, :3]
         # If the last vertex of the thumb is further than the mean vertex of the object
-        # boudning box according to a threshold, skip it
-        thumb_2_obj_dist = np.linalg.norm(np.mean(vert3d, axis=0) - labels["joint_3d"][0][4, :])
+        # bounding box according to a threshold, skip it
+        thumb_2_obj_dist = np.linalg.norm(
+            np.mean(vert3d, axis=0) - labels["joint_3d"][0][4, :]
+        )
         if thumb_2_obj_dist > self._hand_2_obj_thresholds[obj_id]:
             raise NoInteractionError
         # Project to 2D
@@ -227,8 +234,18 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         vert2d = hom_2d_verts / hom_2d_verts[2, :]
         vert2d = vert2d[:2, :].transpose()
         return (
-            torch.cat([torch.Tensor(labels["joint_2d"].reshape((21, 2))),torch.Tensor(vert2d)]),
-            torch.cat([torch.Tensor(labels["joint_3d"].reshape((21, 3)) * 1000), torch.Tensor(vert3d) * 1000])
+            torch.cat(
+                [
+                    torch.Tensor(labels["joint_2d"].reshape((21, 2))),
+                    torch.Tensor(vert2d),
+                ]
+            ),
+            torch.cat(
+                [
+                    torch.Tensor(labels["joint_3d"].reshape((21, 3)) * 1000),
+                    torch.Tensor(vert3d) * 1000,
+                ]
+            ),
         )
 
     def _make_raw_dataset(self) -> dict:
@@ -239,7 +256,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 samples = pickle.load(pickle_file)
         else:
             print(f"[*] Building dataset...")
-            pbar = tqdm(total=len(self._subjects)*len(self._viewpoints)*100)
+            pbar = tqdm(total=len(self._subjects) * len(self._viewpoints) * 100)
             samples = {}
             failed, no_interaction = 0, {i: 0 for i in range(len(self._obj_labels))}
 
@@ -281,43 +298,58 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                     continue
                                 idx = file.split("_")[-1].split(".")[0]
                                 img_file = os.path.join(root, file)
+                                if img_file.endswith(".old"):
+                                    continue
                                 with np.load(
                                     os.path.join(root, f"labels_{idx}.npz")
                                 ) as labels:
-                                    obj_class_id = meta['ycb_ids'][meta["ycb_grasp_ind"]] - 1
+                                    obj_class_id = (
+                                        meta["ycb_ids"][meta["ycb_grasp_ind"]] - 1
+                                    )
                                     if obj_class_id == 18:
                                         # Large clamp missing!
                                         continue
                                     elif obj_class_id > 18:
-                                        obj_class_id -= 1 # Compensate for the one removed in the list
-                                    if np.all(labels["joint_3d"].reshape((21, 3)) == -1):
+                                        obj_class_id -= 1  # Compensate for the one removed in the list
+                                    if np.all(
+                                        labels["joint_3d"].reshape((21, 3)) == -1
+                                    ):
                                         failed += 1
                                         continue
                                     try:
                                         ho2d, ho3d = self._compute_labels(
-                                            intrinsics[c], meta, labels, obj_class_id,
+                                            intrinsics[c],
+                                            meta,
+                                            labels,
+                                            obj_class_id,
                                         )
                                     except NoInteractionError:
                                         no_interaction[obj_class_id] += 1
                                         continue
                                     # # Rescale the 2D keypoints, because the images are rescaled from 640x480 to
                                     # # 224x224! This improves the performance of the 2D KP estimation GREATLY.
-                                    ho2d[:, 0] = ho2d[:, 0] * 224.0 / self._w
-                                    ho2d[:, 1] = ho2d[:, 1] * 224.0 / self._h
+                                    # TODO: Properly rescale the 2D labels
+                                    # First I resized the images to 256x256, then I center cropped
+                                    # to 224x224
+                                    # ho2d[:, 0] = ho2d[:, 0] * 256.0 / self._w
+                                    # ho2d[:, 1] = ho2d[:, 1] * 256.0 / self._h
                                     if obj_class_id not in samples:
                                         samples[obj_class_id] = []
-                                    samples[obj_class_id].append((img_file, ho2d, ho3d))
+                                    samples[obj_class_id].append(
+                                        (img_file, ho2d, ho3d)
+                                    )
                         pbar.update()
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
             for id, val in no_interaction.items():
                 if id in samples.keys():
-                    print(f"[!] {val} samples with no interaction were removed from {self._obj_labels[id]}: {len(samples[id])} samples left")
+                    print(
+                        f"[!] {val} samples with no interaction were removed from {self._obj_labels[id]}: {len(samples[id])} samples left"
+                    )
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving dataset into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
         return samples
-
 
     def _make_dataset(
         self,
@@ -357,7 +389,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
         dataset = self._make_dataset(
             split,
-            copy(samples), # They will be modified, we'll need them for the other split
+            copy(samples),  # They will be modified, we'll need them for the other split
             object_as_task=object_as_task,
             normalize_keypoints=normalize_keypoints,
         )

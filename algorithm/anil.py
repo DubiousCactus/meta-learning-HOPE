@@ -81,7 +81,7 @@ class ANILTrainer(MAMLTrainer):
             maml.parameters()
         )
         if optimizer == "adam":
-            opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
+            opt = torch.optim.AdamW(all_parameters, lr=meta_lr)
         elif optimizer == "sgd":
             opt = torch.optim.SGD(all_parameters, lr=meta_lr)
         else:
@@ -95,7 +95,7 @@ class ANILTrainer(MAMLTrainer):
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt,
             T_max=iterations,
-            eta_min=0.00001,
+            eta_min=0.000001,
             last_epoch=self._epoch - 1,
             verbose=True,
         )
