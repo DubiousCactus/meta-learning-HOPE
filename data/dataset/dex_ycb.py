@@ -209,10 +209,9 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 trimesh.bounds.corners([-half, half]),
                 mesh.bounding_box_oriented.primitive.transform,
             )
-            centroid = mesh.centroid
-            self._bboxes[obj_file_path] = (vert3d, centroid)
+            self._bboxes[obj_file_path] = vert3d
         else:
-            vert3d, centroid = self._bboxes[obj_file_path]
+            vert3d = self._bboxes[obj_file_path]
 
         # Apply the rotation + translation to the bbox vertices
         # The format is [R; t] with R 3x3 and t 3x1.
