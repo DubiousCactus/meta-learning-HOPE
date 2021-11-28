@@ -6,10 +6,13 @@ saved_models/
 *results/
 wandb/
 *.tar
+*.csv
 temp.*
 *.png
 *.tgz
 .idea/
+*.pkl
+tags
 
 # ------------ Python-specific------------
 # Byte-compiled / optimized / DLL files
