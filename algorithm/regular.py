@@ -48,9 +48,6 @@ class RegularTrainer(BaseTrainer):
         iterations: int = 1000,
         fast_lr: float = 0.01,
         meta_lr: float = None,
-        lr_step: int = 100,
-        lr_step_gamma: float = 0.5,
-        max_grad_norm: float = None,
         optimizer: str = "adam",
         val_every: int = 100,
         resume: bool = True,
@@ -85,14 +82,6 @@ class RegularTrainer(BaseTrainer):
                 opt.zero_grad()
                 loss = self._training_step(batch)
                 train_losses.append(loss)
-                # Gradient clipping
-                if max_grad_norm:
-                    max_norm = float(
-                        torch.nn.utils.clip_grad_norm_(
-                            self.model.parameters(), max_grad_norm
-                        ).item()
-                    )
-                    print(f"Max gradient norm: {max_norm:.2f}")
                 opt.step()
 
             if (epoch + 1) % val_every == 0:

@@ -1,7 +1,5 @@
 fast_lr: 0.001
 meta_lr: null
-lr_step: 100
-lr_step_gamma: 0.9
 k_shots: null
 n_queries: null
 steps: null
@@ -12,7 +10,6 @@ saved_model: null
 checkpoint_path: ckpt
 object_as_task: False
 normalize_keypoints: False
-max_grad_norm: null
 optimizer: adam
 name: training
 augment: null

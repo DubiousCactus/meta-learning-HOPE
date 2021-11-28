@@ -11,6 +11,7 @@ First-Person Hand Dataset (task) loader
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from util.utils import compute_OBB_corners
 from torch.utils.data import DataLoader
 from data.custom import CustomDataset
 from functools import reduce
@@ -153,7 +154,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         # Load object transform
         obj_trans = self._get_obj_transform(sample, self._obj_trans_root)
         mesh = self._object_infos[obj_name]
-        verts = np.array(mesh.bounding_box_oriented.vertices) * 1000
+        verts = compute_OBB_corners(mesh) * 1000
         # Apply transform to object
         hom_verts = np.concatenate([verts, np.ones([verts.shape[0], 1])], axis=1)
         verts_trans = obj_trans.dot(hom_verts.T).T

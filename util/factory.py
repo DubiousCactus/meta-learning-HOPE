@@ -16,17 +16,19 @@ from data.dataset.obman import ObManTaskLoader
 from data.dataset.fphad import FPHADTaskLoader
 from data.dataset.ho3d import HO3DTaskLoader
 from hydra.utils import to_absolute_path
-from algorithm.wrappers import (
+from algorithm.wrappers.anil import ANIL_CNNTrainer
+from algorithm.wrappers.maml import (
+    MAML_GraphUNetTrainer,
+    MAML_CNNTrainer,
+    MAML_HOPETrainer,
+)
+from algorithm.wrappers.regular import (
     Regular_GraphNetwResNetTrainer,
     Regular_GraphUNetTrainer,
     Regular_GraphNetTrainer,
     Regular_HOPENetTrainer,
     Regular_HOPENetTester,
     Regular_CNNTrainer,
-    MAML_GraphUNetTrainer,
-    MAML_CNNTrainer,
-    MAML_HOPETrainer,
-    ANIL_CNNTrainer,
 )
 from algorithm.base import BaseTrainer
 from abc import abstractmethod

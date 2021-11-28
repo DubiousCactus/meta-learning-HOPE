@@ -110,9 +110,9 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(n_features, hidden1),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden1, hidden2),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden2, 29 * 3),
+            # torch.nn.Linear(hidden1, hidden2),
+            # torch.nn.ReLU(),
+            torch.nn.Linear(hidden1, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 
@@ -176,10 +176,8 @@ class MobileNet(InitWrapper, torch.nn.Module):
         self.mobilenet = network
         del self.mobilenet.classifier
         self.fc = torch.nn.Sequential(
-            torch.nn.Dropout(p=wconfig["experiment.dropout1"], inplace=True),
-            # torch.nn.Linear(n_features, wconfig['experiment.hidden']),
+            torch.nn.Dropout(p=0.5, inplace=True),
             torch.nn.Hardswish(),
-            # torch.nn.Dropout(p=wconfig['experiment.dropout2'], inplace=True),
             torch.nn.Linear(n_features, 29 * 2),
         )
 

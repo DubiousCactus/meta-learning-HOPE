@@ -4,10 +4,10 @@
 
 """DexYCB dataset."""
 
+from util.utils import fast_load_obj, compute_OBB_corners
 from data.dataset.base import BaseDatasetTaskLoader
 from torch.utils.data import DataLoader
 from data.custom import CustomDataset
-from util.utils import fast_load_obj
 from typing import Union, Tuple
 from functools import reduce
 from tqdm import tqdm
@@ -203,13 +203,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             with open(obj_file_path, "r") as m_f:
                 mesh = fast_load_obj(m_f)[0]
             mesh = trimesh.load(mesh)
-            # From https://github.com/mikedh/trimesh/issues/573
-            half = mesh.bounding_box_oriented.primitive.extents / 2
-            vert3d = trimesh.transform_points(
-                trimesh.bounds.corners([-half, half]),
-                mesh.bounding_box_oriented.primitive.transform,
-            )
-            self._bboxes[obj_file_path] = vert3d
+            self._bboxes[obj_file_path] = compute_OBB_corners(mesh)
         else:
             vert3d = self._bboxes[obj_file_path]
 

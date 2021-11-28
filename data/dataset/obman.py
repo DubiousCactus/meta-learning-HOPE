@@ -11,6 +11,7 @@ ObMan Dataset (task) loader
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from util.utils import compute_OBB_corners
 from torch.utils.data import DataLoader
 from data.custom import CustomDataset
 from util.utils import fast_load_obj
@@ -126,12 +127,10 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         transform = meta_info["affine_transform"]
         # 3. Obtain the oriented bounding box vertices (x1000?)
         if hash(mesh) not in self._bboxes:
-            verts = np.array(mesh.bounding_box_oriented.vertices)  # * 1000
+            verts = compute_OBB_corners(mesh) # * 1000
             self._bboxes[hash(mesh)] = verts
         else:
             verts = self._bboxes[hash(mesh)]
-        # transformed_mesh = mesh.apply_transform(transform)
-        # vertices_3d = transformed_mesh.bounding_box_oriented.vertices
         # 4. Apply the transform to the vertices
         hom_verts = np.concatenate([verts, np.ones([verts.shape[0], 1])], axis=1)
         trans_verts = transform.dot(hom_verts.T).T[:, :3]

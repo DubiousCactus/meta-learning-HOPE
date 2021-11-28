@@ -2,8 +2,6 @@ defaults:
     - base_regular
 iterations: 10000
 model_def: GraphNet
-lr_step: 2000
-lr_step_gamma: 0.1
 augment: False
 cnn_def: ResNet10
 resnet_model_path: null

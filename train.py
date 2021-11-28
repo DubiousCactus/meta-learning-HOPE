@@ -10,13 +10,12 @@
 Meta-Train HOPE-Net or its individual parts.
 """
 
-from hydra.utils import get_original_cwd, to_absolute_path
 from util.factory import DatasetFactory, AlgorithmFactory
 from omegaconf import DictConfig, OmegaConf
+from hydra.utils import to_absolute_path
 
 import wandb
 import hydra
-import os
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -58,7 +57,6 @@ def main(cfg: DictConfig):
         columns=[
             "Algorithm",
             "Optimizer",
-            "Max grad norm",
             "Dataset",
             "Batch size",
             "Model",
@@ -67,7 +65,6 @@ def main(cfg: DictConfig):
     table.add_data(
         cfg.experiment.algorithm,
         cfg.experiment.optimizer,
-        cfg.experiment.max_grad_norm,
         cfg.experiment.dataset,
         cfg.experiment.batch_size,
         cfg.experiment.model_def,
@@ -86,9 +83,6 @@ def main(cfg: DictConfig):
             iterations=cfg.experiment.iterations,
             fast_lr=cfg.experiment.fast_lr,
             meta_lr=cfg.experiment.meta_lr,
-            lr_step=cfg.experiment.lr_step,
-            lr_step_gamma=cfg.experiment.lr_step_gamma,
-            max_grad_norm=cfg.experiment.max_grad_norm,
             optimizer=cfg.experiment.optimizer.lower(),
             val_every=cfg.experiment.val_every,
             resume=cfg.resume_training,

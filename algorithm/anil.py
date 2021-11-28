@@ -61,9 +61,6 @@ class ANILTrainer(MAMLTrainer):
         iterations: int = 1000,
         fast_lr: float = 0.001,
         meta_lr: float = 0.01,
-        lr_step: int = 100,
-        lr_step_gamma: float = 0.5,
-        max_grad_norm: float = 25.0,
         optimizer: str = "adam",
         val_every: int = 100,
         resume: bool = True,
@@ -123,7 +120,6 @@ class ANILTrainer(MAMLTrainer):
                         maml.clone(),
                         self.model.features,
                         epoch,
-                        clip_grad_norm=max_grad_norm,
                         msl=(self._msl and epoch < self._msl_num_epochs),
                     )
                     if torch.isnan(inner_loss).any():
@@ -141,9 +137,6 @@ class ANILTrainer(MAMLTrainer):
                     # instead of modifying the original code, this simple check will do).
                     if p.grad is not None:
                         p.grad.data.mul_(1.0 / batch_size)
-                # Gradient clipping
-                if max_grad_norm:
-                    torch.nn.utils.clip_grad_norm_(maml.parameters(), max_grad_norm)
                 opt.step()
 
                 if self._msl:
@@ -175,14 +168,12 @@ class ANILTrainer(MAMLTrainer):
                         maml.clone(),
                         self.model.features,
                         epoch,
-                        clip_grad_norm=max_grad_norm,
                     )
                     inner_mae_loss = self._testing_step(
                         meta_batch,
                         maml.clone(),
                         self.model.features,
                         epoch,
-                        clip_grad_norm=max_grad_norm,
                         compute="mae",
                     )
                     meta_val_mse_losses.append(inner_mse_loss.detach())

@@ -10,15 +10,15 @@
 Utility functions for data loading and processing.
 """
 
+from model.cnn import ResNet, ResNet12, MobileNet
+
 from collections import OrderedDict
 from PIL import Image, ImageDraw
 
 import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
-import pickle
 import torch
-import os
 
 
 def fast_load_obj(file_obj, **kwargs):
@@ -282,3 +282,32 @@ def plot_3D_pred_gt(pred, img, gt=None):
         ax2.get_xaxis().set_visible(False)
         ax2.get_yaxis().set_visible(False)
     plt.show()
+
+
+def select_cnn_model(cnn_def: str) -> torch.nn.Module:
+    cnn_def = cnn_def.lower()
+    if cnn_def == "resnet10":
+        cnn = ResNet(model="10", pretrained=True)
+    elif cnn_def == "resnet12":
+        cnn = ResNet12()
+    elif cnn_def == "resnet18":
+        cnn = ResNet(model="18", pretrained=True)
+    elif cnn_def == "resnet34":
+        cnn = ResNet(model="34", pretrained=True)
+    elif cnn_def == "resnet50":
+        cnn = ResNet(model="50", pretrained=True)
+    elif cnn_def == "mobilenetv3-small":
+        cnn = MobileNet(model="v3-small", pretrained=True)
+    elif cnn_def == "mobilenetv3-large":
+        cnn = MobileNet(model="v3-large", pretrained=True)
+    else:
+        raise ValueError(f"{cnn_def} is not a valid CNN definition!")
+    return cnn
+
+def compute_OBB_corners(mesh: trimesh.Trimesh) -> np.ndarray:
+    # From https://github.com/mikedh/trimesh/issues/573
+    half = mesh.bounding_box_oriented.primitive.extents / 2
+    return trimesh.transform_points(
+        trimesh.bounds.corners([-half, half]),
+        mesh.bounding_box_oriented.primitive.transform,
+    )
