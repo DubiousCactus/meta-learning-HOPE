@@ -6,7 +6,7 @@ dataset: dexycb
 dataset_path: ../DexYCB
 name: anil_resnet_dexycb
 fast_lr: 1e-5
-meta_lr: 0.001
+meta_lr: 0.01
 optimizer: adam
 max_grad_norm: null
 steps: 15
