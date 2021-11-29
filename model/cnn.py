@@ -103,7 +103,7 @@ class ResNet(InitWrapper, torch.nn.Module):
             hidden2 = 256
         else:
             raise ValueError(f"No models for {model}")
-        n_features = 25088#network.fc.in_features
+        n_features = network.fc.in_features
         self._n_features = n_features
         self.resnet = network
         del self.resnet.fc
