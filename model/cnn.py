@@ -58,7 +58,7 @@ class ResNet12(InitWrapper, torch.nn.Module):
         f = torch.flatten(f, 1)
 
         if features_only:
-            return f#.view(-1, 256)
+            return f
         else:
             x = self.fc(f)
             return (x.view(-1, 29, 3), f)
@@ -110,9 +110,9 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(n_features, hidden1),
             torch.nn.ReLU(),
-            # torch.nn.Linear(hidden1, hidden2),
-            # torch.nn.ReLU(),
-            torch.nn.Linear(hidden1, 29 * 3),
+            torch.nn.Linear(hidden1, hidden2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden2, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 
@@ -141,10 +141,10 @@ class ResNet(InitWrapper, torch.nn.Module):
         features = torch.flatten(x, 1)
 
         if features_only:
-            return features#.view(-1, self._n_features)
+            return features
         else:
             x = self.fc(features)
-            return (x.view(-1, 29, 3), features)#.view(-1, self._n_features))
+            return (x.view(-1, 29, 3), features)
 
     def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         return self._forward_impl(x, features_only=features_only)

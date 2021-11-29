@@ -77,7 +77,7 @@ class ANILTrainer(MAMLTrainer):
             maml.parameters()
         )
         if optimizer == "adam":
-            opt = torch.optim.AdamW(all.parameters(), lr=meta_lr, betas=(0.0, 0.999))
+            opt = torch.optim.AdamW(all_parameters, lr=meta_lr, betas=(0.0, 0.999))
         elif optimizer == "sgd":
             opt = torch.optim.SGD(all_parameters, lr=meta_lr)
         else:
