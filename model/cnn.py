@@ -110,9 +110,9 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(n_features, hidden1),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden1, hidden2),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden2, 29 * 3),
+            # torch.nn.Linear(hidden1, hidden2),
+            # torch.nn.ReLU(),
+            torch.nn.Linear(hidden1, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 
@@ -138,6 +138,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         x = self.resnet.layer3(x)
         x = self.resnet.layer4(x)
 
+        x = self.resnet.avgpool(x)
         features = torch.flatten(x, 1)
 
         if features_only:

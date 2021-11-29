@@ -77,8 +77,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         s_inputs = features(s_inputs)
-        if msl:
-            q_inputs_features = features(q_inputs)
+        q_inputs_features = features(q_inputs)
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
@@ -96,7 +95,6 @@ class ANIL_CNNTrainer(ANILTrainer):
         del s_inputs
         # Evaluate the adapted model on the query set
         if not msl:
-            q_inputs_features = features(q_inputs)
             q_joints = head(q_inputs_features).view(-1, 29, 3)
             q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
