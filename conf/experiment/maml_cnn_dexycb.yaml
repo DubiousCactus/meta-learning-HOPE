@@ -1,0 +1,14 @@
+defaults:
+    - base_maml
+    - base_ho3d
+model_def: ResNet18
+dataset: dexycb
+dataset_path: ../DexYCB
+name: maml_resnet_dexycb
+fast_lr: 1e-5
+meta_lr: 0.001
+optimizer: adam
+steps: 15
+batch_size: 8
+k_shots: 10
+n_queries: 50

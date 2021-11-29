@@ -65,6 +65,7 @@ class MAMLTrainer(BaseTrainer):
         self._msl_max_value_for_final_loss = 1.0 - (
             (self._steps - 1) * self._msl_min_value_for_non_final_losses
         )
+        self._order_annealing_from_epoch = 50
 
     def _anneal_step_weights(self):
         self._step_weights[:-1] = torch.max(
@@ -114,10 +115,14 @@ class MAMLTrainer(BaseTrainer):
     ):
         wandb.watch(self.model)
         maml = l2l.algorithms.MAML(
-            self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
+            self.model,
+            lr=fast_lr,
+            first_order=self._first_order,
+            allow_unused=True,
+            order_annealing_epoch=self._order_annealing_from_epoch,
         )
         if optimizer == "adam":
-            opt = torch.optim.Adam(maml.parameters(), lr=meta_lr, betas=(0.0, 0.999))
+            opt = torch.optim.AdamW(maml.parameters(), lr=meta_lr, betas=(0.0, 0.999))
         elif optimizer == "sgd":
             opt = torch.optim.SGD(maml.parameters(), lr=meta_lr)
         else:
@@ -131,9 +136,10 @@ class MAMLTrainer(BaseTrainer):
         # From How to Train Your MAML:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt,
-            T_max=iterations * iter_per_epoch,
-            eta_min=0.00001,
+            T_max=iterations,
+            eta_min=0.000001,
             last_epoch=self._epoch - 1,
+            verbose=True,
         )
         past_val_loss = float("+inf")
         if self._model_path:
@@ -151,15 +157,13 @@ class MAMLTrainer(BaseTrainer):
                         self._backup()
                         return
                     # Compute the meta-training loss
-                    learner = maml.clone()
                     meta_batch = self._split_batch(self.dataset.train.sample())
                     meta_loss = self._training_step(
                         meta_batch,
-                        learner,
+                        maml.clone(),
+                        epoch,
                         msl=(self._msl and epoch < self._msl_num_epochs),
                     )
-                    if torch.isnan(meta_loss).any():
-                        raise ValueError("Inner loss is Nan!")
                     meta_loss.backward()
                     meta_train_losses.append(meta_loss.detach())
 
@@ -174,30 +178,16 @@ class MAMLTrainer(BaseTrainer):
                             p.grad.data.mul_(1.0 / batch_size)
 
                 opt.step()
-                if use_scheduler:
-                    scheduler.step()
 
                 if self._msl:
                     self._anneal_step_weights()
 
+            if use_scheduler:
+                scheduler.step()
+
             epoch_meta_train_loss /= iter_per_epoch
             wandb.log({"meta_train_loss": epoch_meta_train_loss}, step=epoch)
-            # with torch.no_grad():
-            # # Plot the average gradients norm
-            # avg_norm, avg_grad_norm = [], []
-            # for p in maml.parameters():
-            # # print(torch.linalg.norm(p.data))
-            # avg_norm.append(torch.linalg.norm(p.data))
-            # if p.grad is not None:
-            # avg_grad_norm.append(torch.linalg.vector_norm(p.grad))
-            # avg_grad_norm = torch.tensor(avg_grad_norm).mean().item()
-            # avg_norm = torch.tensor(avg_norm).mean().item()
-            # print(f"Average gradient norm: {avg_grad_norm:.2f}")
-            # print(f"Average weight norm: {avg_norm:.2f}")
-            # wandb.log(
-            # {"avg_grad_norm": avg_grad_norm, "avg_weight_norm": avg_norm},
-            # step=epoch,
-            #     )
+
             print(f"==========[Epoch {epoch}]==========")
             print(f"Meta-training Loss: {epoch_meta_train_loss:.6f}")
 
@@ -208,14 +198,10 @@ class MAMLTrainer(BaseTrainer):
                 # which tasks should not be continuously resampled from!
                 meta_val_mse_losses, meta_val_mae_losses = [], []
                 for task in tqdm(self.dataset.val, dynamic_ncols=True):
-                    learner = maml.clone()
                     meta_batch = self._split_batch(task)
-                    inner_mse_loss = self._testing_step(
-                        meta_batch, learner
-                    )
-                    learner = maml.clone()
+                    inner_mse_loss = self._testing_step(meta_batch, maml.clone(), epoch)
                     inner_mae_loss = self._testing_step(
-                        meta_batch, learner, compute="mae"
+                        meta_batch, maml.clone(), epoch, compute="mae"
                     )
                     meta_val_mse_losses.append(inner_mse_loss.detach())
                     meta_val_mae_losses.append(inner_mae_loss.detach())

@@ -61,7 +61,6 @@ class ANIL_CNNTrainer(ANILTrainer):
         head,
         features,
         epoch,
-        clip_grad_norm=None,
         compute="mse",
         msl=True,
     ):
@@ -86,7 +85,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             joints = head(s_inputs).view(-1, 29, 3)
             joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
-            head.adapt(support_loss, epoch=epoch, clip_grad_max_norm=clip_grad_norm)
+            head.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
                 q_joints = head(q_inputs_features).view(-1, 29, 3)
                 q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
@@ -109,7 +108,6 @@ class ANIL_CNNTrainer(ANILTrainer):
         head,
         features,
         epoch=None,
-        clip_grad_norm=None,
         compute="mse",
     ):
         criterion = self.inner_criterion
@@ -131,7 +129,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             joints = head(s_inputs).view(-1, 29, 3)
             joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
-            head.adapt(support_loss, epoch=epoch, clip_grad_max_norm=clip_grad_norm)
+            head.adapt(support_loss, epoch=epoch)
 
         with torch.no_grad():
             q_inputs = features(q_inputs)

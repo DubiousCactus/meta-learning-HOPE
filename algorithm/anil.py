@@ -50,7 +50,6 @@ class ANILTrainer(MAMLTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
-        self._order_annealing_from_epoch = 50
         self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
@@ -78,7 +77,7 @@ class ANILTrainer(MAMLTrainer):
             maml.parameters()
         )
         if optimizer == "adam":
-            opt = torch.optim.AdamW(all_parameters, lr=meta_lr)
+            opt = torch.optim.AdamW(all.parameters(), lr=meta_lr, betas=(0.0, 0.999))
         elif optimizer == "sgd":
             opt = torch.optim.SGD(all_parameters, lr=meta_lr)
         else:
@@ -122,8 +121,6 @@ class ANILTrainer(MAMLTrainer):
                         epoch,
                         msl=(self._msl and epoch < self._msl_num_epochs),
                     )
-                    if torch.isnan(inner_loss).any():
-                        raise ValueError("Inner loss is Nan!")
                     inner_loss.backward()
                     meta_train_losses.append(inner_loss.detach())
 
