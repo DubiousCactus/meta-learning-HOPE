@@ -107,7 +107,21 @@ class ANILTrainer(MAMLTrainer):
                 # One task contains a meta-batch (of size K-Shots + N-Queries) of samples for ONE object class
                 for _ in range(batch_size):
                     if self._exit:
-                        self._backup()
+                        state_dicts = {
+                            "epoch": epoch,
+                            "model_state_dict": self.model.state_dict(),
+                            "maml_state_dict": maml.state_dict(),
+                            "meta_opt_state_dict": opt.state_dict(),
+                            "scheduler_state_dict": scheduler.state_dict(),
+                            "val_meta_loss": meta_val_mse_loss,
+                        }
+                        self._checkpoint(
+                            epoch,
+                            epoch_meta_train_loss,
+                            meta_val_mse_loss,
+                            meta_val_mae_loss,
+                            state_dicts,
+                        )
                         return
                     # Compute the meta-training loss
                     # Randomly sample a task (which is created by randomly sampling images, so the
@@ -256,7 +270,9 @@ class ANILTrainer(MAMLTrainer):
                     compute="mae",
                 )
                 if visualize:
-                    self._testing_step_vis(meta_batch, maml.clone(), self.model.features)
+                    self._testing_step_vis(
+                        meta_batch, maml.clone(), self.model.features
+                    )
                 meta_mse_losses.append(inner_mse_loss.detach())
                 meta_mae_losses.append(inner_mae_loss.detach())
             mae = float(torch.Tensor(meta_mae_losses).mean().item())
