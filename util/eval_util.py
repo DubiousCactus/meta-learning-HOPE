@@ -13,18 +13,25 @@ class EvalUtil:
         for _ in range(num_kp):
             self.data.append(list())
 
-    def feed(self, keypoint_gt, keypoint_pred, skip_check=False):
-        """ Used to feed data to the class. Stores the euclidean distance between gt and pred. """
+    def feed(self, keypoint_gt, keypoint_vis, keypoint_pred, skip_check=False):
+        """ Used to feed data to the class. Stores the euclidean distance between gt and pred, when it is visible. """
         if not skip_check:
             keypoint_gt = np.squeeze(keypoint_gt)
             keypoint_pred = np.squeeze(keypoint_pred)
+            keypoint_vis = np.squeeze(keypoint_vis).astype('bool')
 
             assert len(keypoint_gt.shape) == 2
             assert len(keypoint_pred.shape) == 2
+            assert len(keypoint_vis.shape) == 1
 
         # calc euclidean distance
         diff = keypoint_gt - keypoint_pred
-        self.data = np.sqrt(np.sum(np.square(diff), axis=1))
+        euclidean_dist = np.sqrt(np.sum(np.square(diff), axis=1))
+
+        num_kp = keypoint_gt.shape[0]
+        for i in range(num_kp):
+            if keypoint_vis[i]:
+                self.data[i].append(euclidean_dist[i])
 
     def _get_pck(self, kp_id, threshold):
         """ Returns pck for one keypoint for the given threshold. """
@@ -59,7 +66,7 @@ class EvalUtil:
 
         # Create one plot for each part
         for part_id in range(self.num_kp):
-            # mean/median errorhttps://github.com/ywchao/freihand
+            # mean/median error
             mean, median = self._get_epe(part_id)
 
             if mean is None:
@@ -87,3 +94,4 @@ class EvalUtil:
         pck_curve_all = np.mean(np.array(pck_curve_all), 0)  # mean only over keypoints
 
         return epe_mean_all, epe_median_all, auc_all, pck_curve_all, thresholds
+

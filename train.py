@@ -73,6 +73,7 @@ def main(cfg: DictConfig):
     if cfg.test_mode:
         trainer.test(
             batch_size=cfg.experiment.batch_size,
+            runs=cfg.test_runs,
             fast_lr=cfg.experiment.fast_lr,
             meta_lr=cfg.experiment.meta_lr,
             visualize=cfg.vis,

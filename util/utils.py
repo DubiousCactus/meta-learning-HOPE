@@ -311,3 +311,26 @@ def compute_OBB_corners(mesh: trimesh.Trimesh) -> np.ndarray:
         trimesh.bounds.corners([-half, half]),
         mesh.bounding_box_oriented.primitive.transform,
     )
+
+def compute_curve(distances, thresholds, nb_keypoints):
+    auc_all = list()
+    pck_curve_all = list()
+    norm_factor = torch.trapz(torch.ones_like(thresholds), thresholds)
+    for kp in range(nb_keypoints):
+        pck_curve = []
+        for t in thresholds:
+            pck = torch.mean(
+                (torch.vstack(distances)[:, kp] <= t).type(torch.float)
+            )
+            pck_curve.append(pck)
+
+        pck_curve_all.append(pck_curve)
+        auc = torch.trapz(torch.Tensor(pck_curve), torch.Tensor(thresholds))
+        auc /= norm_factor
+        auc_all.append(auc)
+
+    auc_all = torch.Tensor(auc_all).mean().item()
+    # mean only over keypoints
+    pck_curve_all = torch.Tensor(pck_curve_all).mean(dim=0)
+    return auc_all, pck_curve_all
+

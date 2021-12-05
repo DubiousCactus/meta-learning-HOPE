@@ -12,11 +12,11 @@ Almost No Inner-Loop meta-learning algorithm.
 
 from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.maml import MAMLTrainer
+from util.utils import compute_curve
 from typing import List
 from tqdm import tqdm
 
 import learn2learn as l2l
-import numpy as np
 import torch
 import wandb
 
@@ -233,7 +233,7 @@ class ANILTrainer(MAMLTrainer):
 
     def test(
         self,
-        batch_size: int = 16, # Unused
+        batch_size: int = 16,  # Unused
         runs: int = 1,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
@@ -252,36 +252,48 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        avg_mpjpe, avg_mpcpe, avg_aucs = .0, .0, .0
-        # For AUC computation
-        thresholds = np.linspace(10, 50, 5)
-        thresholds = np.array(thresholds)
-        norm_factor = np.trapz(np.ones_like(thresholds), thresholds)
+        avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
+        thresholds = torch.linspace(10, 100, 5)
 
         for i in range(runs):
-            print(f"===============[Run {i}/{runs}]==============")
+            print(f"===============[Run {i+1}/{runs}]==============")
             MPJPEs, MPCPEs = [], []
+            PJPEs, PCPEs = [], []
             for task in tqdm(self.dataset.test, dynamic_ncols=True):
                 if self._exit:
                     return
                 meta_batch = self._split_batch(task)
-                mpjpe, mpcpe = self._testing_step(
+                res = self._testing_step(
                     meta_batch,
                     maml.clone(),
                     self.model.features,
-                    compute=["mpjpe", "mpcpe"]
+                    compute=["pjpe", "pcpe"],
                 )
+                PJPEs.append(res["pjpe"])
+                PCPEs.append(res["pcpe"])
                 if visualize:
                     self._testing_step_vis(
                         meta_batch, maml.clone(), self.model.features
                     )
-                MPJPEs.append(mpjpe)
-                MPCPEs.append(mpcpe)
+                MPJPEs.append(res["pjpe"].mean())
+                MPCPEs.append(res["pcpe"].mean())
+
+            print("-> Computing PCK curves...")
+            # Compute the PCK curves (hand joints)
+            auc, _ = compute_curve(PJPEs, thresholds, 21)
+            avg_auc_pck += auc
+            # Compute the PCP curves (object corners)
+            auc, _ = compute_curve(PCPEs, thresholds, 8)
+            avg_auc_pcp += auc
+
             avg_mpjpe += float(torch.Tensor(MPJPEs).mean().item())
             avg_mpcpe += float(torch.Tensor(MPCPEs).mean().item())
             print(f"=======================================")
         avg_mpjpe /= float(runs)
         avg_mpcpe /= float(runs)
-        print(f"==========[Test Error (avg of {runs})]==========")
+        avg_auc_pck /= float(runs)
+        print(f"\n\n==========[Test Error (avg of {runs})]==========")
         print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
         print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
+        print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
+        print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")

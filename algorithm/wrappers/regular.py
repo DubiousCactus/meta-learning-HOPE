@@ -68,12 +68,42 @@ class Regular_CNNTrainer(RegularTrainer):
             joints -= (
                 joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
             )  # Root alignment
-            if compute == "mse":
-                return F.mse_loss(joints, labels3d).detach()
-            elif compute == "mae":
-                return F.l1_loss(joints, labels3d).detach()
-            else:
-                raise NotImplementedError(f"No implementation for {compute}")
+            res = None
+            if type(compute) is str:
+                """
+                This will be used when validating.
+                """
+                res = self.inner_criterion(joints, labels3d).detach()
+            elif type(compute) is list:
+                """
+                This will be used when testing.
+                """
+                res = {}
+                for metric in compute:
+                    if metric == "mse":
+                        res[metric] = (self.inner_criterion(joints, labels3d).detach())
+                    elif metric == "mae":
+                        res[metric] = (F.l1_loss(joints, labels3d).detach())
+                    elif metric == "pjpe":
+                        # Hand-pose only
+                        # Batched vector norm for row-wise elements
+                        res[metric] = (
+                            torch.linalg.norm(
+                                joints[:, :21, :] - labels3d[:, :21, :], dim=2
+                            )
+                            .detach()
+                        )
+                    elif metric == "pcpe":
+                        # Object-pose only
+                        # Batched vector norm for row-wise elements
+                        res[metric] = (
+                            torch.linalg.norm(
+                                joints[:, 21:, :] - labels3d[:, 21:, :], dim=2
+                            )
+                            .detach()
+                        )
+        assert res is not None, f"{compute} is not a valid metric!"
+        return res
 
     def _testing_step_vis(self, batch: tuple):
         inputs, _, labels3d = batch

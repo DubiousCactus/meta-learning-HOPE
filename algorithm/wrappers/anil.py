@@ -143,36 +143,34 @@ class ANIL_CNNTrainer(ANILTrainer):
             """
             This will be used when validating.
             """
-            res = self.inner_criterion(q_joints, q_labels3d)
+            res = self.inner_criterion(q_joints, q_labels3d).detach()
         elif type(compute) is list:
             """
             This will be used when testing.
             """
-            res = []
+            res = {}
             for metric in compute:
                 if metric == "mse":
-                    res.append(self.inner_criterion(q_joints, q_labels3d).detach())
+                    res[metric] = (self.inner_criterion(q_joints, q_labels3d).detach())
                 elif metric == "mae":
-                    res.append(F.l1_loss(q_joints, q_labels3d).detach())
-                elif metric == "mpjpe":
+                    res[metric] = F.l1_loss(q_joints, q_labels3d).detach()
+                elif metric == "pjpe":
                     # Hand-pose only
                     # Batched vector norm for row-wise elements
-                    res.append(
+                    res[metric] = (
                         torch.linalg.norm(
                             q_joints[:, :21, :] - q_labels3d[:, :21, :], dim=2
                         )
                         .detach()
-                        .mean()
                     )
-                elif metric == "mpcpe":
+                elif metric == "pcpe":
                     # Object-pose only
                     # Batched vector norm for row-wise elements
-                    res.append(
+                    res[metric] = (
                         torch.linalg.norm(
                             q_joints[:, 21:, :] - q_labels3d[:, 21:, :], dim=2
                         )
                         .detach()
-                        .mean()
                     )
         assert res is not None, f"{compute} is not a valid metric!"
         return res

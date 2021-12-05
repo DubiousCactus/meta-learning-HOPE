@@ -13,6 +13,7 @@ Typical one-objective training.
 from data.dataset.base import BaseDatasetTaskLoader
 from typing import List, Union, Optional
 from algorithm.base import BaseTrainer
+from util.utils import compute_curve
 from collections import namedtuple
 from functools import partial
 from tqdm import tqdm
@@ -140,15 +141,30 @@ class RegularTrainer(BaseTrainer):
             checkpoint = torch.load(self._model_path)
             self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
-        avg_mse_loss, avg_mae_loss, mse_losses, mae_losses = 0.0, 0.0, [], []
+        MPJPEs, MPCPEs = [], []
+        PJPEs, PCPEs = [], []
+        thresholds = torch.linspace(10, 100, 5)
+
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
                 return
-            mae_losses.append(self._testing_step(batch, compute="mae"))
-            mse_losses.append(self._testing_step(batch, compute="mse"))
+            res = self._testing_step(batch, compute=["pjpe", "pcpe"])
+            PJPEs.append(res["pjpe"])
+            PCPEs.append(res["pcpe"])
+            MPJPEs.append(res["pjpe"].mean())
+            MPCPEs.append(res["pcpe"].mean())
             if visualize:
                 self._testing_step_vis(batch)
-        avg_mse_loss = torch.Tensor(mse_losses).mean().item()
-        avg_mae_loss = torch.Tensor(mae_losses).mean().item()
-        print(f"[*] Average MSE test loss: {avg_mse_loss:.6f}")
-        print(f"[*] Average MAE test loss: {avg_mae_loss:.6f}")
+
+        print("-> Computing PCK curves...")
+        # Compute the PCK curves (hand joints)
+        auc_pck, _ = compute_curve(PJPEs, thresholds, 21)
+        # Compute the PCP curves (object corners)
+        auc_pcp, _ = compute_curve(PCPEs, thresholds, 8)
+        mpjpe = float(torch.Tensor(MPJPEs).mean().item())
+        mpcpe = float(torch.Tensor(MPCPEs).mean().item())
+        print(f"\n\n==========[Test Error]==========")
+        print(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
+        print(f"Mean Per Corner Pose Error: {mpcpe:.6f}")
+        print(f"Area Under Curve for PCK: {auc_pck:.6f}")
+        print(f"Area Under Curve for PCP: {auc_pcp:.6f}")
