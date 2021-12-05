@@ -2,6 +2,7 @@ shapenet_root: ../ShapeNetCore.v2
 gpu_numbers: [0]
 use_cuda: True
 test_mode: False
+test_runs: 5 # Number of test_runs to average the results (only used in meta-learners)
 vis: False
 resume_training: True
 use_scheduler: True

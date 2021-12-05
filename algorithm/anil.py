@@ -16,6 +16,7 @@ from typing import List
 from tqdm import tqdm
 
 import learn2learn as l2l
+import numpy as np
 import torch
 import wandb
 
@@ -232,7 +233,8 @@ class ANILTrainer(MAMLTrainer):
 
     def test(
         self,
-        batch_size: int = 16,
+        batch_size: int = 16, # Unused
+        runs: int = 1,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
         visualize: bool = False,
@@ -250,37 +252,36 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        meta_mse_loss, meta_mae_loss = float("+inf"), float("+inf")
-        for i in range(5):
-            print(f"===============[Run {i}/5]==============")
-            meta_mse_losses, meta_mae_losses = [], []
+        avg_mpjpe, avg_mpcpe, avg_aucs = .0, .0, .0
+        # For AUC computation
+        thresholds = np.linspace(10, 50, 5)
+        thresholds = np.array(thresholds)
+        norm_factor = np.trapz(np.ones_like(thresholds), thresholds)
+
+        for i in range(runs):
+            print(f"===============[Run {i}/{runs}]==============")
+            MPJPEs, MPCPEs = [], []
             for task in tqdm(self.dataset.test, dynamic_ncols=True):
                 if self._exit:
                     return
                 meta_batch = self._split_batch(task)
-                inner_mse_loss = self._testing_step(
+                mpjpe, mpcpe = self._testing_step(
                     meta_batch,
                     maml.clone(),
                     self.model.features,
-                )
-                inner_mae_loss = self._testing_step(
-                    meta_batch,
-                    maml.clone(),
-                    self.model.features,
-                    compute="mae",
+                    compute=["mpjpe", "mpcpe"]
                 )
                 if visualize:
                     self._testing_step_vis(
                         meta_batch, maml.clone(), self.model.features
                     )
-                meta_mse_losses.append(inner_mse_loss.detach())
-                meta_mae_losses.append(inner_mae_loss.detach())
-            mae = float(torch.Tensor(meta_mae_losses).mean().item())
-            if mae < meta_mae_loss:
-                meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())
-                meta_mae_loss = mae
+                MPJPEs.append(mpjpe)
+                MPCPEs.append(mpcpe)
+            avg_mpjpe += float(torch.Tensor(MPJPEs).mean().item())
+            avg_mpcpe += float(torch.Tensor(MPCPEs).mean().item())
             print(f"=======================================")
-
-        print("==========[Test Error (best of 5)]==========")
-        print(f"Meta-testing MSE Loss: {meta_mse_loss:.6f}")
-        print(f"Meta-testing MAE Loss: {meta_mae_loss:.6f}")
+        avg_mpjpe /= float(runs)
+        avg_mpcpe /= float(runs)
+        print(f"==========[Test Error (avg of {runs})]==========")
+        print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
+        print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")

@@ -13,25 +13,18 @@ class EvalUtil:
         for _ in range(num_kp):
             self.data.append(list())
 
-    def feed(self, keypoint_gt, keypoint_vis, keypoint_pred, skip_check=False):
-        """ Used to feed data to the class. Stores the euclidean distance between gt and pred, when it is visible. """
+    def feed(self, keypoint_gt, keypoint_pred, skip_check=False):
+        """ Used to feed data to the class. Stores the euclidean distance between gt and pred. """
         if not skip_check:
             keypoint_gt = np.squeeze(keypoint_gt)
             keypoint_pred = np.squeeze(keypoint_pred)
-            keypoint_vis = np.squeeze(keypoint_vis).astype('bool')
 
             assert len(keypoint_gt.shape) == 2
             assert len(keypoint_pred.shape) == 2
-            assert len(keypoint_vis.shape) == 1
 
         # calc euclidean distance
         diff = keypoint_gt - keypoint_pred
-        euclidean_dist = np.sqrt(np.sum(np.square(diff), axis=1))
-
-        num_kp = keypoint_gt.shape[0]
-        for i in range(num_kp):
-            if keypoint_vis[i]:
-                self.data[i].append(euclidean_dist[i])
+        self.data = np.sqrt(np.sum(np.square(diff), axis=1))
 
     def _get_pck(self, kp_id, threshold):
         """ Returns pck for one keypoint for the given threshold. """

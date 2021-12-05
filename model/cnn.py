@@ -84,23 +84,20 @@ class ResNet(InitWrapper, torch.nn.Module):
     def __init__(self, model="18", pretrained=True):
         super().__init__()
         self.randomly_initialize_weights = False
-        hidden1, hidden2 = 128, 92
+        hidden = 128
         if model == "10":
             network = resnet10(num_classes=29 * 3)
             if pretrained:
                 self._load_resnet10_model(network)
         elif model == "18":
             network = models.resnet18(pretrained=pretrained)
-            hidden1 = 256
-            hidden2 = 128
+            hidden = 256
         elif model == "34":
             network = models.resnet34(pretrained=pretrained)
-            hidden1 = 256
-            hidden2 = 128
+            hidden = 256
         elif model == "50":
             network = models.resnet50(pretrained=pretrained)
-            hidden1 = 512
-            hidden2 = 256
+            hidden = 512
         else:
             raise ValueError(f"No models for {model}")
         n_features = network.fc.in_features
@@ -108,11 +105,9 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.resnet = network
         del self.resnet.fc
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(n_features, hidden1),
+            torch.nn.Linear(n_features, hidden),
             torch.nn.ReLU(),
-            # torch.nn.Linear(hidden1, hidden2),
-            # torch.nn.ReLU(),
-            torch.nn.Linear(hidden1, 29 * 3),
+            torch.nn.Linear(hidden, 29 * 3),
         )
         self.fc.apply(initialize_weights)
 

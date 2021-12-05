@@ -128,6 +128,7 @@ class RegularTrainer(BaseTrainer):
     def test(
         self,
         batch_size: int = 32,
+        runs: int = 1, # Unused
         fast_lr: float = 0.01,
         meta_lr: float = None,
         visualize: bool = False,
