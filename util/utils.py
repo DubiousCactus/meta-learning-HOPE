@@ -334,3 +334,18 @@ def compute_curve(distances, thresholds, nb_keypoints):
     pck_curve_all = torch.Tensor(pck_curve_all).mean(dim=0)
     return auc_all, pck_curve_all
 
+def plot_curve(values, thresholds, file_path: str, type="pck"):
+    label, title = "", ""
+    if type.lower() == "pck":
+        label = "Percentage of Correct Keypoints"
+        title = "Percentage of Correct Hand Joints (3D)"
+    elif type.lower() == "pcp":
+        label = "Percentage of Correct Poses"
+        title = "Percentage of Correct Object Corners (3D)"
+    plt.plot(thresholds, values)
+    plt.xlabel("mm Threshold")
+    plt.ylabel(label)
+    plt.title(title)
+    plt.grid(True, linestyle="dashed")
+    plt.savefig(file_path)
+    plt.clf()

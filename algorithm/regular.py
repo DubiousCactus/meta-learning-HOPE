@@ -11,9 +11,9 @@ Typical one-objective training.
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from util.utils import compute_curve, plot_curve
 from typing import List, Union, Optional
 from algorithm.base import BaseTrainer
-from util.utils import compute_curve
 from collections import namedtuple
 from functools import partial
 from tqdm import tqdm
@@ -133,6 +133,7 @@ class RegularTrainer(BaseTrainer):
         fast_lr: float = 0.01,
         meta_lr: float = None,
         visualize: bool = False,
+        plot: bool = False,
     ):
         if not self._model_path:
             print(f"[!] Testing a randomly initialized model!")
@@ -143,7 +144,7 @@ class RegularTrainer(BaseTrainer):
         self.model.eval()
         MPJPEs, MPCPEs = [], []
         PJPEs, PCPEs = [], []
-        thresholds = torch.linspace(10, 100, 5)
+        thresholds = torch.linspace(10, 100, (100-10)//5 + 1)
 
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
@@ -158,9 +159,12 @@ class RegularTrainer(BaseTrainer):
 
         print("-> Computing PCK curves...")
         # Compute the PCK curves (hand joints)
-        auc_pck, _ = compute_curve(PJPEs, thresholds, 21)
+        auc_pck, pck = compute_curve(PJPEs, thresholds, 21)
         # Compute the PCP curves (object corners)
-        auc_pcp, _ = compute_curve(PCPEs, thresholds, 8)
+        auc_pcp, pcp = compute_curve(PCPEs, thresholds, 8)
+        if plot:
+            plot_curve(pck, thresholds, "baseline_pck.png")
+            plot_curve(pcp, thresholds, "baseline_pcp.png")
         mpjpe = float(torch.Tensor(MPJPEs).mean().item())
         mpcpe = float(torch.Tensor(MPCPEs).mean().item())
         print(f"\n\n==========[Test Error]==========")

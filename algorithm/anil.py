@@ -11,8 +11,8 @@ Almost No Inner-Loop meta-learning algorithm.
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
-from util.utils import compute_curve
 from typing import List
 from tqdm import tqdm
 
@@ -238,6 +238,7 @@ class ANILTrainer(MAMLTrainer):
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
         visualize: bool = False,
+        plot: bool = False,
     ):
         maml = l2l.algorithms.MAML(
             self.model.head,
@@ -253,7 +254,8 @@ class ANILTrainer(MAMLTrainer):
             self._restore(maml, opt, None, resume_training=False)
 
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
-        thresholds = torch.linspace(10, 100, 5)
+        thresholds = torch.linspace(10, 100, (100-10)//5+1)
+        min_mpjpe = float("+inf")
 
         for i in range(runs):
             print(f"===============[Run {i+1}/{runs}]==============")
@@ -280,14 +282,20 @@ class ANILTrainer(MAMLTrainer):
 
             print("-> Computing PCK curves...")
             # Compute the PCK curves (hand joints)
-            auc, _ = compute_curve(PJPEs, thresholds, 21)
+            auc, pck = compute_curve(PJPEs, thresholds, 21)
             avg_auc_pck += auc
             # Compute the PCP curves (object corners)
-            auc, _ = compute_curve(PCPEs, thresholds, 8)
+            auc, pcp = compute_curve(PCPEs, thresholds, 8)
             avg_auc_pcp += auc
 
-            avg_mpjpe += float(torch.Tensor(MPJPEs).mean().item())
+            mpjpe = float(torch.Tensor(MPJPEs).mean().item())
+            avg_mpjpe += mpjpe
             avg_mpcpe += float(torch.Tensor(MPCPEs).mean().item())
+
+            if mpjpe < min_mpjpe and plot:
+                plot_curve(pck, thresholds, "anil_pck.png")
+                plot_curve(pcp, thresholds, "anil_pcp.png")
+                min_mpjpe = mpjpe
             print(f"=======================================")
         avg_mpjpe /= float(runs)
         avg_mpcpe /= float(runs)
