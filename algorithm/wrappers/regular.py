@@ -73,7 +73,10 @@ class Regular_CNNTrainer(RegularTrainer):
                 """
                 This will be used when validating.
                 """
-                res = self.inner_criterion(joints, labels3d).detach()
+                if compute == "mse":
+                    res = self.inner_criterion(joints, labels3d).detach()
+                elif compute == "mae":
+                    res = F.l1_loss(joints, labels3d).detach()
             elif type(compute) is list:
                 """
                 This will be used when testing.
