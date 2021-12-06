@@ -300,6 +300,7 @@ class ANILTrainer(MAMLTrainer):
         avg_mpjpe /= float(runs)
         avg_mpcpe /= float(runs)
         avg_auc_pck /= float(runs)
+        avg_auc_pcp /= float(runs)
         print(f"\n\n==========[Test Error (avg of {runs})]==========")
         print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
         print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
