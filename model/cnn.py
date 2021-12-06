@@ -86,7 +86,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.randomly_initialize_weights = False
         hidden = 128
         if model == "10":
-            network = resnet10(num_classes=29 * 3)
+            network = resnet10(num_classes=21 * 3)
             if pretrained:
                 self._load_resnet10_model(network)
         elif model == "18":
@@ -107,7 +107,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(n_features, hidden),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden, 29 * 3),
+            torch.nn.Linear(hidden, 21 * 3),
         )
         self.fc.apply(initialize_weights)
 
@@ -140,7 +140,7 @@ class ResNet(InitWrapper, torch.nn.Module):
             return features
         else:
             x = self.fc(features)
-            return (x.view(-1, 29, 3), features)
+            return (x.view(-1, 21, 3), features)
 
     def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         return self._forward_impl(x, features_only=features_only)

@@ -149,26 +149,18 @@ class RegularTrainer(BaseTrainer):
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
                 return
-            res = self._testing_step(batch, compute=["pjpe", "pcpe"])
+            res = self._testing_step(batch, compute=["pjpe"])
             PJPEs.append(res["pjpe"])
-            PCPEs.append(res["pcpe"])
             MPJPEs.append(res["pjpe"].mean())
-            MPCPEs.append(res["pcpe"].mean())
             if visualize:
                 self._testing_step_vis(batch)
 
         print("-> Computing PCK curves...")
         # Compute the PCK curves (hand joints)
         auc_pck, pck = compute_curve(PJPEs, thresholds, 21)
-        # Compute the PCP curves (object corners)
-        auc_pcp, pcp = compute_curve(PCPEs, thresholds, 8)
         if plot:
             plot_curve(pck, thresholds, "baseline_pck.png")
-            plot_curve(pcp, thresholds, "baseline_pcp.png")
         mpjpe = float(torch.Tensor(MPJPEs).mean().item())
-        mpcpe = float(torch.Tensor(MPCPEs).mean().item())
         print(f"\n\n==========[Test Error]==========")
         print(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
-        print(f"Mean Per Corner Pose Error: {mpcpe:.6f}")
         print(f"Area Under Curve for PCK: {auc_pck:.6f}")
-        print(f"Area Under Curve for PCP: {auc_pcp:.6f}")

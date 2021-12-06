@@ -53,7 +53,7 @@ class Regular_CNNTrainer(RegularTrainer):
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         joints, _ = self.model(inputs)
-        joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)  # Root alignment
+        joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)  # Root alignment
         loss = self.inner_criterion(joints, labels3d)
         loss.backward()
         return loss.detach()
@@ -66,7 +66,7 @@ class Regular_CNNTrainer(RegularTrainer):
         with torch.no_grad():
             joints, _ = self.model(inputs)
             joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
+                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
             )  # Root alignment
             res = None
             if type(compute) is str:
@@ -112,7 +112,7 @@ class Regular_CNNTrainer(RegularTrainer):
         with torch.no_grad():
             joints, _ = self.model(inputs)
             joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
+                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
             )  # Root alignment
             mean, std = torch.tensor(
                 [0.485, 0.456, 0.406], dtype=torch.float32

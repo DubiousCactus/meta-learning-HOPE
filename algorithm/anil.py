@@ -269,39 +269,28 @@ class ANILTrainer(MAMLTrainer):
                     meta_batch,
                     maml.clone(),
                     self.model.features,
-                    compute=["pjpe", "pcpe"],
+                    compute=["pjpe"],
                 )
                 PJPEs.append(res["pjpe"])
-                PCPEs.append(res["pcpe"])
                 if visualize:
                     self._testing_step_vis(
                         meta_batch, maml.clone(), self.model.features
                     )
                 MPJPEs.append(res["pjpe"].mean())
-                MPCPEs.append(res["pcpe"].mean())
 
             print("-> Computing PCK curves...")
             # Compute the PCK curves (hand joints)
             auc, pck = compute_curve(PJPEs, thresholds, 21)
             avg_auc_pck += auc
-            # Compute the PCP curves (object corners)
-            auc, pcp = compute_curve(PCPEs, thresholds, 8)
-            avg_auc_pcp += auc
-
             mpjpe = float(torch.Tensor(MPJPEs).mean().item())
             avg_mpjpe += mpjpe
-            avg_mpcpe += float(torch.Tensor(MPCPEs).mean().item())
 
             if mpjpe < min_mpjpe and plot:
                 plot_curve(pck, thresholds, "anil_pck.png")
-                plot_curve(pcp, thresholds, "anil_pcp.png")
                 min_mpjpe = mpjpe
             print(f"=======================================")
         avg_mpjpe /= float(runs)
-        avg_mpcpe /= float(runs)
         avg_auc_pck /= float(runs)
         print(f"\n\n==========[Test Error (avg of {runs})]==========")
         print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
-        print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
         print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
-        print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")
