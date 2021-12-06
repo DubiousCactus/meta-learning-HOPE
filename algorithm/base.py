@@ -145,10 +145,10 @@ class BaseTrainer(ABC):
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
         return val_loss
 
-    def _checkpoint(self, epoch, train_loss, val_loss, val_mae_loss, state_dicts):
+    def _checkpoint(self, epoch, train_loss, val_loss, val_mpjpe, state_dicts):
         print(f"-> Saving model to {self._checkpoint_path}...")
         wandb.run.summary["best_val_mse"] = val_loss
-        wandb.run.summary["best_val_mae"] = val_mae_loss
+        wandb.run.summary["best_val_mpjpe"] = val_mpjpe
         torch.save(
             state_dicts,
             os.path.join(

@@ -93,8 +93,9 @@ class RegularTrainer(BaseTrainer):
                     if self._exit:
                         self._backup()
                         return
-                    val_losses.append(self._testing_step(batch))
-                    val_mpjpe.append(self._testing_step(batch, compute="mpjpe"))
+                    res = self._testing_step(batch, compute=["mse", "pjpe"])
+                    val_losses.append(res["mse"])
+                    val_mpjpe.append(res["pjpe"].mean())
                 avg_val_loss = float(torch.Tensor(val_losses).mean().item())
                 avg_val_mpjpe = float(torch.Tensor(val_mpjpe).mean().item())
 
