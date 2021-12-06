@@ -77,6 +77,16 @@ class Regular_CNNTrainer(RegularTrainer):
                     res = self.inner_criterion(joints, labels3d).detach()
                 elif compute == "mae":
                     res = F.l1_loss(joints, labels3d).detach()
+                elif compute == "mpjpe":
+                    # Hand-pose only
+                    # Batched vector norm for row-wise elements
+                    return (
+                        torch.linalg.norm(
+                            joints[:, :21, :] - labels3d[:, :21, :], dim=2
+                        )
+                        .detach()
+                        .mean()
+                    )
             elif type(compute) is list:
                 """
                 This will be used when testing.

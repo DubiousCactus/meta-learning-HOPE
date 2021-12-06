@@ -56,7 +56,7 @@ class RegularTrainer(BaseTrainer):
     ):
         wandb.watch(self.model)
         if optimizer == "adam":
-            opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
+            opt = torch.optim.AdamW(self.model.parameters(), lr=fast_lr)
         elif optimizer == "sgd":
             opt = torch.optim.SGD(self.model.parameters(), lr=fast_lr)
         else:
@@ -72,7 +72,7 @@ class RegularTrainer(BaseTrainer):
         past_val_loss = float("+inf")
         if self._model_path:
             past_val_loss = self._restore(opt, scheduler, resume_training=resume)
-        avg_val_loss, avg_val_mae_loss = 0.0, 0.0
+        avg_val_loss, avg_val_mpjpe = 0.0, 0.0
         for epoch in range(self._epoch, iterations):
             self.model.train()
             train_losses = []
@@ -87,16 +87,16 @@ class RegularTrainer(BaseTrainer):
 
             if (epoch + 1) % val_every == 0:
                 self.model.eval()
-                val_losses, val_mae_losses = [], []
+                val_losses, val_mpjpe = [], []
                 print("Computing validation error...")
                 for batch in tqdm(self.dataset.val, dynamic_ncols=True):
                     if self._exit:
                         self._backup()
                         return
                     val_losses.append(self._testing_step(batch))
-                    val_mae_losses.append(self._testing_step(batch, compute="mae"))
+                    val_mpjpe.append(self._testing_step(batch, compute="mpjpe"))
                 avg_val_loss = float(torch.Tensor(val_losses).mean().item())
-                avg_val_mae_loss = float(torch.Tensor(val_mae_losses).mean().item())
+                avg_val_mpjpe = float(torch.Tensor(val_mpjpe).mean().item())
 
             avg_train_loss = torch.Tensor(train_losses).mean().item()
             wandb.log({"train_loss": avg_train_loss}, step=epoch)
@@ -104,9 +104,9 @@ class RegularTrainer(BaseTrainer):
             print(f"Training Loss: {avg_train_loss:.6f}")
             if (epoch + 1) % val_every == 0:
                 print(f"Validation Loss: {avg_val_loss:.6f}")
-                print(f"Validation MAE Loss: {avg_val_mae_loss:.6f}")
+                print(f"Validation MPJPE: {avg_val_mpjpe:.6f}")
                 wandb.log(
-                    {"val_loss": avg_val_loss, "val_mae_loss": avg_val_mae_loss},
+                    {"val_loss": avg_val_loss, "val_mpjpe": avg_val_mpjpe},
                     step=epoch,
                 )
             print("============================================")
@@ -120,7 +120,7 @@ class RegularTrainer(BaseTrainer):
                     "val_loss": avg_val_loss,
                 }
                 self._checkpoint(
-                    epoch, avg_train_loss, avg_val_loss, avg_val_mae_loss, state_dicts
+                    epoch, avg_train_loss, avg_val_loss, avg_val_mpjpe, state_dicts
                 )
                 past_val_loss = avg_val_loss
             if use_scheduler:
