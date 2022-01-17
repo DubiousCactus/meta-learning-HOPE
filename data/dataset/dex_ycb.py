@@ -131,6 +131,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
 
+        self.held_out = hold_out
         self._split_categories = self._make_split_categories(hold_out)
         print(
             f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"
@@ -148,7 +149,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 samples,
                 object_as_task,
                 "test",
-                False,
+                True,
                 normalize_keypoints,
             )
         else:
@@ -356,6 +357,13 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         for category_id in keys:
             if category_id not in self._split_categories[split]:
                 del samples[keys[category_id]]
+        # Insert object label (category_id) in the label, by replacing labels2d which are not needed
+        for category_id, sample_lst in samples.items():
+            new_lst = []
+            for sample in sample_lst:
+                new_sample = sample[0], category_id, sample[2]
+                new_lst.append(new_sample)
+            samples[category_id] = new_lst
         print(
             f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
         )

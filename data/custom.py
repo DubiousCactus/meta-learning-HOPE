@@ -45,7 +45,7 @@ class CustomDataset(TorchDataset):
             images.append(img_path)
             p_3d = p_3d[:21] - p_3d[0, :]  # Root aligned
             if self._pin_memory:
-                p_2d.pin_memory()
+                # p_2d.pin_memory()
                 p_3d.pin_memory()
             points2d.append(p_2d)
             points3d.append(p_3d)
