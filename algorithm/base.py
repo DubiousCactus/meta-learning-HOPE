@@ -143,7 +143,7 @@ class BaseTrainer(ABC):
                 opt.load_state_dict(checkpoint["meta_opt_state_dict"])
                 val_loss = checkpoint["val_meta_loss"]
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-            scheduler.step()
+            scheduler.step() # Restore learning rate
         return val_loss
 
     def _checkpoint(self, epoch, train_loss, val_loss, val_mpjpe, state_dicts):
