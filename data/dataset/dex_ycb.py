@@ -131,6 +131,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
 
+        self.held_out = hold_out
         self._split_categories = self._make_split_categories(hold_out)
         print(
             f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"

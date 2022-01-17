@@ -301,6 +301,7 @@ class ANILTrainer(MAMLTrainer):
         print(params.shape)
         embedded = TSNE(n_components=2, learning_rate="auto", init="random").fit_transform(params)
         tsne_result_df = pd.DataFrame({'tsne_1': embedded[:,0], 'tsne_2': embedded[:,1], 'label': y})
+        tsne_result_df.to_pickle(f"tsne_dataframe_{self.dataset.held_out}.pkl")
         fig, ax = plt.subplots(1)
         sns.scatterplot(x='tsne_1', y='tsne_2', hue='label', data=tsne_result_df, ax=ax,s=120,
                 palette="deep")
@@ -309,4 +310,5 @@ class ANILTrainer(MAMLTrainer):
         ax.set_ylim(lim)
         ax.set_aspect('equal')
         ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
+        plt.savefig(f"t-sne_{self.dataset.held_out}.png")
         plt.show()
