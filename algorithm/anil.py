@@ -280,9 +280,9 @@ class ANILTrainer(MAMLTrainer):
             net_params_a, net_params1, net_params2 = [], [], []
             for name, p in head.named_parameters():
                 if "module.0.weight" in name:
-                    net_params1.append(p.detach().flatten().cpu().numpy())
+                    net_params1.append(p.detach().flatten())
                 elif "module.2.weight" in name:
-                    net_params2.append(p.detach().flatten().cpu().numpy())
+                    net_params2.append(p.detach().flatten())
             for p in head.parameters():
                 net_params_a.append(p.detach().flatten())#.cpu().numpy())
 
