@@ -266,7 +266,8 @@ class ANILTrainer(MAMLTrainer):
             features = self.model.features
             meta_batch = self._split_batch(task)
             s_inputs, obj_label, s_labels3d = meta_batch.support
-            q_inputs, obj_label, q_labels3d = meta_batch.query
+            q_inputs, _, q_labels3d = meta_batch.query
+            obj_label = int(obj_label.detach()[0])
             if self._use_cuda:
                 s_inputs = s_inputs.float().cuda(device=self._gpu_number)
                 s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
@@ -285,15 +286,14 @@ class ANILTrainer(MAMLTrainer):
                 support_loss = self.inner_criterion(joints, s_labels3d)
                 head.adapt(support_loss, epoch=None)
 
-            # for name, p in head.named_parameters():
-            #     if "module.0.weight" in name:
-            #         params.append(p.detach().flatten().cpu().numpy())
-            #         y.append(1)
             net_params = []
-            for p in head.parameters():
-                net_params.append(p.detach().flatten())#.cpu().numpy())
+            for name, p in head.named_parameters():
+                if "module.0.weight" in name:
+                    net_params.append(p.detach().flatten())
+            # for p in head.parameters():
+            #     net_params.append(p.detach().flatten())
             params.append(torch.cat(net_params).cpu().numpy())
-            y.append(int(obj_label[0]))
+            y.append(obj_label)
 
         print("[*] Running t-SNE...")
         params = np.array(params)
