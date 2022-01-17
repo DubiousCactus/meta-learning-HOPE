@@ -13,10 +13,15 @@ Almost No Inner-Loop meta-learning algorithm.
 from data.dataset.base import BaseDatasetTaskLoader
 from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
+from sklearn.manifold import TSNE
 from typing import List
 from tqdm import tqdm
 
+import matplotlib.pyplot as plt
 import learn2learn as l2l
+import seaborn as sns
+import pandas as pd
+import numpy as np
 import torch
 import wandb
 
@@ -253,56 +258,55 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
-        thresholds = torch.linspace(10, 100, (100-10)//5+1)
-        min_mpjpe = float("+inf")
+        params, y = [], []
+        for task in tqdm(self.dataset.test, dynamic_ncols=True):
+            if self._exit:
+                return
+            head = maml.clone()
+            features = self.model.features
+            meta_batch = self._split_batch(task)
+            s_inputs, obj_label, s_labels3d = meta_batch.support
+            q_inputs, obj_label, q_labels3d = meta_batch.query
+            if self._use_cuda:
+                s_inputs = s_inputs.float().cuda(device=self._gpu_number)
+                s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
+                q_inputs = q_inputs.float().cuda(device=self._gpu_number)
+                q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
-        for i in range(runs):
-            print(f"===============[Run {i+1}/{runs}]==============")
-            MPJPEs, MPCPEs = [], []
-            PJPEs, PCPEs = [], []
-            for task in tqdm(self.dataset.test, dynamic_ncols=True):
-                if self._exit:
-                    return
-                meta_batch = self._split_batch(task)
-                res = self._testing_step(
-                    meta_batch,
-                    maml.clone(),
-                    self.model.features,
-                    compute=["pjpe", "pcpe"],
-                )
-                PJPEs.append(res["pjpe"])
-                PCPEs.append(res["pcpe"])
-                if visualize:
-                    self._testing_step_vis(
-                        meta_batch, maml.clone(), self.model.features
-                    )
-                MPJPEs.append(res["pjpe"].mean())
-                MPCPEs.append(res["pcpe"].mean())
+            with torch.no_grad():
+                s_inputs = features(s_inputs)
+            # Adapt the model on the support set
+            for _ in range(self._steps):
+                # forward + backward + optimize
+                joints = head(s_inputs).view(-1, 29, 3)
+                joints -= (
+                    joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
+                )  # Root alignment
+                support_loss = self.inner_criterion(joints, s_labels3d)
+                head.adapt(support_loss, epoch=None)
 
-            print("-> Computing PCK curves...")
-            # Compute the PCK curves (hand joints)
-            auc, pck = compute_curve(PJPEs, thresholds, 21)
-            avg_auc_pck += auc
-            # Compute the PCP curves (object corners)
-            auc, pcp = compute_curve(PCPEs, thresholds, 8)
-            avg_auc_pcp += auc
+            # for name, p in head.named_parameters():
+            #     if "module.0.weight" in name:
+            #         params.append(p.detach().flatten().cpu().numpy())
+            #         y.append(1)
+            net_params = []
+            for p in head.parameters():
+                net_params.append(p.detach().flatten())#.cpu().numpy())
+            params.append(torch.cat(net_params).cpu().numpy())
+            y.append(int(obj_label[0]))
 
-            mpjpe = float(torch.Tensor(MPJPEs).mean().item())
-            avg_mpjpe += mpjpe
-            avg_mpcpe += float(torch.Tensor(MPCPEs).mean().item())
-
-            if mpjpe < min_mpjpe and plot:
-                plot_curve(pck, thresholds, "anil_pck.png")
-                plot_curve(pcp, thresholds, "anil_pcp.png")
-                min_mpjpe = mpjpe
-            print(f"=======================================")
-        avg_mpjpe /= float(runs)
-        avg_mpcpe /= float(runs)
-        avg_auc_pck /= float(runs)
-        avg_auc_pcp /= float(runs)
-        print(f"\n\n==========[Test Error (avg of {runs})]==========")
-        print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
-        print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
-        print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
-        print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")
+        print("[*] Running t-SNE...")
+        params = np.array(params)
+        # params = torch.cat(params).cpu().numpy()
+        print(params.shape)
+        embedded = TSNE(n_components=2, learning_rate="auto", init="random").fit_transform(params)
+        tsne_result_df = pd.DataFrame({'tsne_1': embedded[:,0], 'tsne_2': embedded[:,1], 'label': y})
+        fig, ax = plt.subplots(1)
+        sns.scatterplot(x='tsne_1', y='tsne_2', hue='label', data=tsne_result_df, ax=ax,s=120,
+                palette="deep")
+        lim = (embedded.min()-5, embedded.max()+5)
+        ax.set_xlim(lim)
+        ax.set_ylim(lim)
+        ax.set_aspect('equal')
+        ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
+        plt.show()

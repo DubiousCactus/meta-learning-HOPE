@@ -101,7 +101,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                 object_as_task,
                 "test",
                 ["train"],
-                False,
+                True,
                 normalize_keypoints,
             )
         else:
