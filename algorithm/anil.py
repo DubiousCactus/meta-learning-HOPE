@@ -258,7 +258,7 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        params, y = [], []
+        params0, params1, y = [], [], []
         for task in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
                 return
@@ -286,29 +286,33 @@ class ANILTrainer(MAMLTrainer):
                 support_loss = self.inner_criterion(joints, s_labels3d)
                 head.adapt(support_loss, epoch=None)
 
-            net_params = []
+            net_params0, net_params1 = [], []
             for name, p in head.named_parameters():
-                if "module.0.weight" in name:
-                    net_params.append(p.detach().flatten())
+                if "module.0.bias" in name:
+                    net_params0.append(p.detach().flatten())
+                elif "module.2.bias" in name:
+                    net_params1.append(p.detach().flatten())
             # for p in head.parameters():
             #     net_params.append(p.detach().flatten())
-            params.append(torch.cat(net_params).cpu().numpy())
+            params0.append(torch.cat(net_params0).cpu().numpy())
+            params1.append(torch.cat(net_params1).cpu().numpy())
             y.append(obj_label)
 
         print("[*] Running t-SNE...")
-        params = np.array(params)
-        # params = torch.cat(params).cpu().numpy()
-        print(params.shape)
-        embedded = TSNE(n_components=2, learning_rate="auto", init="random").fit_transform(params)
-        tsne_result_df = pd.DataFrame({'tsne_1': embedded[:,0], 'tsne_2': embedded[:,1], 'label': y})
-        tsne_result_df.to_pickle(f"tsne_dataframe_{self.dataset.held_out}.pkl")
-        fig, ax = plt.subplots(1)
-        sns.scatterplot(x='tsne_1', y='tsne_2', hue='label', data=tsne_result_df, ax=ax,s=120,
-                palette="deep")
-        lim = (embedded.min()-5, embedded.max()+5)
-        ax.set_xlim(lim)
-        ax.set_ylim(lim)
-        ax.set_aspect('equal')
-        ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
-        plt.savefig(f"t-sne_{self.dataset.held_out}.png")
-        plt.show()
+        for i, params in enumerate([params0, params1]):
+            params = np.array(params)
+            # params = torch.cat(params).cpu().numpy()
+            print(params.shape)
+            embedded = TSNE(n_components=2, learning_rate="auto", init="random").fit_transform(params)
+            tsne_result_df = pd.DataFrame({'tsne_1': embedded[:,0], 'tsne_2': embedded[:,1], 'label': y})
+            # tsne_result_df.to_pickle(f"tsne_dataframe_{self.dataset.held_out}.pkl")
+            fig, ax = plt.subplots(1)
+            sns.scatterplot(x='tsne_1', y='tsne_2', hue='label', data=tsne_result_df, ax=ax,s=120,
+                    palette="deep")
+            lim = (embedded.min()-5, embedded.max()+5)
+            ax.set_xlim(lim)
+            ax.set_ylim(lim)
+            ax.set_aspect('equal')
+            ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
+            plt.savefig(f"biases{i}_t-sne_{self.dataset.held_out}.png")
+            plt.show()
