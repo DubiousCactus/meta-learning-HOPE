@@ -8,7 +8,7 @@ plot_curves: True
 resume_training: True
 use_scheduler: True
 defaults:
-    - experiment: regular_cnn_ho3d
+    - experiment: anil_cnn_dexycb
 hydra:
     run:
         dir: outputs/${experiment.name}/lr:${experiment.fast_lr}_batchsz:${experiment.batch_size}

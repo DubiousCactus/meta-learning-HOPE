@@ -113,6 +113,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         normalize_keypoints: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
+        auto_load: bool = True # In the analysis, we want to override the loading process
     ):
         super().__init__(
             root,
@@ -141,31 +142,33 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         print(
             f"[*] Testing with {', '.join([self._obj_labels[i] for i in self._split_categories['test']])}"
         )
-        # Don't auto load, this is a custom loading
-        samples = self._make_raw_dataset()
-        if test:
-            self.test = self._load(
-                samples,
-                object_as_task,
-                "test",
-                False,
-                normalize_keypoints,
-            )
-        else:
-            self.train, self.val = self._load(
-                samples,
-                object_as_task,
-                "train",
-                True,
-                normalize_keypoints,
-            ), self._load(
-                samples,
-                object_as_task,
-                "val",
-                False,
-                normalize_keypoints,
-            )
-        del samples
+        # Don't use the base class autoloading, this is a custom loading. However we don't want
+        # that either in the analysis script.
+        if auto_load:
+            samples = self.make_raw_dataset()
+            if test:
+                self.test = self._load(
+                    samples,
+                    object_as_task,
+                    "test",
+                    False,
+                    normalize_keypoints,
+                )
+            else:
+                self.train, self.val = self._load(
+                    samples,
+                    object_as_task,
+                    "train",
+                    True,
+                    normalize_keypoints,
+                ), self._load(
+                    samples,
+                    object_as_task,
+                    "val",
+                    False,
+                    normalize_keypoints,
+                )
+            del samples
 
     def _make_split_categories(self, hold_out) -> dict:
         """
@@ -204,8 +207,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 mesh = fast_load_obj(m_f)[0]
             mesh = trimesh.load(mesh)
             self._bboxes[obj_file_path] = compute_OBB_corners(mesh)
-        else:
-            vert3d = self._bboxes[obj_file_path]
+
+        vert3d = self._bboxes[obj_file_path]
 
         # Apply the rotation + translation to the bbox vertices
         # The format is [R; t] with R 3x3 and t 3x1.
@@ -241,7 +244,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             ),
         )
 
-    def _make_raw_dataset(self) -> dict:
+    def make_raw_dataset(self, mirror_left_hand=False) -> dict:
         pickle_path = os.path.join(self._root, f"dexycb.pkl")
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
@@ -310,6 +313,9 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                         failed += 1
                                         continue
                                     try:
+                                        if mirror_left_hand and meta['mano_sides'][0].lower() == "left":
+                                            # TODO: Mirror it
+                                            pass
                                         ho2d, ho3d = self._compute_labels(
                                             intrinsics[c],
                                             meta,
@@ -344,7 +350,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 pickle.dump(samples, pickle_file)
         return samples
 
-    def _make_dataset(
+    def make_dataset(
         self,
         split: str,
         samples: dict,
@@ -380,7 +386,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         shuffle: bool,
         normalize_keypoints: bool,
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
-        dataset = self._make_dataset(
+        dataset = self.make_dataset(
             split,
             copy(samples),  # They will be modified, we'll need them for the other split
             object_as_task=object_as_task,

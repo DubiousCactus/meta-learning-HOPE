@@ -53,6 +53,7 @@ class DatasetFactory:
         use_cuda: bool = True,
         gpu_numbers: List = [0],
         augment_fphad: bool = False,
+        auto_load: bool = True,
     ) -> BaseDatasetTaskLoader:
         if not os.path.isdir(dataset_root):
             print(f"[!] {dataset_root} is not a valid directory!")
@@ -71,7 +72,7 @@ class DatasetFactory:
             kargs = {"hold_out": config.experiment.hold_out}
         elif dataset == "dexycb":
             datasetClass = DexYCBDatasetTaskLoader
-            kargs = {"hold_out": config.experiment.hold_out}
+            kargs = {"hold_out": config.experiment.hold_out, "auto_load": auto_load}
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
         return datasetClass(
