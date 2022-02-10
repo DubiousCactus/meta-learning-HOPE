@@ -53,7 +53,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         "932122062010",
     ]
 
-    _obj_labels = [
+    obj_labels = [
         "002_master_chef_can",
         "003_cracker_box",
         "004_sugar_box",
@@ -132,15 +132,15 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
 
-        self._split_categories = self._make_split_categories(hold_out)
+        self.split_categories = self._make_split_categories(hold_out)
         print(
-            f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"
+            f"[*] Training with {', '.join([self.obj_labels[i] for i in self.split_categories['train']])}"
         )
         print(
-            f"[*] Validating with {', '.join([self._obj_labels[i] for i in self._split_categories['val']])}"
+            f"[*] Validating with {', '.join([self.obj_labels[i] for i in self.split_categories['val']])}"
         )
         print(
-            f"[*] Testing with {', '.join([self._obj_labels[i] for i in self._split_categories['test']])}"
+            f"[*] Testing with {', '.join([self.obj_labels[i] for i in self.split_categories['test']])}"
         )
         # Don't use the base class autoloading, this is a custom loading. However we don't want
         # that either in the analysis script.
@@ -177,12 +177,12 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         However if N categories are held out, 2*N categories must be effectively held out because
         they can't be the same for the validation and test splits!
         """
-        categories = list(range(len(self._obj_labels)))
+        categories = list(range(len(self.obj_labels)))
         idx = list(range(len(categories)))
         np.random.seed(hold_out)
         np.random.shuffle(idx)
         n_test, n_val = hold_out, min(5, hold_out // 2 + (hold_out % 2))
-        n_train = len(self._obj_labels) - n_test - n_val
+        n_train = len(self.obj_labels) - n_test - n_val
         assert n_train > 0, "There must remain at least one category in the train split"
         splits = {
             "train": list(np.array(categories)[idx[:n_train]]),
@@ -199,7 +199,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         obj_file_path = os.path.join(
             self._root,
             "models",
-            self._obj_labels[obj_id],
+            self.obj_labels[obj_id],
             "textured_simple.obj",
         )
         if obj_file_path not in self._bboxes:
@@ -258,7 +258,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             print(f"[*] Building dataset...")
             pbar = tqdm(total=len(self._subjects) * len(self._viewpoints) * 100)
             samples = {}
-            failed, no_interaction = 0, {i: 0 for i in range(len(self._obj_labels))}
+            failed, no_interaction = 0, {i: 0 for i in range(len(self.obj_labels))}
 
             # Load camera intrinsics for each camera
             intrinsics = {}
@@ -327,7 +327,9 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                             mirror_left_hand
                                             and meta["mano_sides"][0].lower() == "left"
                                         ):
-                                            ho3d = -ho3d # Simple reflection through a hyperplane
+                                            ho3d = (
+                                                -ho3d
+                                            )  # Simple reflection through a hyperplane
                                     except NoInteractionError:
                                         no_interaction[obj_class_id] += 1
                                         continue
@@ -347,7 +349,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             for id, val in no_interaction.items():
                 if id in samples.keys():
                     print(
-                        f"[!] {val} samples with no interaction were removed from {self._obj_labels[id]}: {len(samples[id])} samples left"
+                        f"[!] {val} samples with no interaction were removed from {self.obj_labels[id]}: {len(samples[id])} samples left"
                     )
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving dataset into {pickle_path}...")
@@ -364,7 +366,22 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         # Hold out
         keys = list(samples.copy().keys())
         for category_id in keys:
-            if category_id not in self._split_categories[split]:
+            if category_id not in self.split_categories[split]:
+                """
+                This stupid (very stupid I know) bug is kept as is because all experiments were run
+                with it. It doesn't induce any overlap between all splits so that's good. I've
+                algorithmically and manually checked, and the overlap quantities between dataset
+                levels on the test splits are the exact same between the actual "bugged version"
+                and expected "fixed version" splits (I assume the same can be said about the train
+                and val splits but it doesn't matter much). The only implication is
+                that the objects described for each split (in the console) are wrong. So after a
+                lot of worry and a loto of double-checking, all is well :)
+
+                The fix is: del samples[category_id].
+                But my slow-ass brain thought that iterating through the keys would return an index
+                and not the value of the array... It must have been a long day when I wrote this,
+                and I never looked back.
+                """
                 del samples[keys[category_id]]
         print(
             f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
