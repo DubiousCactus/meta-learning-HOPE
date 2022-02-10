@@ -113,7 +113,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         normalize_keypoints: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
-        auto_load: bool = True # In the analysis, we want to override the loading process
+        auto_load: bool = True,  # In the analysis, we want to override the loading process
     ):
         super().__init__(
             root,
@@ -245,7 +245,11 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         )
 
     def make_raw_dataset(self, mirror_left_hand=False) -> dict:
-        pickle_path = os.path.join(self._root, f"dexycb.pkl")
+        pickle_path = (
+            os.path.join(self._root, f"dexycb.pkl")
+            if not mirror_left_hand
+            else os.path.join(self._root, f"dexycb_mirrorred.pkl")
+        )
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading dataset from {pickle_path}...")
@@ -313,15 +317,17 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                         failed += 1
                                         continue
                                     try:
-                                        if mirror_left_hand and meta['mano_sides'][0].lower() == "left":
-                                            # TODO: Mirror it
-                                            pass
                                         ho2d, ho3d = self._compute_labels(
                                             intrinsics[c],
                                             meta,
                                             labels,
                                             obj_class_id,
                                         )
+                                        if (
+                                            mirror_left_hand
+                                            and meta["mano_sides"][0].lower() == "left"
+                                        ):
+                                            ho3d = -ho3d # Simple reflection through a hyperplane
                                     except NoInteractionError:
                                         no_interaction[obj_class_id] += 1
                                         continue
@@ -334,9 +340,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                     # ho2d[:, 1] = ho2d[:, 1] * 256.0 / self._h
                                     if obj_class_id not in samples:
                                         samples[obj_class_id] = []
-                                    samples[obj_class_id].append(
-                                        (img_file, ho2d, ho3d)
-                                    )
+                                    samples[obj_class_id].append((img_file, ho2d, ho3d))
                         pbar.update()
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")

@@ -177,7 +177,7 @@ def main(cfg: DictConfig):
         augment_fphad=cfg.experiment.augment,
         auto_load=False,
     )
-    samples = dataset_loader.make_raw_dataset()
+    samples = dataset_loader.make_raw_dataset(mirror_left_hand=True)
     train_set = dataset_loader.make_dataset("train", copy(samples), object_as_task=True)
     poses = [pose3d.cpu().numpy() for _, _, pose3d in train_set]
     # plot_3D_hand(poses[0])
