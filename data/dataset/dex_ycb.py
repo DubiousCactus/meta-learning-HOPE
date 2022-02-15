@@ -6,9 +6,9 @@
 
 from util.utils import fast_load_obj, compute_OBB_corners
 from data.dataset.base import BaseDatasetTaskLoader
+from typing import Union, Tuple, Optional
 from torch.utils.data import DataLoader
 from data.custom import CustomDataset
-from typing import Union, Tuple
 from functools import reduce
 from tqdm import tqdm
 from copy import copy
@@ -110,6 +110,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         test: bool = False,
         object_as_task: bool = True,
         hold_out: int = 0,
+        test_objects: Optional[int] = None,
         normalize_keypoints: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
@@ -144,6 +145,14 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         # Don't auto load, this is a custom loading
         samples = self._make_raw_dataset()
         if test:
+            if test_objects is not None:
+                '''
+                This was added late in the experiments. It allows to keep the same splits defined
+                by the hold_out parameter, but to keep only test_objects from the test split (for
+                experiment 3).
+                '''
+                del self._split_categories['test'][test_objects:]
+                print(f"Keepin only the first {test_objects} test objects")
             self.test = self._load(
                 samples,
                 object_as_task,

@@ -71,7 +71,10 @@ class DatasetFactory:
             kargs = {"hold_out": config.experiment.hold_out}
         elif dataset == "dexycb":
             datasetClass = DexYCBDatasetTaskLoader
-            kargs = {"hold_out": config.experiment.hold_out}
+            kargs = {
+                "hold_out": config.experiment.hold_out,
+                "test_objects": config.experiment.test_objects,
+            }
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
         return datasetClass(
