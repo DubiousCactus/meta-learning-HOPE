@@ -74,6 +74,7 @@ class DatasetFactory:
             kargs = {
                 "hold_out": config.experiment.hold_out,
                 "test_objects": config.experiment.test_objects,
+                "seed_factor": config.experiment.seed_factor,
             }
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")

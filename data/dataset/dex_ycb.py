@@ -111,6 +111,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         object_as_task: bool = True,
         hold_out: int = 0,
         test_objects: Optional[int] = None,
+        seed_factor: int = 1,
         normalize_keypoints: bool = False,
         use_cuda: bool = True,
         gpu_number: int = 0,
@@ -132,7 +133,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
 
-        self._split_categories = self._make_split_categories(hold_out)
+        self._split_categories = self._make_split_categories(hold_out, seed_factor=seed_factor)
         print(
             f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"
         )
@@ -146,12 +147,12 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         samples = self._make_raw_dataset()
         if test:
             if test_objects is not None:
-                '''
+                """
                 This was added late in the experiments. It allows to keep the same splits defined
                 by the hold_out parameter, but to keep only test_objects from the test split (for
                 experiment 3).
-                '''
-                del self._split_categories['test'][test_objects:]
+                """
+                del self._split_categories["test"][test_objects:]
                 print(f"Keepin only the first {test_objects} test objects")
             self.test = self._load(
                 samples,
@@ -176,16 +177,19 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             )
         del samples
 
-    def _make_split_categories(self, hold_out) -> dict:
+    def _make_split_categories(self, hold_out: int, seed_factor: int = 1) -> dict:
         """
         HO-3D contains 20 object categories. This method distributes those categories per split,
         according to "hold_out" which corresponds to how many are held out of the train split.
         However if N categories are held out, 2*N categories must be effectively held out because
         they can't be the same for the validation and test splits!
+
+        seed_factor: Used to randomize experiment 3 (experiment 3 is just a sub experiment of
+                     experiment 1 really... So it's experiment 3.b haha
         """
         categories = list(range(len(self._obj_labels)))
         idx = list(range(len(categories)))
-        np.random.seed(hold_out)
+        np.random.seed(hold_out * seed_factor)
         np.random.shuffle(idx)
         n_test, n_val = hold_out, min(5, hold_out // 2 + (hold_out % 2))
         n_train = len(self._obj_labels) - n_test - n_val
@@ -337,9 +341,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                     # ho2d[:, 1] = ho2d[:, 1] * 256.0 / self._h
                                     if obj_class_id not in samples:
                                         samples[obj_class_id] = []
-                                    samples[obj_class_id].append(
-                                        (img_file, ho2d, ho3d)
-                                    )
+                                    samples[obj_class_id].append((img_file, ho2d, ho3d))
                         pbar.update()
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
