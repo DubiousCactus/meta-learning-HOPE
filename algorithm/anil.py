@@ -120,7 +120,7 @@ class ANILTrainer(MAMLTrainer):
                             epoch,
                             epoch_meta_train_loss,
                             meta_val_mse_loss,
-                            meta_val_mae_loss,
+                            meta_val_mpjpe,
                             state_dicts,
                         )
                         return
@@ -169,45 +169,37 @@ class ANILTrainer(MAMLTrainer):
                 # Compute the meta-validation loss
                 # Go through the entire validation set, which shouldn't be shuffled, and
                 # which tasks should not be continuously resampled from!
-                meta_val_mse_losses, meta_val_mae_losses = [], []
+                meta_val_mse_losses, meta_val_mpjpes = [], []
                 for task in tqdm(self.dataset.val, dynamic_ncols=True):
                     if self._exit:
                         self._backup()
                         return
                     meta_batch = self._split_batch(task)
-                    inner_mse_loss = self._testing_step(
+                    res = self._testing_step(
                         meta_batch,
                         maml.clone(),
                         self.model.features,
                         epoch,
+                        compute=["mse", "pjpe"],
                     )
-                    inner_mae_loss = self._testing_step(
-                        meta_batch,
-                        maml.clone(),
-                        self.model.features,
-                        epoch,
-                        compute="mae",
-                    )
-                    meta_val_mse_losses.append(inner_mse_loss.detach())
-                    meta_val_mae_losses.append(inner_mae_loss.detach())
+                    meta_val_mse_losses.append(res["mse"])
+                    meta_val_mpjpes.append(res["pjpe"].mean())
                 meta_val_mse_loss = float(
                     torch.Tensor(meta_val_mse_losses).mean().item()
                 )
-                meta_val_mae_loss = float(
-                    torch.Tensor(meta_val_mae_losses).mean().item()
+                meta_val_mpjpe = float(
+                    torch.Tensor(meta_val_mpjpes).mean().item()
                 )
-                del meta_val_mae_losses
-                del meta_val_mse_losses
 
                 wandb.log(
                     {
                         "meta_val_mse_loss": meta_val_mse_loss,
-                        "meta_val_mae_loss": meta_val_mae_loss,
+                        "meta_val_mpjpe": meta_val_mpjpe,
                     },
                     step=epoch,
                 )
                 print(f"Meta-validation MSE Loss: {meta_val_mse_loss:.6f}")
-                print(f"Meta-validation MAE Loss: {meta_val_mae_loss:.6f}")
+                print(f"Meta-validation MPJPE: {meta_val_mpjpe:.6f}")
 
                 # Model checkpointing
                 if meta_val_mse_loss < past_val_loss:
@@ -223,7 +215,7 @@ class ANILTrainer(MAMLTrainer):
                         epoch,
                         epoch_meta_train_loss,
                         meta_val_mse_loss,
-                        meta_val_mae_loss,
+                        meta_val_mpjpe,
                         state_dicts,
                     )
                     past_val_loss = meta_val_mse_loss

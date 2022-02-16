@@ -143,7 +143,20 @@ class ANIL_CNNTrainer(ANILTrainer):
             """
             This will be used when validating.
             """
-            res = self.inner_criterion(q_joints, q_labels3d).detach()
+            if compute == "mse":
+                res = self.inner_criterion(q_joints, q_labels3d).detach()
+            elif compute == "mae":
+                res = F.l1_loss(q_joints, q_labels3d).detach()
+            elif compute == "mpjpe":
+                # Hand-pose only
+                # Batched vector norm for row-wise elements
+                return (
+                    torch.linalg.norm(
+                        q_joints[:, :21, :] - q_labels3d[:, :21, :], dim=2
+                    )
+                    .detach()
+                    .mean()
+                )
         elif type(compute) is list:
             """
             This will be used when testing.
