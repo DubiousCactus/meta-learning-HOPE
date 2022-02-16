@@ -1,0 +1,50 @@
+anil_results.txt
+
+:Author: Théo Morales
+:Email: theo.morales.fr@gmail.com
+:Date: 2021-12-06 11:15
+
+5
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 43.376785
+Mean Area Under Curve for PCK: 0.630227
+
+6
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 43.147221
+Mean Area Under Curve for PCK: 0.630684
+
+7
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 43.095786
+Mean Area Under Curve for PCK: 0.631864
+
+8
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 43.947793
+Mean Area Under Curve for PCK: 0.622788
+
+9
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 45.398615
+Mean Area Under Curve for PCK: 0.607861
+
+10
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 46.679922
+Mean Area Under Curve for PCK: 0.593457
+
+11
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 46.806033
+Mean Area Under Curve for PCK: 0.593149
+
+12
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 47.355519
+Mean Area Under Curve for PCK: 0.587099
+
+13
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 50.151927
+Mean Area Under Curve for PCK: 0.557769

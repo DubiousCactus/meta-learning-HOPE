@@ -1,0 +1,50 @@
+baseline_results.txt
+
+:Author: Théo Morales
+:Email: theo.morales.fr@gmail.com
+:Date: 2021-12-06 10:30
+
+5
+==========[Test Error]==========
+Mean Per Joint Pose Error: 24.154137
+Area Under Curve for PCK: 0.832114
+
+6
+==========[Test Error]==========
+Mean Per Joint Pose Error: 24.093002
+Area Under Curve for PCK: 0.831998
+
+7
+==========[Test Error]==========
+Mean Per Joint Pose Error: 24.520786
+Area Under Curve for PCK: 0.827941
+
+8
+==========[Test Error]==========
+Mean Per Joint Pose Error: 25.368237
+Area Under Curve for PCK: 0.819276
+
+9
+==========[Test Error]==========
+Mean Per Joint Pose Error: 27.201054
+Area Under Curve for PCK: 0.800037
+
+10
+==========[Test Error]==========
+Mean Per Joint Pose Error: 29.260160
+Area Under Curve for PCK: 0.778630
+
+11
+==========[Test Error]==========
+Mean Per Joint Pose Error: 29.965374
+Area Under Curve for PCK: 0.771005
+
+12
+==========[Test Error]==========
+Mean Per Joint Pose Error: 32.032642
+Area Under Curve for PCK: 0.748994
+
+13
+==========[Test Error]==========
+Mean Per Joint Pose Error: 34.351532
+Area Under Curve for PCK: 0.724495

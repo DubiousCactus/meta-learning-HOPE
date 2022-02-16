@@ -1,0 +1,69 @@
+anil_results.txt
+
+:Author: Théo Morales
+:Email: theo.morales.fr@gmail.com
+:Date: 2021-12-05 18:16
+
+
+5
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 45.004391
+Mean Per Corner Pose Error: 120.425536
+Mean Area Under Curve for PCK: 0.612115
+Mean Area Under Curve for PCP: 0.1197028
+
+6
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 44.540582
+Mean Per Corner Pose Error: 117.018973
+Mean Area Under Curve for PCK: 0.615475
+Mean Area Under Curve for PCP: 0.143382
+
+7
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 44.779213
+Mean Per Corner Pose Error: 114.638460
+Mean Area Under Curve for PCK: 0.613260
+Mean Area Under Curve for PCP: 0.1316898
+
+8
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 44.889261
+Mean Per Corner Pose Error: 110.935428
+Mean Area Under Curve for PCK: 0.612160
+Mean Area Under Curve for PCP: 0.172122
+
+9
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 46.702107
+Mean Per Corner Pose Error: 119.639590
+Mean Area Under Curve for PCK: 0.593404
+Mean Area Under Curve for PCP: 0.1345742
+
+10
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 47.199644
+Mean Per Corner Pose Error: 126.963612
+Mean Area Under Curve for PCK: 0.588405
+Mean Area Under Curve for PCP: 0.1055826
+
+11
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 48.072958
+Mean Per Corner Pose Error: 120.356740
+Mean Area Under Curve for PCK: 0.579416
+Mean Area Under Curve for PCP: 0.1227096
+
+12 
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 48.482305
+Mean Per Corner Pose Error: 122.247318
+Mean Area Under Curve for PCK: 0.575529
+Mean Area Under Curve for PCP: 0.1206204
+
+13 
+==========[Test Error (avg of 5)]==========
+Mean Per Joint Pose Error: 52.043761
+Mean Per Corner Pose Error: 131.283093
+Mean Area Under Curve for PCK: 0.538200
+Mean Area Under Curve for PCP: 0.1042436
