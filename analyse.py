@@ -299,13 +299,20 @@ def compute_dist_matrix(samples, dataloader):
         poses = [pose3d.cpu().numpy() for _, _, pose3d in task_dataset]
         task_mean_poses[obj_id] = ProcrustesAnalysis.generalised_procrustes_analysis(poses)
     print("[*] Computing distances...")
+    lines = []
     print(f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}")
+    lines.append(f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}\n")
     for obj_id, pose_a in task_mean_poses.items():
         print("{s:{c}^{n}}|".format(s=dataloader.obj_labels[obj_id][4:], n=17, c=' '), end="", flush=False)
+        line = "{s:{c}^{n}}|".format(s=dataloader.obj_labels[obj_id][4:], n=17, c=' ')
         for obj_id, pose_b in task_mean_poses.items():
             dist = ProcrustesAnalysis.compute_distance(pose_a, pose_b)
             print("{s:{c}^{n}}|".format(s=f"{dist:.4f}", n=17, c=' '), end="", flush=False)
+            line += "{s:{c}^{n}}|".format(s=f"{dist:.4f}", n=17, c=' ')
         print()
+        lines.append(line+"\n")
+    with open("distance_matrix.txt", "w") as f:
+        f.writelines(lines)
 
 
 @hydra.main(config_path="conf", config_name="config")
