@@ -299,12 +299,12 @@ def compute_dist_matrix(samples, dataloader):
         poses = [pose3d.cpu().numpy() for _, _, pose3d in task_dataset]
         task_mean_poses[obj_id] = ProcrustesAnalysis.generalised_procrustes_analysis(poses)
     print("[*] Computing distances...")
-    print(f"________________{' | '.join([dataloader.obj_labels[i][4:] for i in task_mean_poses.keys()])}")
+    print(f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}")
     for obj_id, pose_a in task_mean_poses.items():
-        print(f"{obj_id} | ", end="", flush=False)
+        print("{s:{c}^{n}}|".format(s=dataloader.obj_labels[obj_id][4:], n=17, c=' '), end="", flush=False)
         for obj_id, pose_b in task_mean_poses.items():
             dist = ProcrustesAnalysis.compute_distance(pose_a, pose_b)
-            print(f"{dist:.4f} | ", end="", flush=False)
+            print("{s:{c}^{n}}|".format(s=f"{dist:.4f}", n=17, c=' '), end="", flush=False)
         print()
 
 
