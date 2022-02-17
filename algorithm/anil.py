@@ -241,6 +241,7 @@ class ANILTrainer(MAMLTrainer):
         all_parameters = list(self.model.features.parameters()) + list(
             maml.parameters()
         )
+        # The optimiser is needed for the restore function because I'm too lazy to make it optional
         opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
