@@ -173,26 +173,8 @@ def plot_3D_hands(pose1, title1, pose2, title2):
     plt.show()
 
 
-@hydra.main(config_path="conf", config_name="config")
-def main(cfg: DictConfig):
-    dataset_loader = DatasetFactory.make_data_loader(
-        cfg,
-        to_absolute_path(cfg.shapenet_root),
-        cfg.experiment.dataset,
-        to_absolute_path(cfg.experiment.dataset_path),
-        cfg.experiment.batch_size,
-        cfg.test_mode,
-        cfg.experiment.k_shots,
-        cfg.experiment.n_queries,
-        object_as_task=cfg.experiment.object_as_task,
-        normalize_keypoints=cfg.experiment.normalize_keypoints,
-        augment_fphad=cfg.experiment.augment,
-        auto_load=False,
-    )
-    samples = dataset_loader.make_raw_dataset(mirror_left_hand=True)
-
+def check_overlap(cfg: DictConfig):
     ##################### Checking overlap due to the bug in the objects pruning #############################
-    """
     from functools import reduce
 
     level_splits = {}
@@ -252,9 +234,9 @@ def main(cfg: DictConfig):
         print(f"[*] Overlap from {lvl} to {lvl-1} in actual test splits: {test_overlap_actual}")
         print(f"[*] Overlap from {lvl} to {lvl-1} in expected test splits: {test_overlap_actual}")
         prev_actual, prev_expected = actual, expected
-    """
-    #####################
 
+
+def compute_test_to_mean_train(samples, dataset_loader):
     train_set = dataset_loader.make_dataset("train", copy(samples), object_as_task=True)
     poses = [pose3d.cpu().numpy() for _, _, pose3d in train_set]
 
@@ -277,8 +259,9 @@ def main(cfg: DictConfig):
         if category_id not in dataset_loader.split_categories["test"]:
             del test_samples[keys[category_id]]
     for obj_id, task in test_samples.items():
-        print(f"[*] Computing the mean shape of {dataset_loader.obj_labels[obj_id]}...")
+        print(f"[*] Computing the mean distance of {dataset_loader.obj_labels[obj_id]} to the mean train shape...")
         # Still using the custom dataset because of the preprocessing (root alignment)
+        # Set object_as_task=False because we pass it a list and not a dict
         task_dataset = CustomDataset(task, object_as_task=False)
         poses = [pose3d.cpu().numpy() for _, _, pose3d in task_dataset]
         distances = []
@@ -305,6 +288,44 @@ def main(cfg: DictConfig):
             {ProcrustesAnalysis.compute_distance(mean_task_pose, mean_train_pose)}"
             )
     print(f"[*] Mean test-train distance: {mean_test_dist/total_test_poses}")
+
+def compute_dist_matrix(samples, dataloader):
+    task_mean_poses = {}
+    for obj_id, task in samples.items():
+        print(f"[*] Computing the mean shape of {dataloader.obj_labels[obj_id]}...")
+        # Still using the custom dataset because of the preprocessing (root alignment)
+        # Set object_as_task=False because we pass it a list and not a dict
+        task_dataset = CustomDataset(task, object_as_task=False)
+        poses = [pose3d.cpu().numpy() for _, _, pose3d in task_dataset]
+        task_mean_poses[obj_id] = ProcrustesAnalysis.generalised_procrustes_analysis(poses)
+    print("[*] Computing distances...")
+    print(f"________________{' | '.join([dataloader.obj_labels[i][4:] for i in task_mean_poses.keys()])}")
+    for obj_id, pose_a in task_mean_poses.items():
+        print(f"{obj_id} | ", end="", flush=False)
+        for obj_id, pose_b in task_mean_poses.items():
+            dist = ProcrustesAnalysis.compute_distance(pose_a, pose_b)
+            print(f"{dist:.4f} | ", end="", flush=False)
+        print()
+
+
+@hydra.main(config_path="conf", config_name="config")
+def main(cfg: DictConfig):
+    dataset_loader = DatasetFactory.make_data_loader(
+        cfg,
+        to_absolute_path(cfg.shapenet_root),
+        cfg.experiment.dataset,
+        to_absolute_path(cfg.experiment.dataset_path),
+        cfg.experiment.batch_size,
+        cfg.test_mode,
+        cfg.experiment.k_shots,
+        cfg.experiment.n_queries,
+        object_as_task=cfg.experiment.object_as_task,
+        normalize_keypoints=cfg.experiment.normalize_keypoints,
+        augment_fphad=cfg.experiment.augment,
+        auto_load=False,
+    )
+    samples = dataset_loader.make_raw_dataset(mirror_left_hand=True)
+    compute_dist_matrix(samples, dataset_loader)
 
 
 if __name__ == "__main__":
