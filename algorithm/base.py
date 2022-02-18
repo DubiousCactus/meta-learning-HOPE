@@ -99,9 +99,11 @@ class BaseTrainer(ABC):
     def test(
         self,
         batch_size: int = 16,
+        runs: int = 1, # For ANIL/MAML
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
         visualize: bool = False,
+        plot: bool = False,
     ):
         raise NotImplementedError
 

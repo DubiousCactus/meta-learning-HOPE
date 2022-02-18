@@ -136,7 +136,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
 
-        self._split_categories = self._make_split_categories(hold_out, seed_factor=seed_factor)
+        self.split_categories = self._make_split_categories(hold_out, seed_factor=seed_factor)
         print(
             f"[*] Training with {', '.join([self.obj_labels[i] for i in self.split_categories['train']])}"
         )
@@ -148,17 +148,17 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         )
         # Don't use the base class autoloading, this is a custom loading. However we don't want
         # that either in the analysis script.
-        samples = self._make_raw_dataset()
+        samples = self.make_raw_dataset()
         if test:
             if test_objects is not None:
-                This was added late in the experiments. It allows to keep the same splits defined
                 """
+                This was added late in the experiments. It allows to keep the same splits defined
                 by the hold_out parameter, but to keep only test_objects from the test split (for
                 experiment 3).
                 """
-                del self._split_categories["test"][test_objects:]
-            self.test = self._load(
                 print(f"Keepin only the first {test_objects} test objects")
+                del self.split_categories["test"][test_objects:]
+            self.test = self._load(
                 samples,
                 object_as_task,
                 "test",
@@ -174,8 +174,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 True,
             ), self._load(
                 samples,
-                "val",
                 object_as_task,
+                "val",
                 False,
                 normalize_keypoints,
             )

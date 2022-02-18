@@ -10,13 +10,20 @@
 Almost No Inner-Loop meta-learning algorithm.
 """
 
+from data.dataset.dex_ycb import DexYCBDatasetTaskLoader
 from data.dataset.base import BaseDatasetTaskLoader
+from data.custom import CustomDataset
+
 from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
+
+from torch.utils.data import DataLoader
 from typing import List
 from tqdm import tqdm
 
 import learn2learn as l2l
+import numpy as np
+import random
 import torch
 import wandb
 
@@ -98,7 +105,11 @@ class ANILTrainer(MAMLTrainer):
             last_epoch=self._epoch - 1,
             verbose=True,
         )
-        past_val_loss, meta_val_mse_loss, meta_val_mpjpe = float("+inf"), float("+inf"), float("+inf")
+        past_val_loss, meta_val_mse_loss, meta_val_mpjpe = (
+            float("+inf"),
+            float("+inf"),
+            float("+inf"),
+        )
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
@@ -189,9 +200,7 @@ class ANILTrainer(MAMLTrainer):
                 meta_val_mse_loss = float(
                     torch.Tensor(meta_val_mse_losses).mean().item()
                 )
-                meta_val_mpjpe = float(
-                    torch.Tensor(meta_val_mpjpes).mean().item()
-                )
+                meta_val_mpjpe = float(torch.Tensor(meta_val_mpjpes).mean().item())
 
                 wandb.log(
                     {
@@ -249,7 +258,7 @@ class ANILTrainer(MAMLTrainer):
             self._restore(maml, opt, None, resume_training=False)
 
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
-        thresholds = torch.linspace(10, 100, (100-10)//5+1)
+        thresholds = torch.linspace(10, 100, (100 - 10) // 5 + 1)
         min_mpjpe = float("+inf")
         compute = ["pjpe"]
         if not self._hand_only:
@@ -309,3 +318,98 @@ class ANILTrainer(MAMLTrainer):
             avg_auc_pcp /= float(runs)
             print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
             print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")
+
+    def analyse_inner_gradients(
+        self,
+        data_loader: DexYCBDatasetTaskLoader,
+        fast_lr: float = 0.01,
+        n_tasks: int = 10,
+    ):
+        """
+        Compute the average inner gradient norms of N tasks for K random objects.
+        Used for Table 2 in the Analysis section.
+        """
+        maml = l2l.algorithms.MAML(
+            self.model.head,
+            lr=fast_lr,
+            first_order=self._first_order,
+            allow_unused=True,
+        )
+        all_parameters = list(self.model.features.parameters()) + list(
+            maml.parameters()
+        )
+        # The optimiser is needed for the restore function because I'm too lazy to make it optional
+        opt = torch.optim.Adam(all_parameters)
+        if self._model_path:
+            self._restore(maml, opt, None, resume_training=False)
+
+        samples = data_loader.make_raw_dataset()
+
+        # Reproducibility:
+        np.random.seed(1995)
+        torch.manual_seed(1995)
+        random.seed(1995)
+        # For pytorch's multi-process data loading: 
+        def seed_worker(worker_id):
+            worker_seed = torch.initial_seed() % 2**32
+            np.random.seed(worker_seed)
+            random.seed(worker_seed)
+        g = torch.Generator()
+        g.manual_seed(1995)
+
+        random_obj = list(np.random.choice(list(samples.keys()), size=5, replace=False))
+        print(
+            f"[*] Analysing gradients for {', '.join([data_loader.obj_labels[i] for i in random_obj])}"
+        )
+        obj_norms = {}
+        for obj_id in random_obj:
+            if self._exit:
+                return
+            # Still using the custom dataset because of the preprocessing (root alignment)
+            # Set object_as_task=False because we pass it a list and not a dict
+            task = CustomDataset(samples[obj_id],
+                    img_transform=BaseDatasetTaskLoader._img_transform,
+                    object_as_task=False,
+                    hand_only=self._hand_only)
+            # I'm not using learn2learn because there's only one class so it wouldn't work
+            dataset = DataLoader(
+                task,
+                batch_size=self._k_shots + self._n_queries,
+                shuffle=True,
+                num_workers=0, # Disable multiple workers to avoid issues of randomness, and because it'll be faster since we're re-creating dataloaders
+                worker_init_fn=seed_worker, # But better be cautious haha
+                generator=g,
+            )
+            step_norms = {i:.0 for i in range(self._steps)}
+            for i, task in tqdm(enumerate(dataset), dynamic_ncols=True, total=n_tasks):
+                if i == n_tasks:
+                    break
+                assert len(task[0]) == (self._n_queries+self._k_shots), "Batch not full. Try reducing the number of tasks to analyse!"
+                meta_batch = self._split_batch(task)
+
+                s_inputs, _, s_labels3d = meta_batch.support
+                if self._use_cuda:
+                    s_inputs = s_inputs.float().cuda(device=self._gpu_number)
+                    s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
+
+                with torch.no_grad():
+                    s_inputs = self.model.features(s_inputs)
+                head = maml.clone()
+                # Adapt the model on the support set
+                for step in range(self._steps):
+                    # forward + backward + optimize
+                    joints = head(s_inputs).view(-1, self._dim, 3)
+                    joints -= (
+                        joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
+                    )  # Root alignment
+                    support_loss = self.inner_criterion(joints, s_labels3d)
+                    grad_norm = head.adapt(support_loss, epoch=None, return_grad_norm=True)
+                    step_norms[step] += float(grad_norm.detach().cpu().numpy())
+            for step, norm in step_norms.items():
+                step_norms[step] = norm/n_tasks
+            obj_norms[obj_id] = step_norms
+        for obj_id, step_norms in obj_norms.items():
+            print(f"Object {data_loader.obj_labels[obj_id][4:]}:")
+            for step, norm in step_norms.items():
+                print(f"\tStep {step}: {norm:.2f}")
+            print()

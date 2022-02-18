@@ -72,7 +72,11 @@ def main(cfg: DictConfig):
         cfg.experiment.model_def,
     )
     wandb.log({"Config summary": table}, step=0)
-    if cfg.test_mode:
+    if cfg.analyse:
+        from algorithm.wrappers.anil import ANIL_CNNTrainer
+        assert type(trainer) is ANIL_CNNTrainer, "Can only analyse ANIL"
+        trainer.analyse_inner_gradients(dataset, cfg.experiment.fast_lr)
+    elif cfg.test_mode:
         trainer.test(
             batch_size=cfg.experiment.batch_size,
             runs=cfg.test_runs,

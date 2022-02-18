@@ -16,15 +16,16 @@ import pickle
 import hydra
 import os
 
-from util.factory import DatasetFactory, AlgorithmFactory
-from util.utils import plot_3D_hand, plot_pose
-from omegaconf import DictConfig, OmegaConf
-from hydra.utils import to_absolute_path
 from abc import abstractclassmethod, ABC
-from data.custom import CustomDataset
+from hydra.utils import to_absolute_path
+from omegaconf import DictConfig
 from PIL import Image, ImageDraw
 from typing import List
 from copy import copy
+
+from util.factory import DatasetFactory
+from data.custom import CustomDataset
+from util.utils import plot_pose
 
 
 class ProcrustesAnalysis(ABC):
@@ -190,6 +191,7 @@ def check_overlap(cfg: DictConfig):
             cfg.test_mode,
             cfg.experiment.k_shots,
             cfg.experiment.n_queries,
+            hand_only=True,
             object_as_task=cfg.experiment.object_as_task,
             normalize_keypoints=cfg.experiment.normalize_keypoints,
             augment_fphad=cfg.experiment.augment,
@@ -326,6 +328,7 @@ def main(cfg: DictConfig):
         cfg.test_mode,
         cfg.experiment.k_shots,
         cfg.experiment.n_queries,
+        hand_only=True,
         object_as_task=cfg.experiment.object_as_task,
         normalize_keypoints=cfg.experiment.normalize_keypoints,
         augment_fphad=cfg.experiment.augment,

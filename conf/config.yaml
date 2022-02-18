@@ -4,6 +4,7 @@ use_cuda: True
 test_mode: False
 test_runs: 5 # Number of test_runs to average the results (only used in meta-learners)
 hand_only: True
+analyse: False
 vis: False
 plot_curves: True
 resume_training: True

@@ -66,6 +66,9 @@ class BaseDatasetTaskLoader(ABC):
     ) -> CustomDataset:
         raise NotImplementedError
 
+    def make_raw_dataset(self):
+        raise NotImplementedError
+
     def _load(
         self, object_as_task: bool, split: str, shuffle: bool, normalize_keypoints: bool
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
