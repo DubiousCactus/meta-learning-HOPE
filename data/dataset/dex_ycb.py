@@ -113,6 +113,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         test_objects: Optional[int] = None,
         seed_factor: int = 1,
         normalize_keypoints: bool = False,
+        hand_only: bool = True,
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
@@ -124,6 +125,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             test,
             object_as_task,
             normalize_keypoints,
+            hand_only,
             use_cuda,
             gpu_number,
             auto_load=False,
@@ -379,6 +381,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             img_transform=self._img_transform,
             kp2d_transform=None,
             object_as_task=object_as_task,
+            hand_only=self._hand_only,
         )
 
         return dataset

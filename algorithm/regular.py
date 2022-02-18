@@ -31,6 +31,7 @@ class RegularTrainer(BaseTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -39,6 +40,7 @@ class RegularTrainer(BaseTrainer):
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -146,13 +148,19 @@ class RegularTrainer(BaseTrainer):
         MPJPEs, MPCPEs = [], []
         PJPEs, PCPEs = [], []
         thresholds = torch.linspace(10, 100, (100-10)//5 + 1)
+        compute = ["pjpe"]
+        if not self._hand_only:
+            compute.append("pcpe")
 
         for batch in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
                 return
-            res = self._testing_step(batch, compute=["pjpe"])
+            res = self._testing_step(batch, compute=compute)
             PJPEs.append(res["pjpe"])
             MPJPEs.append(res["pjpe"].mean())
+            if not self._hand_only:
+                PCPEs.append(res["pcpe"])
+                MPCPEs.append(res["pcpe"].mean())
             if visualize:
                 self._testing_step_vis(batch)
 
@@ -165,3 +173,11 @@ class RegularTrainer(BaseTrainer):
         print(f"\n\n==========[Test Error]==========")
         print(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
         print(f"Area Under Curve for PCK: {auc_pck:.6f}")
+        if not self._hand_only:
+            mpcpe = float(torch.Tensor(MPCPEs).mean().item())
+            # Compute the PCP curves (object corners)
+            auc_pcp, pcp = compute_curve(PCPEs, thresholds, 8)
+            if plot:
+                plot_curve(pcp, thresholds, "baseline_pcp.png")
+            print(f"Mean Per Corner Pose Error: {mpcpe:.6f}")
+            print(f"Area Under Curve for PCP: {auc_pcp:.6f}")

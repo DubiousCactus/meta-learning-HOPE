@@ -38,6 +38,7 @@ class BaseDatasetTaskLoader(ABC):
         test: bool,
         object_as_task: bool,
         normalize_keypoints: bool,
+        hand_only: bool,
         use_cuda: bool,
         gpu_number: int,
         auto_load: bool = True,
@@ -46,6 +47,7 @@ class BaseDatasetTaskLoader(ABC):
         self._batch_size = batch_size
         self.k_shots = k_shots
         self.n_queries = n_queries
+        self._hand_only = hand_only
         self._use_cuda = use_cuda
         self._gpu_number = gpu_number
         self.train, self.val, self.test = None, None, None

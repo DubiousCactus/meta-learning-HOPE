@@ -44,13 +44,18 @@ class BaseTrainer(ABC):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
+        self._dim = 21 if hand_only else 29
+        self._hand_only = hand_only
         self._use_cuda = use_cuda
         self._gpu_number = gpu_numbers[0]
         self._model_path = model_path
         if type(model) is str:
+            # TODO: Get rid of this, it won't work because of the hand_only param and it's not
+            # needed anymore. There's so much old cold from older experiments...
             self.model: torch.nn.Module = select_model(model)
         else:
             self.model: torch.nn.Module = model

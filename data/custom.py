@@ -23,7 +23,9 @@ class CustomDataset(TorchDataset):
         kp2d_transform=None,
         object_as_task: bool = False,
         pin_memory=True,
+        hand_only=True,
     ):
+        self._dim = 21 if hand_only else 29
         self._pin_memory = pin_memory
         self._img_transform = (
             img_transform if img_transform is not None else lambda i: i
@@ -43,7 +45,7 @@ class CustomDataset(TorchDataset):
 
         def load_sample(img_path, p_2d, p_3d):
             images.append(img_path)
-            p_3d = p_3d[:21] - p_3d[0, :]  # Root aligned
+            p_3d = p_3d[:self._dim] - p_3d[0, :]  # Root aligned
             if self._pin_memory:
                 p_2d.pin_memory()
                 p_3d.pin_memory()

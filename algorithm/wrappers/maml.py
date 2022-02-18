@@ -35,6 +35,7 @@ class MAML_HOPETrainer(MAMLTrainer):
         graphunet_path: str,
         model_path: str = None,
         first_order: bool = False,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -47,6 +48,7 @@ class MAML_HOPETrainer(MAMLTrainer):
             inner_steps,
             model_path=model_path,
             first_order=first_order,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -112,11 +114,12 @@ class MAML_CNNTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            select_cnn_model(cnn_def),
+            select_cnn_model(cnn_def, hand_only),
             dataset,
             checkpoint_path,
             k_shots,
@@ -126,6 +129,7 @@ class MAML_CNNTrainer(MAMLTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -149,12 +153,12 @@ class MAML_CNNTrainer(MAMLTrainer):
         for step in range(self._steps):
             # forward + backward + optimize
             joints, _ = learner(s_inputs)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
+            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             learner.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
                 q_joints, _ = learner(q_inputs)
-                q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
+                q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
                 query_loss += self._step_weights[step] * criterion(
                     q_joints, q_labels3d
                 )
@@ -162,7 +166,7 @@ class MAML_CNNTrainer(MAMLTrainer):
         # Evaluate the adapted model on the query set
         if not msl:
             q_joints, _ = learner(q_inputs)
-            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
+            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
         return query_loss
 
@@ -184,13 +188,13 @@ class MAML_CNNTrainer(MAMLTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             joints, _ = learner(s_inputs)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
+            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             learner.adapt(support_loss, epoch=epoch)
 
         with torch.no_grad():
             q_joints, _ = learner(q_inputs)
-            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1) # Root alignment
+            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
         return criterion(q_joints, q_labels3d)
 
 
@@ -206,6 +210,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -220,6 +225,7 @@ class MAML_GraphUNetTrainer(MAMLTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )

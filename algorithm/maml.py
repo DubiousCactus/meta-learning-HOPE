@@ -11,6 +11,7 @@ Model-Agnostic Meta-Learning algorithm.
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
+from util.utils import compute_curve, plot_curve
 from algorithm.base import BaseTrainer
 from collections import namedtuple
 from typing import List, Union
@@ -36,6 +37,7 @@ class MAMLTrainer(BaseTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -50,6 +52,7 @@ class MAMLTrainer(BaseTrainer):
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -245,9 +248,11 @@ class MAMLTrainer(BaseTrainer):
     def test(
         self,
         batch_size: int = 16,
+        runs: int = 1,
         fast_lr: float = 0.01,
         meta_lr: float = 0.001,
         visualize: bool = False,
+        plot: bool = False,
     ):
         maml = l2l.algorithms.MAML(
             self.model, lr=fast_lr, first_order=self._first_order, allow_unused=True
@@ -256,28 +261,63 @@ class MAMLTrainer(BaseTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        meta_mse_losses, meta_mae_losses = [], []
-        for task in tqdm(self.dataset.test, dynamic_ncols=True):
-            learner = maml.clone()
-            meta_batch = self._split_batch(task)
+        avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
+        thresholds = torch.linspace(10, 100, (100-10)//5+1)
+        min_mpjpe = float("+inf")
+        compute = ["pjpe"]
+        if not self._hand_only:
+            compute.append("pcpe")
 
-            inner_mse_loss = self._testing_step(
-                meta_batch,
-                learner,
-            )
-            learner = maml.clone()
-            inner_mae_loss = self._testing_step(
-                meta_batch,
-                learner,
-                compute="mae",
-            )
-            if visualize:
-                self._testing_step_vis(meta_batch, maml.clone())
-            meta_mse_losses.append(inner_mse_loss.detach())
-            meta_mae_losses.append(inner_mae_loss.detach())
-        meta_mse_loss = float(torch.Tensor(meta_mse_losses).mean().item())
-        meta_mae_loss = float(torch.Tensor(meta_mae_losses).mean().item())
+        for i in range(runs):
+            print(f"===============[Run {i+1}/{runs}]==============")
+            MPJPEs, MPCPEs = [], []
+            PJPEs, PCPEs = [], []
 
-        print("==========[Test Error]==========")
-        print(f"Meta-testing MSE Loss: {meta_mse_loss:.6f}")
-        print(f"Meta-testing MAE Loss: {meta_mae_loss:.6f}")
+            for task in tqdm(self.dataset.test, dynamic_ncols=True):
+                if self._exit:
+                    return
+                meta_batch = self._split_batch(task)
+                res = self._testing_step(
+                    meta_batch,
+                    maml.clone(),
+                    compute=compute,
+                )
+                PJPEs.append(res["pjpe"])
+                if visualize:
+                    self._testing_step_vis(
+                        meta_batch, maml.clone()
+                    )
+                MPJPEs.append(res["pjpe"].mean())
+                if not self._hand_only:
+                    PCPEs.append(res["pcpe"])
+                    MPCPEs.append(res["pcpe"].mean())
+
+            print("-> Computing PCK curves...")
+            # Compute the PCK curves (hand joints)
+            auc, pck = compute_curve(PJPEs, thresholds, 21)
+            avg_auc_pck += auc
+            mpjpe = float(torch.Tensor(MPJPEs).mean().item())
+            avg_mpjpe += mpjpe
+            if not self._hand_only:
+                # Compute the PCK curves (hand joints)
+                auc, pcp = compute_curve(PCPEs, thresholds, 8)
+                avg_auc_pcp += auc
+                mpcpe = float(torch.Tensor(MPCPEs).mean().item())
+                avg_mpcpe += mpcpe
+
+            if mpjpe < min_mpjpe and plot:
+                plot_curve(pck, thresholds, "anil_pck.png")
+                min_mpjpe = mpjpe
+                if not self._hand_only:
+                    plot_curve(pcp, thresholds, "anil_pcp.png")
+            print(f"=======================================")
+        avg_mpjpe /= float(runs)
+        avg_auc_pck /= float(runs)
+        print(f"\n\n==========[Test Error (avg of {runs})]==========")
+        print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
+        print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
+        if not self._hand_only:
+            avg_mpcpe /= float(runs)
+            avg_auc_pcp /= float(runs)
+            print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
+            print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")

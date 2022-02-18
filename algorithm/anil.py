@@ -34,6 +34,7 @@ class ANILTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -48,6 +49,7 @@ class ANILTrainer(MAMLTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -96,7 +98,7 @@ class ANILTrainer(MAMLTrainer):
             last_epoch=self._epoch - 1,
             verbose=True,
         )
-        past_val_loss = float("+inf")
+        past_val_loss, meta_val_mse_loss, meta_val_mpjpe = float("+inf"), float("+inf"), float("+inf")
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
 
@@ -249,11 +251,15 @@ class ANILTrainer(MAMLTrainer):
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
         thresholds = torch.linspace(10, 100, (100-10)//5+1)
         min_mpjpe = float("+inf")
+        compute = ["pjpe"]
+        if not self._hand_only:
+            compute.append("pcpe")
 
         for i in range(runs):
             print(f"===============[Run {i+1}/{runs}]==============")
             MPJPEs, MPCPEs = [], []
             PJPEs, PCPEs = [], []
+
             for task in tqdm(self.dataset.test, dynamic_ncols=True):
                 if self._exit:
                     return
@@ -262,7 +268,7 @@ class ANILTrainer(MAMLTrainer):
                     meta_batch,
                     maml.clone(),
                     self.model.features,
-                    compute=["pjpe"],
+                    compute=compute,
                 )
                 PJPEs.append(res["pjpe"])
                 if visualize:
@@ -270,6 +276,9 @@ class ANILTrainer(MAMLTrainer):
                         meta_batch, maml.clone(), self.model.features
                     )
                 MPJPEs.append(res["pjpe"].mean())
+                if not self._hand_only:
+                    PCPEs.append(res["pcpe"])
+                    MPCPEs.append(res["pcpe"].mean())
 
             print("-> Computing PCK curves...")
             # Compute the PCK curves (hand joints)
@@ -277,14 +286,26 @@ class ANILTrainer(MAMLTrainer):
             avg_auc_pck += auc
             mpjpe = float(torch.Tensor(MPJPEs).mean().item())
             avg_mpjpe += mpjpe
+            if not self._hand_only:
+                # Compute the PCK curves (hand joints)
+                auc, pcp = compute_curve(PCPEs, thresholds, 8)
+                avg_auc_pcp += auc
+                mpcpe = float(torch.Tensor(MPCPEs).mean().item())
+                avg_mpcpe += mpcpe
 
             if mpjpe < min_mpjpe and plot:
                 plot_curve(pck, thresholds, "anil_pck.png")
                 min_mpjpe = mpjpe
+                if not self._hand_only:
+                    plot_curve(pcp, thresholds, "anil_pcp.png")
             print(f"=======================================")
         avg_mpjpe /= float(runs)
         avg_auc_pck /= float(runs)
-        avg_auc_pcp /= float(runs)
         print(f"\n\n==========[Test Error (avg of {runs})]==========")
         print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
         print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
+        if not self._hand_only:
+            avg_mpcpe /= float(runs)
+            avg_auc_pcp /= float(runs)
+            print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
+            print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")

@@ -35,14 +35,16 @@ class Regular_CNNTrainer(RegularTrainer):
         checkpoint_path: str,
         cnn_def: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            select_cnn_model(cnn_def),
+            select_cnn_model(cnn_def, hand_only),
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -53,7 +55,7 @@ class Regular_CNNTrainer(RegularTrainer):
             inputs = inputs.float().cuda(device=self._gpu_number)
             labels3d = labels3d.float().cuda(device=self._gpu_number)
         joints, _ = self.model(inputs)
-        joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)  # Root alignment
+        joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)  # Root alignment
         loss = self.inner_criterion(joints, labels3d)
         loss.backward()
         return loss.detach()
@@ -66,7 +68,7 @@ class Regular_CNNTrainer(RegularTrainer):
         with torch.no_grad():
             joints, _ = self.model(inputs)
             joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
+                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             res = None
             if type(compute) is str:
@@ -82,7 +84,7 @@ class Regular_CNNTrainer(RegularTrainer):
                     # Batched vector norm for row-wise elements
                     return (
                         torch.linalg.norm(
-                            joints[:, :21, :] - labels3d[:, :21, :], dim=2
+                            joints[:, :self._dim, :] - labels3d[:, :self._dim, :], dim=2
                         )
                         .detach()
                         .mean()
@@ -102,7 +104,7 @@ class Regular_CNNTrainer(RegularTrainer):
                         # Batched vector norm for row-wise elements
                         res[metric] = (
                             torch.linalg.norm(
-                                joints[:, :21, :] - labels3d[:, :21, :], dim=2
+                                joints[:, :self._dim, :] - labels3d[:, :self._dim, :], dim=2
                             )
                             .detach()
                         )
@@ -111,7 +113,7 @@ class Regular_CNNTrainer(RegularTrainer):
                         # Batched vector norm for row-wise elements
                         res[metric] = (
                             torch.linalg.norm(
-                                joints[:, 21:, :] - labels3d[:, 21:, :], dim=2
+                                joints[:, self._dim:, :] - labels3d[:, self._dim:, :], dim=2
                             )
                             .detach()
                         )
@@ -125,7 +127,7 @@ class Regular_CNNTrainer(RegularTrainer):
         with torch.no_grad():
             joints, _ = self.model(inputs)
             joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
+                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             mean, std = torch.tensor(
                 [0.485, 0.456, 0.406], dtype=torch.float32
@@ -151,6 +153,7 @@ class Regular_GraphUNetTrainer(RegularTrainer):
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -159,6 +162,7 @@ class Regular_GraphUNetTrainer(RegularTrainer):
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -196,6 +200,7 @@ class Regular_GraphNetTrainer(RegularTrainer):
         cnn_def: str,
         resnet_path: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -206,10 +211,11 @@ class Regular_GraphNetTrainer(RegularTrainer):
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
-        self._resnet = select_cnn_model(cnn_def)
+        self._resnet = select_cnn_model(cnn_def, hand_only)
         if use_cuda and torch.cuda.is_available():
             self._resnet = self._resnet.cuda()
             if resnet_path:
@@ -260,6 +266,7 @@ class Regular_GraphNetwResNetTrainer(RegularTrainer):
         cnn_def: str,
         resnet_path: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -268,6 +275,7 @@ class Regular_GraphNetwResNetTrainer(RegularTrainer):
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -312,6 +320,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
         graphnet_path: str,
         graphunet_path: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -320,6 +329,7 @@ class Regular_HOPENetTrainer(RegularTrainer):
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -369,6 +379,7 @@ class Regular_HOPENetTester(RegularTrainer):
         graphnet_path: str,
         graphunet_path: str,
         model_path: str = None,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
@@ -377,6 +388,7 @@ class Regular_HOPENetTester(RegularTrainer):
             dataset,
             checkpoint_path,
             model_path=model_path,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -456,21 +468,21 @@ class Regular_HOPENetTester(RegularTrainer):
                     err3d_hands.append(
                         torch.mean(
                             torch.linalg.norm(
-                                (outputs3d[:, :21, :] - labels3d[i, :21, :]), dim=0
+                                (outputs3d[:, :self._dim, :] - labels3d[i, :self._dim, :]), dim=0
                             )
                         )
                     )
                     err2d_obj.append(
                         torch.mean(
                             torch.linalg.norm(
-                                (outputs2d[:, 21:, :] - labels2d[i, 21:, :]), dim=0
+                                (outputs2d[:, self._dim:, :] - labels2d[i, self._dim:, :]), dim=0
                             )
                         )
                     )
                     err2d_init_obj.append(
                         torch.mean(
                             torch.linalg.norm(
-                                (outputs2d_init[:, 21:, :] - labels2d[i, 21:, :]), dim=0
+                                (outputs2d_init[:, self._dim:, :] - labels2d[i, self._dim:, :]), dim=0
                             )
                         )
                     )

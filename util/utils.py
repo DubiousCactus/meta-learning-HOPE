@@ -284,21 +284,23 @@ def plot_3D_pred_gt(pred, img, gt=None):
     plt.show()
 
 
-def select_cnn_model(cnn_def: str) -> torch.nn.Module:
+def select_cnn_model(cnn_def: str, hand_only: bool) -> torch.nn.Module:
     cnn_def = cnn_def.lower()
     if cnn_def == "resnet10":
-        cnn = ResNet(model="10", pretrained=True)
+        cnn = ResNet(model="10", pretrained=True, hand_only=hand_only)
     elif cnn_def == "resnet12":
         cnn = ResNet12()
     elif cnn_def == "resnet18":
-        cnn = ResNet(model="18", pretrained=True)
+        cnn = ResNet(model="18", pretrained=True, hand_only=hand_only)
     elif cnn_def == "resnet34":
-        cnn = ResNet(model="34", pretrained=True)
+        cnn = ResNet(model="34", pretrained=True, hand_only=hand_only)
     elif cnn_def == "resnet50":
-        cnn = ResNet(model="50", pretrained=True)
+        cnn = ResNet(model="50", pretrained=True, hand_only=hand_only)
     elif cnn_def == "mobilenetv3-small":
+        # TODO: Hand only?
         cnn = MobileNet(model="v3-small", pretrained=True)
     elif cnn_def == "mobilenetv3-large":
+        # TODO: Hand only?
         cnn = MobileNet(model="v3-large", pretrained=True)
     else:
         raise ValueError(f"{cnn_def} is not a valid CNN definition!")

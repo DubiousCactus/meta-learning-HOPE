@@ -57,6 +57,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         object_as_task: bool = True,
         hold_out: int = 0,
         normalize_keypoints: bool = False,
+        hand_only: bool = True,
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
@@ -68,6 +69,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             test,
             object_as_task,
             normalize_keypoints,
+            hand_only,
             use_cuda,
             gpu_number,
             auto_load=False,
@@ -255,6 +257,7 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             samples,
             img_transform=self._img_transform,
             kp2d_transform=kp2d_transform if normalize_keypoints else None,
+            hand_only=self._hand_only,
             object_as_task=object_as_task,
         )
 

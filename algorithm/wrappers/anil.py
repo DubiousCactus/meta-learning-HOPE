@@ -36,11 +36,12 @@ class ANIL_CNNTrainer(ANILTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
     ):
         super().__init__(
-            select_cnn_model(cnn_def),
+            select_cnn_model(cnn_def, hand_only),
             dataset,
             checkpoint_path,
             k_shots,
@@ -50,6 +51,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
@@ -80,25 +82,25 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, 21, 3)
+            joints = head(s_inputs).view(-1, self._dim, 3)
             joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
+                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
-                q_joints = head(q_inputs_features).view(-1, 21, 3)
+                q_joints = head(q_inputs_features).view(-1, self._dim, 3)
                 q_joints -= (
-                    q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
+                    q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
                 )  # Root alignment
                 query_loss += self._step_weights[step] * criterion(q_joints, q_labels3d)
 
         del s_inputs
         # Evaluate the adapted model on the query set
         if not msl:
-            q_joints = head(q_inputs_features).view(-1, 21, 3)
+            q_joints = head(q_inputs_features).view(-1, self._dim, 3)
             q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
+                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
         return query_loss
@@ -124,18 +126,18 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, 21, 3)
+            joints = head(s_inputs).view(-1, self._dim, 3)
             joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
+                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
 
         with torch.no_grad():
             q_inputs = features(q_inputs)
-            q_joints = head(q_inputs).view(-1, 21, 3)
+            q_joints = head(q_inputs).view(-1, self._dim, 3)
             q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 21, -1)
+                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
 
         res = None
@@ -152,7 +154,7 @@ class ANIL_CNNTrainer(ANILTrainer):
                 # Batched vector norm for row-wise elements
                 return (
                     torch.linalg.norm(
-                        q_joints[:, :21, :] - q_labels3d[:, :21, :], dim=2
+                        q_joints[:, :self._dim, :] - q_labels3d[:, :self._dim, :], dim=2
                     )
                     .detach()
                     .mean()
@@ -172,7 +174,7 @@ class ANIL_CNNTrainer(ANILTrainer):
                     # Batched vector norm for row-wise elements
                     res[metric] = (
                         torch.linalg.norm(
-                            q_joints[:, :21, :] - q_labels3d[:, :21, :], dim=2
+                            q_joints[:, :self._dim, :] - q_labels3d[:, :self._dim, :], dim=2
                         )
                         .detach()
                     )
@@ -181,7 +183,7 @@ class ANIL_CNNTrainer(ANILTrainer):
                     # Batched vector norm for row-wise elements
                     res[metric] = (
                         torch.linalg.norm(
-                            q_joints[:, 21:, :] - q_labels3d[:, 21:, :], dim=2
+                            q_joints[:, self._dim:, :] - q_labels3d[:, self._dim:, :], dim=2
                         )
                         .detach()
                     )

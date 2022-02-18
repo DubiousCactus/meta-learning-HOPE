@@ -60,6 +60,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         test: bool = False,
         object_as_task: bool = True,
         normalize_keypoints: bool = False,
+        hand_only: bool = True,
         use_cuda: bool = True,
         gpu_number: int = 0,
     ):
@@ -85,6 +86,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             test,
             object_as_task,
             normalize_keypoints,
+            hand_only,
             use_cuda,
             gpu_number,
         )
@@ -213,6 +215,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
             samples,
             img_transform=self._img_transform,
             object_as_task=object_as_task,
+            hand_only=self._hand_only,
             kp2d_transform=kp2d_transform if normalize_keypoints else None,
         )
         return dataset

@@ -32,6 +32,7 @@ def main(cfg: DictConfig):
         cfg.test_mode,
         cfg.experiment.k_shots,
         cfg.experiment.n_queries,
+        cfg.hand_only,
         object_as_task=cfg.experiment.object_as_task,
         normalize_keypoints=cfg.experiment.normalize_keypoints,
         augment_fphad=cfg.experiment.augment,
@@ -50,6 +51,7 @@ def main(cfg: DictConfig):
         model_path=to_absolute_path(cfg.experiment.saved_model)
         if cfg.experiment.saved_model
         else None,
+        hand_only=cfg.hand_only,
         use_cuda=cfg.use_cuda,
         gpu_numbers=cfg.gpu_numbers,
     )

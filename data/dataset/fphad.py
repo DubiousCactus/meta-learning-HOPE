@@ -56,6 +56,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
         object_as_task: bool = True,
         hold_out: int = 0,
         normalize_keypoints: bool = False,
+        hand_only: bool = True,
         use_cuda: bool = True,
         gpu_number: int = 0,
         augment_2d: bool = False,
@@ -90,6 +91,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             test,
             object_as_task,
             normalize_keypoints,
+            hand_only,
             use_cuda,
             gpu_number,
         )
@@ -275,6 +277,7 @@ class FPHADTaskLoader(BaseDatasetTaskLoader):
             img_transform=self._img_transform,
             kp2d_transform=transform,
             object_as_task=object_as_task,
+            hand_only=self._hand_only,
         )
         return dataset
 
