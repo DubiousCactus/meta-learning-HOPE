@@ -4,7 +4,6 @@ use_cuda: True
 test_mode: False
 test_runs: 5 # Number of test_runs to average the results (only used in meta-learners)
 hand_only: True
-analyse: False # For the gradient analysis
 analyse_tasks: 50 # How many tasks to average for in the gradient analysis
 vis: False
 plot_curves: True

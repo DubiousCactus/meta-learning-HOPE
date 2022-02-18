@@ -2,15 +2,16 @@
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 #
-# Copyright © 2021 Théo Morales <theo.morales.fr@gmail.com>
+# Copyright © 2022 Théo Morales <theo.morales.fr@gmail.com>
 #
 # Distributed under terms of the MIT license.
 
 """
-Meta-Train HOPE-Net or its individual parts.
+Analyse gradients for Table 2.
 """
 
 from util.factory import DatasetFactory, AlgorithmFactory
+from algorithm.wrappers.anil import ANIL_CNNTrainer
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import to_absolute_path
 
@@ -36,6 +37,7 @@ def main(cfg: DictConfig):
         object_as_task=cfg.experiment.object_as_task,
         normalize_keypoints=cfg.experiment.normalize_keypoints,
         augment_fphad=cfg.experiment.augment,
+        auto_load=False,
     )
     trainer = AlgorithmFactory.make_training_algorithm(
         cfg,
@@ -55,44 +57,8 @@ def main(cfg: DictConfig):
         use_cuda=cfg.use_cuda,
         gpu_numbers=cfg.gpu_numbers,
     )
-    table = wandb.Table(
-        columns=[
-            "Algorithm",
-            "Optimizer",
-            "Dataset",
-            "Batch size",
-            "Model",
-        ]
-    )
-    table.add_data(
-        cfg.experiment.algorithm,
-        cfg.experiment.optimizer,
-        cfg.experiment.dataset,
-        cfg.experiment.batch_size,
-        cfg.experiment.model_def,
-    )
-    wandb.log({"Config summary": table}, step=0)
-    if cfg.test_mode:
-        trainer.test(
-            batch_size=cfg.experiment.batch_size,
-            runs=cfg.test_runs,
-            fast_lr=cfg.experiment.fast_lr,
-            meta_lr=cfg.experiment.meta_lr,
-            visualize=cfg.vis,
-            plot=cfg.plot_curves,
-        )
-    else:
-        trainer.train(
-            batch_size=cfg.experiment.batch_size,
-            iterations=cfg.experiment.iterations,
-            fast_lr=cfg.experiment.fast_lr,
-            meta_lr=cfg.experiment.meta_lr,
-            optimizer=cfg.experiment.optimizer.lower(),
-            val_every=cfg.experiment.val_every,
-            resume=cfg.resume_training,
-            use_scheduler=cfg.use_scheduler,
-        )
-
+    assert type(trainer) is ANIL_CNNTrainer, "Can only analyse ANIL"
+    trainer.analyse_inner_gradients(dataset, cfg.experiment.fast_lr, n_tasks=cfg.analyse_tasks)
 
 if __name__ == "__main__":
     main()

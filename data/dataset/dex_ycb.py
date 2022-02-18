@@ -148,38 +148,39 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         )
         # Don't use the base class autoloading, this is a custom loading. However we don't want
         # that either in the analysis script.
-        samples = self.make_raw_dataset()
-        if test:
-            if test_objects is not None:
-                """
-                This was added late in the experiments. It allows to keep the same splits defined
-                by the hold_out parameter, but to keep only test_objects from the test split (for
-                experiment 3).
-                """
-                print(f"Keepin only the first {test_objects} test objects")
-                del self.split_categories["test"][test_objects:]
-            self.test = self._load(
-                samples,
-                object_as_task,
-                "test",
-                normalize_keypoints,
-                False,
-            )
-        else:
-            self.train, self.val = self._load(
-                samples,
-                object_as_task,
-                "train",
-                normalize_keypoints,
-                True,
-            ), self._load(
-                samples,
-                object_as_task,
-                "val",
-                False,
-                normalize_keypoints,
-            )
-        del samples
+        if auto_load:
+            samples = self.make_raw_dataset()
+            if test:
+                if test_objects is not None:
+                    """
+                    This was added late in the experiments. It allows to keep the same splits defined
+                    by the hold_out parameter, but to keep only test_objects from the test split (for
+                    experiment 3).
+                    """
+                    print(f"Keepin only the first {test_objects} test objects")
+                    del self.split_categories["test"][test_objects:]
+                self.test = self._load(
+                    samples,
+                    object_as_task,
+                    "test",
+                    normalize_keypoints,
+                    False,
+                )
+            else:
+                self.train, self.val = self._load(
+                    samples,
+                    object_as_task,
+                    "train",
+                    normalize_keypoints,
+                    True,
+                ), self._load(
+                    samples,
+                    object_as_task,
+                    "val",
+                    False,
+                    normalize_keypoints,
+                )
+            del samples
 
     def _make_split_categories(self, hold_out: int, seed_factor: int = 1) -> dict:
         """
