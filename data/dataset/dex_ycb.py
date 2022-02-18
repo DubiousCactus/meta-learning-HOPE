@@ -53,7 +53,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         "932122062010",
     ]
 
-    _obj_labels = [
+    obj_labels = [
         "002_master_chef_can",
         "003_cracker_box",
         "004_sugar_box",
@@ -116,6 +116,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         hand_only: bool = True,
         use_cuda: bool = True,
         gpu_number: int = 0,
+        auto_load: bool = True,  # In the analysis, we want to override the loading process
     ):
         super().__init__(
             root,
@@ -137,43 +138,44 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
 
         self._split_categories = self._make_split_categories(hold_out, seed_factor=seed_factor)
         print(
-            f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"
+            f"[*] Training with {', '.join([self.obj_labels[i] for i in self.split_categories['train']])}"
         )
         print(
-            f"[*] Validating with {', '.join([self._obj_labels[i] for i in self._split_categories['val']])}"
+            f"[*] Validating with {', '.join([self.obj_labels[i] for i in self.split_categories['val']])}"
         )
         print(
-            f"[*] Testing with {', '.join([self._obj_labels[i] for i in self._split_categories['test']])}"
+            f"[*] Testing with {', '.join([self.obj_labels[i] for i in self.split_categories['test']])}"
         )
-        # Don't auto load, this is a custom loading
+        # Don't use the base class autoloading, this is a custom loading. However we don't want
+        # that either in the analysis script.
         samples = self._make_raw_dataset()
         if test:
             if test_objects is not None:
-                """
                 This was added late in the experiments. It allows to keep the same splits defined
+                """
                 by the hold_out parameter, but to keep only test_objects from the test split (for
                 experiment 3).
                 """
                 del self._split_categories["test"][test_objects:]
-                print(f"Keepin only the first {test_objects} test objects")
             self.test = self._load(
+                print(f"Keepin only the first {test_objects} test objects")
                 samples,
                 object_as_task,
                 "test",
-                False,
                 normalize_keypoints,
+                False,
             )
         else:
             self.train, self.val = self._load(
                 samples,
                 object_as_task,
                 "train",
-                True,
                 normalize_keypoints,
+                True,
             ), self._load(
                 samples,
-                object_as_task,
                 "val",
+                object_as_task,
                 False,
                 normalize_keypoints,
             )
@@ -189,12 +191,12 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         seed_factor: Used to randomize experiment 3 (experiment 3 is just a sub experiment of
                      experiment 1 really... So it's experiment 3.b haha
         """
-        categories = list(range(len(self._obj_labels)))
+        categories = list(range(len(self.obj_labels)))
         idx = list(range(len(categories)))
         np.random.seed(hold_out * seed_factor)
         np.random.shuffle(idx)
         n_test, n_val = hold_out, min(5, hold_out // 2 + (hold_out % 2))
-        n_train = len(self._obj_labels) - n_test - n_val
+        n_train = len(self.obj_labels) - n_test - n_val
         assert n_train > 0, "There must remain at least one category in the train split"
         splits = {
             "train": list(np.array(categories)[idx[:n_train]]),
@@ -211,7 +213,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         obj_file_path = os.path.join(
             self._root,
             "models",
-            self._obj_labels[obj_id],
+            self.obj_labels[obj_id],
             "textured_simple.obj",
         )
         if obj_file_path not in self._bboxes:
@@ -219,8 +221,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 mesh = fast_load_obj(m_f)[0]
             mesh = trimesh.load(mesh)
             self._bboxes[obj_file_path] = compute_OBB_corners(mesh)
-        else:
-            vert3d = self._bboxes[obj_file_path]
+
+        vert3d = self._bboxes[obj_file_path]
 
         # Apply the rotation + translation to the bbox vertices
         # The format is [R; t] with R 3x3 and t 3x1.
@@ -256,8 +258,12 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             ),
         )
 
-    def _make_raw_dataset(self) -> dict:
-        pickle_path = os.path.join(self._root, f"dexycb.pkl")
+    def make_raw_dataset(self, mirror_left_hand=False) -> dict:
+        pickle_path = (
+            os.path.join(self._root, f"dexycb.pkl")
+            if not mirror_left_hand
+            else os.path.join(self._root, f"dexycb_mirrorred.pkl")
+        )
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading dataset from {pickle_path}...")
@@ -266,7 +272,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             print(f"[*] Building dataset...")
             pbar = tqdm(total=len(self._subjects) * len(self._viewpoints) * 100)
             samples = {}
-            failed, no_interaction = 0, {i: 0 for i in range(len(self._obj_labels))}
+            failed, no_interaction = 0, {i: 0 for i in range(len(self.obj_labels))}
 
             # Load camera intrinsics for each camera
             intrinsics = {}
@@ -331,6 +337,13 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                             labels,
                                             obj_class_id,
                                         )
+                                        if (
+                                            mirror_left_hand
+                                            and meta["mano_sides"][0].lower() == "left"
+                                        ):
+                                            ho3d = (
+                                                -ho3d
+                                            )  # Simple reflection through a hyperplane
                                     except NoInteractionError:
                                         no_interaction[obj_class_id] += 1
                                         continue
@@ -350,14 +363,14 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             for id, val in no_interaction.items():
                 if id in samples.keys():
                     print(
-                        f"[!] {val} samples with no interaction were removed from {self._obj_labels[id]}: {len(samples[id])} samples left"
+                        f"[!] {val} samples with no interaction were removed from {self.obj_labels[id]}: {len(samples[id])} samples left"
                     )
             with open(pickle_path, "wb") as pickle_file:
                 print(f"[*] Saving dataset into {pickle_path}...")
                 pickle.dump(samples, pickle_file)
         return samples
 
-    def _make_dataset(
+    def make_dataset(
         self,
         split: str,
         samples: dict,
@@ -367,7 +380,22 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         # Hold out
         keys = list(samples.copy().keys())
         for category_id in keys:
-            if category_id not in self._split_categories[split]:
+            if category_id not in self.split_categories[split]:
+                """
+                This stupid (very stupid I know) bug is kept as is because all experiments were run
+                with it. It doesn't induce any overlap between all splits so that's good. I've
+                algorithmically and manually checked, and the overlap quantities between dataset
+                levels on the test splits are the exact same between the actual "bugged version"
+                and expected "fixed version" splits (I assume the same can be said about the train
+                and val splits but it doesn't matter much). The only implication is
+                that the objects described for each split (in the console) are wrong. So after a
+                lot of worry and a loto of double-checking, all is well :)
+
+                The fix is: del samples[category_id].
+                But my slow-ass brain thought that iterating through the keys would return an index
+                and not the value of the array... It must have been a long day when I wrote this,
+                and I never looked back.
+                """
                 del samples[keys[category_id]]
         print(
             f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
@@ -394,7 +422,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         shuffle: bool,
         normalize_keypoints: bool,
     ) -> Union[DataLoader, l2l.data.TaskDataset]:
-        dataset = self._make_dataset(
+        dataset = self.make_dataset(
             split,
             copy(samples),  # They will be modified, we'll need them for the other split
             object_as_task=object_as_task,

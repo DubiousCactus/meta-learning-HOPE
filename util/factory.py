@@ -54,6 +54,7 @@ class DatasetFactory:
         use_cuda: bool = True,
         gpu_numbers: List = [0],
         augment_fphad: bool = False,
+        auto_load: bool = True,
     ) -> BaseDatasetTaskLoader:
         if not os.path.isdir(dataset_root):
             print(f"[!] {dataset_root} is not a valid directory!")
@@ -76,6 +77,7 @@ class DatasetFactory:
                 "hold_out": config.experiment.hold_out,
                 "test_objects": config.experiment.test_objects,
                 "seed_factor": config.experiment.seed_factor,
+                "auto_load": auto_load,
             }
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
