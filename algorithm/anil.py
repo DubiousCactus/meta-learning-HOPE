@@ -344,6 +344,14 @@ class ANILTrainer(MAMLTrainer):
             self._restore(maml, opt, None, resume_training=False)
 
         samples = data_loader.make_raw_dataset()
+        # Only keep the test set that this model was trained for (so we don't have train/test
+        # overlap)
+        keys = list(samples.copy().keys())
+        for category_id in keys:
+            if category_id not in data_loader.split_categories["test"]:
+                # I'm aware of this stupidity... See data/dataset/dex_ycb.py, somewhere in the
+                # make_dataset() function for explanations.
+                del samples[keys[category_id]]
 
         # Reproducibility:
         np.random.seed(1995)
