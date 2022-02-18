@@ -232,7 +232,7 @@ def check_overlap(cfg: DictConfig):
         test_overlap_actual = reduce(lambda a, b: a+b, [1 for i in actual if i in prev_actual] + [0])
         test_overlap_expected = reduce(lambda a, b: a+b, [1 for i in expected if i in prev_expected] + [0])
         print(f"[*] Overlap from {lvl} to {lvl-1} in actual test splits: {test_overlap_actual}")
-        print(f"[*] Overlap from {lvl} to {lvl-1} in expected test splits: {test_overlap_actual}")
+        print(f"[*] Overlap from {lvl} to {lvl-1} in expected test splits: {test_overlap_expected}")
         prev_actual, prev_expected = actual, expected
 
 
@@ -333,6 +333,7 @@ def main(cfg: DictConfig):
     )
     samples = dataset_loader.make_raw_dataset(mirror_left_hand=True)
     compute_dist_matrix(samples, dataset_loader)
+    # check_overlap(cfg)
 
 
 if __name__ == "__main__":
