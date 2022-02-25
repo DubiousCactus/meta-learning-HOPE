@@ -163,16 +163,16 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                     samples,
                     object_as_task,
                     "test",
-                    normalize_keypoints,
                     False,
+                    normalize_keypoints,
                 )
             else:
                 self.train, self.val = self._load(
                     samples,
                     object_as_task,
                     "train",
-                    normalize_keypoints,
                     True,
+                    normalize_keypoints,
                 ), self._load(
                     samples,
                     object_as_task,
