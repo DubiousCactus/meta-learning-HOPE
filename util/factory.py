@@ -55,6 +55,7 @@ class DatasetFactory:
         gpu_numbers: List = [0],
         augment_fphad: bool = False,
         auto_load: bool = True,
+        test_objects: int = None,
     ) -> BaseDatasetTaskLoader:
         if not os.path.isdir(dataset_root):
             print(f"[!] {dataset_root} is not a valid directory!")
@@ -75,7 +76,7 @@ class DatasetFactory:
             datasetClass = DexYCBDatasetTaskLoader
             kargs = {
                 "hold_out": config.experiment.hold_out,
-                "test_objects": config.experiment.test_objects,
+                "test_objects": test_objects,
                 "seed_factor": config.experiment.seed_factor,
                 "auto_load": auto_load,
             }

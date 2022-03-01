@@ -23,20 +23,21 @@ def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     wandb.init(project="HOPE-Net", config=cfg)
 
-    dataset = DatasetFactory.make_data_loader(
-        cfg,
-        to_absolute_path(cfg.shapenet_root),
-        cfg.experiment.dataset,
-        to_absolute_path(cfg.experiment.dataset_path),
-        cfg.experiment.batch_size,
-        cfg.test_mode,
-        cfg.experiment.k_shots,
-        cfg.experiment.n_queries,
-        cfg.hand_only,
-        object_as_task=cfg.experiment.object_as_task,
-        normalize_keypoints=cfg.experiment.normalize_keypoints,
-        augment_fphad=cfg.experiment.augment,
-    )
+    if not cfg.test_mode:
+        dataset = DatasetFactory.make_data_loader(
+            cfg,
+            to_absolute_path(cfg.shapenet_root),
+            cfg.experiment.dataset,
+            to_absolute_path(cfg.experiment.dataset_path),
+            cfg.experiment.batch_size,
+            cfg.test_mode,
+            cfg.experiment.k_shots,
+            cfg.experiment.n_queries,
+            cfg.hand_only,
+            object_as_task=cfg.experiment.object_as_task,
+            normalize_keypoints=cfg.experiment.normalize_keypoints,
+            augment_fphad=cfg.experiment.augment,
+        )
     trainer = AlgorithmFactory.make_training_algorithm(
         cfg,
         cfg.experiment.algorithm,
@@ -73,14 +74,30 @@ def main(cfg: DictConfig):
     )
     wandb.log({"Config summary": table}, step=0)
     if cfg.test_mode:
-        trainer.test(
-            batch_size=cfg.experiment.batch_size,
-            runs=cfg.test_runs,
-            fast_lr=cfg.experiment.fast_lr,
-            meta_lr=cfg.experiment.meta_lr,
-            visualize=cfg.vis,
-            plot=cfg.plot_curves,
-        )
+        for test_objs in range(cfg.experiment.hold_out):
+            dataset = DatasetFactory.make_data_loader(
+                cfg,
+                to_absolute_path(cfg.shapenet_root),
+                cfg.experiment.dataset,
+                to_absolute_path(cfg.experiment.dataset_path),
+                cfg.experiment.batch_size,
+                cfg.test_mode,
+                cfg.experiment.k_shots,
+                cfg.experiment.n_queries,
+                cfg.hand_only,
+                object_as_task=cfg.experiment.object_as_task,
+                normalize_keypoints=cfg.experiment.normalize_keypoints,
+                augment_fphad=cfg.experiment.augment,
+                test_objects=test_objs,
+            )
+            trainer.test(
+                batch_size=cfg.experiment.batch_size,
+                runs=cfg.test_runs,
+                fast_lr=cfg.experiment.fast_lr,
+                meta_lr=cfg.experiment.meta_lr,
+                visualize=cfg.vis,
+                plot=cfg.plot_curves,
+            )
     else:
         trainer.train(
             batch_size=cfg.experiment.batch_size,
