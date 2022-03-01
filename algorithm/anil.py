@@ -242,6 +242,7 @@ class ANILTrainer(MAMLTrainer):
         meta_lr: float = 0.001,
         visualize: bool = False,
         plot: bool = False,
+        test_objects: int = None,
     ):
         maml = l2l.algorithms.MAML(
             self.model.head,
@@ -310,7 +311,10 @@ class ANILTrainer(MAMLTrainer):
             print(f"=======================================")
         avg_mpjpe /= float(runs)
         avg_auc_pck /= float(runs)
-        print(f"\n\n==========[Test Error (avg of {runs})]==========")
+        print("\n\n")
+        if test_objects:
+            print(f"========== {test_objects} test objects =============")
+        print(f"==========[Test Error (avg of {runs})]==========")
         print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
         print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
         if not self._hand_only:

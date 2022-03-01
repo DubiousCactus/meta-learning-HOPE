@@ -137,6 +137,7 @@ class RegularTrainer(BaseTrainer):
         meta_lr: float = None,
         visualize: bool = False,
         plot: bool = False,
+        test_objects: int = None,
     ):
         if not self._model_path:
             print(f"[!] Testing a randomly initialized model!")
@@ -170,7 +171,10 @@ class RegularTrainer(BaseTrainer):
         if plot:
             plot_curve(pck, thresholds, "baseline_pck.png")
         mpjpe = float(torch.Tensor(MPJPEs).mean().item())
-        print(f"\n\n==========[Test Error]==========")
+        print("\n\n")
+        if test_objects:
+            print(f"========== {test_objects} test objects =============")
+        print(f"==========[Test Error]==========")
         print(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
         print(f"Area Under Curve for PCK: {auc_pck:.6f}")
         if not self._hand_only:

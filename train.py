@@ -97,6 +97,7 @@ def main(cfg: DictConfig):
                 meta_lr=cfg.experiment.meta_lr,
                 visualize=cfg.vis,
                 plot=cfg.plot_curves,
+                test_objects=test_objs,
             )
     else:
         trainer.train(
