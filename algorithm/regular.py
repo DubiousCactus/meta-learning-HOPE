@@ -177,6 +177,8 @@ class RegularTrainer(BaseTrainer):
         print(f"==========[Test Error]==========")
         print(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
         print(f"Area Under Curve for PCK: {auc_pck:.6f}")
+        logging.info(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
+        logging.info(f"Area Under Curve for PCK: {auc_pck:.6f}")
         if not self._hand_only:
             mpcpe = float(torch.Tensor(MPCPEs).mean().item())
             # Compute the PCP curves (object corners)
@@ -185,3 +187,5 @@ class RegularTrainer(BaseTrainer):
                 plot_curve(pcp, thresholds, "baseline_pcp.png")
             print(f"Mean Per Corner Pose Error: {mpcpe:.6f}")
             print(f"Area Under Curve for PCP: {auc_pcp:.6f}")
+            logging.info(f"Mean Per Corner Pose Error: {mpcpe:.6f}")
+            logging.info(f"Area Under Curve for PCP: {auc_pcp:.6f}")

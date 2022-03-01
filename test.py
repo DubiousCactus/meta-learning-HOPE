@@ -10,6 +10,7 @@ from util.factory import DatasetFactory, AlgorithmFactory
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import to_absolute_path
 
+import logging
 import hydra
 
 
@@ -17,6 +18,7 @@ import hydra
 def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     for test_objs in range(1, cfg.experiment.hold_out):
+        logging.info(f"[*] Testing with {test_objs} objects")
         dataset = DatasetFactory.make_data_loader(
             cfg,
             to_absolute_path(cfg.shapenet_root),

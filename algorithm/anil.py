@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 import learn2learn as l2l
 import numpy as np
+import logging
 import random
 import torch
 import wandb
@@ -317,11 +318,15 @@ class ANILTrainer(MAMLTrainer):
         print(f"==========[Test Error (avg of {runs})]==========")
         print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
         print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
+        logging.info(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
+        logging.info(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
         if not self._hand_only:
             avg_mpcpe /= float(runs)
             avg_auc_pcp /= float(runs)
             print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
             print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")
+            logging.info(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
+            logging.info(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")
 
     def analyse_inner_gradients(
         self,
