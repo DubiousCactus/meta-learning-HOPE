@@ -17,7 +17,7 @@ import hydra
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
-    for test_objs in range(1, cfg.experiment.hold_out):
+    for test_objs in range(1, cfg.experiment.hold_out+1):
         logging.info(f"[*] Testing with {test_objs} objects")
         dataset = DatasetFactory.make_data_loader(
             cfg,
