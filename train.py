@@ -6,10 +6,6 @@
 #
 # Distributed under terms of the MIT license.
 
-"""
-Meta-Train HOPE-Net or its individual parts.
-"""
-
 from util.factory import DatasetFactory, AlgorithmFactory
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import to_absolute_path
@@ -23,21 +19,20 @@ def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     wandb.init(project="HOPE-Net", config=cfg)
 
-    if not cfg.test_mode:
-        dataset = DatasetFactory.make_data_loader(
-            cfg,
-            to_absolute_path(cfg.shapenet_root),
-            cfg.experiment.dataset,
-            to_absolute_path(cfg.experiment.dataset_path),
-            cfg.experiment.batch_size,
-            cfg.test_mode,
-            cfg.experiment.k_shots,
-            cfg.experiment.n_queries,
-            cfg.hand_only,
-            object_as_task=cfg.experiment.object_as_task,
-            normalize_keypoints=cfg.experiment.normalize_keypoints,
-            augment_fphad=cfg.experiment.augment,
-        )
+    dataset = DatasetFactory.make_data_loader(
+        cfg,
+        to_absolute_path(cfg.shapenet_root),
+        cfg.experiment.dataset,
+        to_absolute_path(cfg.experiment.dataset_path),
+        cfg.experiment.batch_size,
+        False,
+        cfg.experiment.k_shots,
+        cfg.experiment.n_queries,
+        cfg.hand_only,
+        object_as_task=cfg.experiment.object_as_task,
+        normalize_keypoints=cfg.experiment.normalize_keypoints,
+        augment_fphad=cfg.experiment.augment,
+    )
     trainer = AlgorithmFactory.make_training_algorithm(
         cfg,
         cfg.experiment.algorithm,
@@ -48,7 +43,7 @@ def main(cfg: DictConfig):
         cfg.experiment.n_queries,
         cfg.experiment.steps,
         cfg.experiment.checkpoint_path,
-        cfg.test_mode,
+        False,
         model_path=to_absolute_path(cfg.experiment.saved_model)
         if cfg.experiment.saved_model
         else None,
@@ -73,43 +68,16 @@ def main(cfg: DictConfig):
         cfg.experiment.model_def,
     )
     wandb.log({"Config summary": table}, step=0)
-    if cfg.test_mode:
-        for test_objs in range(cfg.experiment.hold_out):
-            dataset = DatasetFactory.make_data_loader(
-                cfg,
-                to_absolute_path(cfg.shapenet_root),
-                cfg.experiment.dataset,
-                to_absolute_path(cfg.experiment.dataset_path),
-                cfg.experiment.batch_size,
-                cfg.test_mode,
-                cfg.experiment.k_shots,
-                cfg.experiment.n_queries,
-                cfg.hand_only,
-                object_as_task=cfg.experiment.object_as_task,
-                normalize_keypoints=cfg.experiment.normalize_keypoints,
-                augment_fphad=cfg.experiment.augment,
-                test_objects=test_objs,
-            )
-            trainer.test(
-                batch_size=cfg.experiment.batch_size,
-                runs=cfg.test_runs,
-                fast_lr=cfg.experiment.fast_lr,
-                meta_lr=cfg.experiment.meta_lr,
-                visualize=cfg.vis,
-                plot=cfg.plot_curves,
-                test_objects=test_objs,
-            )
-    else:
-        trainer.train(
-            batch_size=cfg.experiment.batch_size,
-            iterations=cfg.experiment.iterations,
-            fast_lr=cfg.experiment.fast_lr,
-            meta_lr=cfg.experiment.meta_lr,
-            optimizer=cfg.experiment.optimizer.lower(),
-            val_every=cfg.experiment.val_every,
-            resume=cfg.resume_training,
-            use_scheduler=cfg.use_scheduler,
-        )
+    trainer.train(
+        batch_size=cfg.experiment.batch_size,
+        iterations=cfg.experiment.iterations,
+        fast_lr=cfg.experiment.fast_lr,
+        meta_lr=cfg.experiment.meta_lr,
+        optimizer=cfg.experiment.optimizer.lower(),
+        val_every=cfg.experiment.val_every,
+        resume=cfg.resume_training,
+        use_scheduler=cfg.use_scheduler,
+    )
 
 
 if __name__ == "__main__":

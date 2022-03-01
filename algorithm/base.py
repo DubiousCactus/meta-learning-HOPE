@@ -104,6 +104,7 @@ class BaseTrainer(ABC):
         meta_lr: float = 0.001,
         visualize: bool = False,
         plot: bool = False,
+        test_objects: int = None,
     ):
         raise NotImplementedError
 
