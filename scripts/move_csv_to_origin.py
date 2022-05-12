@@ -11,26 +11,29 @@ Read in a csv file of measurements, substract them all form the first one, save 
 """
 
 import numpy as np
+import argparse
 import sys
 import csv
 
 
-assert len(sys.argv) == 2
-file_name = sys.argv[1]
+parser = argparse.ArgumentParser()
+parser.add_argument("file_path", type=str, help="file path")
+args = parser.parse_args()
 header = None
 val = []
 indices = []
-with open(file_name, "r") as file:
+
+with open(args.file_path, "r") as file:
     csv_obj = csv.reader(file, dialect=csv.unix_dialect, quoting=csv.QUOTE_NONE)
     for line in csv_obj:
         if header is None:
             header = line
             continue
         if line != []:
-            print(line)
             val.append(float(line[1]))
             indices.append(int(line[0]))
-with open(file_name.split('.')[0] + "_origin.csv", "w") as file:
+
+with open(args.file_path.split(".")[0] + "_origin.csv", "w") as file:
     csv_obj = csv.writer(file, dialect=csv.unix_dialect, quoting=csv.QUOTE_NONE)
     val = np.array(val, dtype=np.float32)
     val -= val[0]
