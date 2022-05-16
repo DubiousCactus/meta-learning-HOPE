@@ -158,6 +158,7 @@ class AlgorithmFactory:
                 "first_order": algorithm == "foanil",
                 "multi_step_loss": config.experiment.multi_step_loss,
                 "msl_num_epochs": config.experiment.msl_num_epochs,
+                "beta": config.experiment.beta,
             }
         elif algorithm == "regular":
             if model_def == "hopenet":

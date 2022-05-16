@@ -27,6 +27,19 @@ import random
 import torch
 import wandb
 
+from vendor.bbb import BBBLinear
+from vendor.bbb.misc import ModuleWrapper
+
+
+class BBBEncoder(ModuleWrapper):
+    """
+    Bayes-By-Backprop encoder for Meta-Regularisation
+    """
+
+    def __init__(self, input_dim, output_dim, device):
+        super().__init__()
+        self.net = BBBLinear(input_dim, output_dim, bias=True, device=device)
+
 
 class ANILTrainer(MAMLTrainer):
     def __init__(
@@ -41,6 +54,7 @@ class ANILTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        beta: float = 1e-7,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -63,6 +77,12 @@ class ANILTrainer(MAMLTrainer):
         self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
+        self.encoder = BBBEncoder(
+            self.model.out_features,
+            self.model.out_features,
+            device="cuda" if use_cuda else "cpu",
+        )
+        self._beta = beta
 
     def train(
         self,
@@ -362,6 +382,7 @@ class ANILTrainer(MAMLTrainer):
             worker_seed = torch.initial_seed() % 2**32
             np.random.seed(worker_seed)
             random.seed(worker_seed)
+
         g = torch.Generator()
         g.manual_seed(1995)
 
@@ -375,24 +396,28 @@ class ANILTrainer(MAMLTrainer):
                 return
             # Still using the custom dataset because of the preprocessing (root alignment)
             # Set object_as_task=False because we pass it a list and not a dict
-            task = CustomDataset(samples[obj_id],
-                    img_transform=BaseDatasetTaskLoader._img_transform,
-                    object_as_task=False,
-                    hand_only=self._hand_only)
+            task = CustomDataset(
+                samples[obj_id],
+                img_transform=BaseDatasetTaskLoader._img_transform,
+                object_as_task=False,
+                hand_only=self._hand_only,
+            )
             # I'm not using learn2learn because there's only one class so it wouldn't work
             dataset = DataLoader(
                 task,
                 batch_size=self._k_shots + self._n_queries,
                 shuffle=True,
-                num_workers=0, # Disable multiple workers to avoid issues of randomness, and because it'll be faster since we're re-creating dataloaders
-                worker_init_fn=seed_worker, # But better be cautious haha
+                num_workers=0,  # Disable multiple workers to avoid issues of randomness, and because it'll be faster since we're re-creating dataloaders
+                worker_init_fn=seed_worker,  # But better be cautious haha
                 generator=g,
             )
-            step_norms = {i:.0 for i in range(self._steps)}
+            step_norms = {i: 0.0 for i in range(self._steps)}
             for i, task in tqdm(enumerate(dataset), dynamic_ncols=True, total=n_tasks):
                 if i == n_tasks:
                     break
-                assert len(task[0]) == (self._n_queries+self._k_shots), "Batch not full. Try reducing the number of tasks to analyse!"
+                assert len(task[0]) == (
+                    self._n_queries + self._k_shots
+                ), "Batch not full. Try reducing the number of tasks to analyse!"
                 meta_batch = self._split_batch(task)
 
                 s_inputs, _, s_labels3d = meta_batch.support
@@ -411,10 +436,12 @@ class ANILTrainer(MAMLTrainer):
                         joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
                     )  # Root alignment
                     support_loss = self.inner_criterion(joints, s_labels3d)
-                    grad_norm = head.adapt(support_loss, epoch=None, return_grad_norm=True)
+                    grad_norm = head.adapt(
+                        support_loss, epoch=None, return_grad_norm=True
+                    )
                     step_norms[step] += float(grad_norm.detach().cpu().numpy())
             for step, norm in step_norms.items():
-                step_norms[step] = norm/n_tasks
+                step_norms[step] = norm / n_tasks
             obj_norms[obj_id] = step_norms
         for obj_id, step_norms in obj_norms.items():
             print(f"Object {data_loader.obj_labels[obj_id][4:]}:")

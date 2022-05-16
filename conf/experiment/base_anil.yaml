@@ -5,3 +5,4 @@ multi_step_loss: true
 msl_num_epochs: 20
 iterations: 100
 optimizer: adam
+beta: 1e-7

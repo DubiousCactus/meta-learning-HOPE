@@ -36,6 +36,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        beta: float = 1e-7,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -51,6 +52,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            beta=beta,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -82,6 +84,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
+            s_inputs, _ = self.encoder(s_inputs) # Encoding of inputs through BBB for Meta-Regularisation
             joints = head(s_inputs).view(-1, self._dim, 3)
             joints -= (
                 joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
@@ -89,20 +92,22 @@ class ANIL_CNNTrainer(ANILTrainer):
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
+                q_inputs_features, kl = self.encoder(q_inputs_features) # Encoding of inputs through BBB for Meta-Regularisation
                 q_joints = head(q_inputs_features).view(-1, self._dim, 3)
                 q_joints -= (
                     q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
                 )  # Root alignment
-                query_loss += self._step_weights[step] * criterion(q_joints, q_labels3d)
+                query_loss += self._step_weights[step] * (criterion(q_joints, q_labels3d) + self._beta * kl)
 
         del s_inputs
         # Evaluate the adapted model on the query set
         if not msl:
+            q_inputs_features, kl = self.encoder(q_inputs_features) # Encoding of inputs through BBB for Meta-Regularisation
             q_joints = head(q_inputs_features).view(-1, self._dim, 3)
             q_joints -= (
                 q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
-            query_loss = criterion(q_joints, q_labels3d)
+            query_loss = criterion(q_joints, q_labels3d) + self._beta * kl
         return query_loss
 
     def _testing_step(
