@@ -80,11 +80,12 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         s_inputs = features(s_inputs)
+        s_inputs, _ = self.encoder(s_inputs) # Encoding of inputs through BBB for Meta-Regularisation
         q_inputs_features = features(q_inputs)
+        q_inputs_features, kl = self.encoder(q_inputs_features) # Encoding of inputs through BBB for Meta-Regularisation
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
-            s_inputs, _ = self.encoder(s_inputs) # Encoding of inputs through BBB for Meta-Regularisation
             joints = head(s_inputs).view(-1, self._dim, 3)
             joints -= (
                 joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
@@ -92,22 +93,23 @@ class ANIL_CNNTrainer(ANILTrainer):
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
-                q_inputs_features, kl = self.encoder(q_inputs_features) # Encoding of inputs through BBB for Meta-Regularisation
                 q_joints = head(q_inputs_features).view(-1, self._dim, 3)
                 q_joints -= (
                     q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
                 )  # Root alignment
-                query_loss += self._step_weights[step] * (criterion(q_joints, q_labels3d) + self._beta * kl)
+                query_loss += self._step_weights[step] * criterion(q_joints, q_labels3d)
 
         del s_inputs
         # Evaluate the adapted model on the query set
         if not msl:
-            q_inputs_features, kl = self.encoder(q_inputs_features) # Encoding of inputs through BBB for Meta-Regularisation
             q_joints = head(q_inputs_features).view(-1, self._dim, 3)
             q_joints -= (
                 q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
-            query_loss = criterion(q_joints, q_labels3d) + self._beta * kl
+            query_loss = criterion(q_joints, q_labels3d)
+
+        # Only add the KL divergence term once, since it's the same value per query set
+        query_loss += self._beta * kl
         return query_loss
 
     def _testing_step(

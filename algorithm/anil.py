@@ -162,15 +162,15 @@ class ANILTrainer(MAMLTrainer):
                     # same image sample can appear in several tasks during one epoch, and some
                     # images can not appear during one epoch)
                     meta_batch = self._split_batch(self.dataset.train.sample())
-                    inner_loss = self._training_step(
+                    outer_loss = self._training_step(
                         meta_batch,
                         maml.clone(),
                         self.model.features,
                         epoch,
                         msl=(self._msl and epoch < self._msl_num_epochs),
                     )
-                    inner_loss.backward()
-                    meta_train_losses.append(inner_loss.detach())
+                    outer_loss.backward()
+                    meta_train_losses.append(outer_loss.detach())
 
                 epoch_meta_train_loss += (
                     torch.Tensor(meta_train_losses).detach().mean().item()
