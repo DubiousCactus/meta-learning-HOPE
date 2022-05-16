@@ -37,6 +37,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
+        meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -53,6 +54,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
             beta=beta,
+            meta_reg=meta_reg,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -80,9 +82,11 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         s_inputs = features(s_inputs)
-        s_inputs, _ = self.encoder(s_inputs) # Encoding of inputs through BBB for Meta-Regularisation
         q_inputs_features = features(q_inputs)
-        q_inputs_features, kl = self.encoder(q_inputs_features) # Encoding of inputs through BBB for Meta-Regularisation
+        if self._meta_reg:
+            # Encoding of inputs through BBB for Meta-Regularisation
+            s_inputs, _ = self.encoder(s_inputs) 
+            q_inputs_features, kl = self.encoder(q_inputs_features)
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
@@ -108,8 +112,9 @@ class ANIL_CNNTrainer(ANILTrainer):
             )  # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
 
-        # Only add the KL divergence term once, since it's the same value per query set
-        query_loss += self._beta * kl
+        if self._meta_reg:
+            # Only add the KL divergence term once, since it's the same value per query set
+            query_loss += self._beta * kl
         return query_loss
 
     def _testing_step(

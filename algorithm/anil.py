@@ -55,6 +55,7 @@ class ANILTrainer(MAMLTrainer):
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
+        meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -81,8 +82,9 @@ class ANILTrainer(MAMLTrainer):
             self.model.out_features,
             self.model.out_features,
             device="cuda" if use_cuda else "cpu",
-        )
+        ) if meta_reg else None
         self._beta = beta
+        self._meta_reg = meta_reg
 
     def train(
         self,
