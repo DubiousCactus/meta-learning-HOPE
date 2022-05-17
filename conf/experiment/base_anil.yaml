@@ -7,3 +7,4 @@ iterations: 100
 optimizer: adam
 beta: 0.0000001
 meta_reg: True
+dim_w: 196

@@ -13,12 +13,13 @@ Almost No Inner-Loop meta-learning algorithm.
 from data.dataset.dex_ycb import DexYCBDatasetTaskLoader
 from data.dataset.base import BaseDatasetTaskLoader
 from data.custom import CustomDataset
+from model.cnn import Lambda
 
 from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
 
 from torch.utils.data import DataLoader
-from typing import List
+from typing import List, OrderedDict
 from tqdm import tqdm
 
 import learn2learn as l2l
@@ -27,18 +28,80 @@ import random
 import torch
 import wandb
 
-from vendor.bbb import BBBLinear
-from vendor.bbb.misc import ModuleWrapper
+from vendor.bbb.misc import ModuleWrapper, FlattenLayer
+from vendor.bbb import BBBLinear, BBBConv2d
+
+
+def conv_block(in_channels, out_channels, **kwargs):
+    """
+    Code taken from https://github.com/boschresearch/what-matters-for-meta-learning
+    """
+    return torch.nn.Sequential(
+        OrderedDict(
+            [
+                ("conv", BBBConv2d(in_channels, out_channels, **kwargs)),
+                # ('norm', nn.BatchNorm2d(out_channels, momentum=1.,
+                #     track_running_stats=False)),
+                ("relu", torch.nn.ReLU()),
+                # ('pool', nn.MaxPool2d(2))
+            ]
+        )
+    )
 
 
 class BBBEncoder(ModuleWrapper):
     """
-    Bayes-By-Backprop encoder for Meta-Regularisation
+    Bayes-By-Backprop encoder for Meta-Regularisation.
+    Code taken from https://github.com/boschresearch/what-matters-for-meta-learning
     """
 
-    def __init__(self, input_dim, output_dim, device):
+    def __init__(self, img_channels, dim_w, device):
         super().__init__()
-        self.net = BBBLinear(input_dim, output_dim, bias=True, device=device)
+        self.net = torch.nn.Sequential(
+            OrderedDict(
+                [
+                    (
+                        "layer1",
+                        conv_block(
+                            img_channels,
+                            16,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            bias=True,
+                            device=device,
+                        ),
+                    ),
+                    (
+                        "layer2",
+                        conv_block(
+                            16,
+                            32,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            bias=True,
+                            device=device,
+                        ),
+                    ),
+                    ("pool", torch.nn.MaxPool2d((2, 2))),
+                    (
+                        "layer3",
+                        conv_block(
+                            32,
+                            48,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            bias=True,
+                            device=device,
+                        ),
+                    ),
+                    ("flatten", FlattenLayer()),
+                    ("linear", BBBLinear(9408, dim_w*img_channels, bias=True, device=device)),
+                ]
+            )
+        )
 
 
 class ANILTrainer(MAMLTrainer):
@@ -55,6 +118,7 @@ class ANILTrainer(MAMLTrainer):
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
+        dim_w: int = 196,
         meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
@@ -78,11 +142,19 @@ class ANILTrainer(MAMLTrainer):
         self.model: torch.nn.Module = model
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
-        self.encoder = BBBEncoder(
-            self.model.out_features,
-            self.model.out_features,
-            device="cuda" if use_cuda else "cpu",
-        ) if meta_reg else None
+        self.img_channels = dataset.img_size[0]
+        self.img_size = dataset.img_size[1:]
+        self.dim_w = dim_w
+        self.img_w_size = int(np.sqrt(self.dim_w))
+        self.encoder = (
+            BBBEncoder(
+                self.img_channels,
+                self.dim_w,
+                device="cuda" if use_cuda else "cpu",
+            )
+            if meta_reg
+            else Lambda(lambda x: x)
+        )
         self._beta = beta
         self._meta_reg = meta_reg
 

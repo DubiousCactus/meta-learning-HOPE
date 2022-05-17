@@ -19,6 +19,7 @@
 #   cf. 3rd-party-licenses.txt file in the root directory of this source tree.
 
 from torch import nn
+import torch
 
 
 class ModuleWrapper(nn.Module):
@@ -47,9 +48,8 @@ class ModuleWrapper(nn.Module):
 
 class FlattenLayer(ModuleWrapper):
 
-    def __init__(self, num_features):
+    def __init__(self):
         super(FlattenLayer, self).__init__()
-        self.num_features = num_features
 
     def forward(self, x):
-        return x.view(-1, self.num_features)
+        return torch.flatten(x, start_dim=1)

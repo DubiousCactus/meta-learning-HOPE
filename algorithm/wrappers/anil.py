@@ -37,6 +37,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
+        dim_w: int = 196,
         meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
@@ -54,6 +55,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
             beta=beta,
+            dim_w=dim_w,
             meta_reg=meta_reg,
             hand_only=hand_only,
             use_cuda=use_cuda,
@@ -81,12 +83,26 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
+<<<<<<< Updated upstream
         s_inputs_features = features(s_inputs)
         q_inputs_features = features(q_inputs)
         if self._meta_reg:
             # Encoding of inputs through BBB for Meta-Regularisation
             s_inputs_features, _ = self.encoder(s_inputs_features)
             q_inputs_features, kl = self.encoder(q_inputs_features)
+=======
+        kl = 0
+        if self._meta_reg:
+            # Encoding of inputs through BBB for Meta-Regularisation
+            s_inputs, _ = self.encoder(s_inputs)
+            s_inputs = s_inputs.reshape(-1, self.img_channels, self.img_w_size, self.img_w_size)
+            q_inputs, kl = self.encoder(q_inputs)
+            q_inputs = q_inputs.reshape(-1, self.img_channels, self.img_w_size, self.img_w_size)
+
+        s_inputs_features = features(s_inputs)
+        q_inputs_features = features(q_inputs)
+
+>>>>>>> Stashed changes
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
@@ -134,6 +150,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
+<<<<<<< Updated upstream
             s_inputs_features = features(s_inputs)
             q_inputs_features = features(q_inputs)
             if self._meta_reg:
@@ -141,6 +158,17 @@ class ANIL_CNNTrainer(ANILTrainer):
                 s_inputs_features, _ = self.encoder(s_inputs_features)
                 q_inputs_features, kl = self.encoder(q_inputs_features)
 
+=======
+            kl = 0
+            if self._meta_reg:
+                # Encoding of inputs through BBB for Meta-Regularisation
+                s_inputs, _ = self.encoder(s_inputs)
+                s_inputs = s_inputs.reshape(-1, self.img_channels, self.img_w_size, self.img_w_size)
+                q_inputs, kl = self.encoder(q_inputs)
+                q_inputs = q_inputs.reshape(-1, self.img_channels, self.img_w_size, self.img_w_size)
+            s_inputs_features = features(s_inputs)
+            q_inputs_features = features(q_inputs)
+>>>>>>> Stashed changes
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
@@ -171,7 +199,8 @@ class ANIL_CNNTrainer(ANILTrainer):
                 # Batched vector norm for row-wise elements
                 return (
                     torch.linalg.norm(
-                        q_joints[:, :self._dim, :] - q_labels3d[:, :self._dim, :], dim=2
+                        q_joints[:, : self._dim, :] - q_labels3d[:, : self._dim, :],
+                        dim=2,
                     )
                     .detach()
                     .mean()
@@ -183,27 +212,23 @@ class ANIL_CNNTrainer(ANILTrainer):
             res = {}
             for metric in compute:
                 if metric == "mse":
-                    res[metric] = (self.inner_criterion(q_joints, q_labels3d).detach())
+                    res[metric] = self.inner_criterion(q_joints, q_labels3d).detach()
                 elif metric == "mae":
                     res[metric] = F.l1_loss(q_joints, q_labels3d).detach()
                 elif metric == "pjpe":
                     # Hand-pose only
                     # Batched vector norm for row-wise elements
-                    res[metric] = (
-                        torch.linalg.norm(
-                            q_joints[:, :self._dim, :] - q_labels3d[:, :self._dim, :], dim=2
-                        )
-                        .detach()
-                    )
+                    res[metric] = torch.linalg.norm(
+                        q_joints[:, : self._dim, :] - q_labels3d[:, : self._dim, :],
+                        dim=2,
+                    ).detach()
                 elif metric == "pcpe":
                     # Object-pose only
                     # Batched vector norm for row-wise elements
-                    res[metric] = (
-                        torch.linalg.norm(
-                            q_joints[:, self._dim:, :] - q_labels3d[:, self._dim:, :], dim=2
-                        )
-                        .detach()
-                    )
+                    res[metric] = torch.linalg.norm(
+                        q_joints[:, self._dim :, :] - q_labels3d[:, self._dim :, :],
+                        dim=2,
+                    ).detach()
         assert res is not None, f"{compute} is not a valid metric!"
         return res
 

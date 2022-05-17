@@ -160,6 +160,7 @@ class AlgorithmFactory:
                 "multi_step_loss": config.experiment.multi_step_loss,
                 "msl_num_epochs": config.experiment.msl_num_epochs,
                 "beta": config.experiment.beta,
+                "dim_w": config.experiment.dim_w,
                 "meta_reg": config.experiment.meta_reg,
             }
         elif algorithm == "regular":
