@@ -78,6 +78,7 @@ class DatasetFactory:
                 "test_objects": config.experiment.test_objects,
                 "seed_factor": config.experiment.seed_factor,
                 "auto_load": auto_load,
+                "tiny": config.experiment.tiny,
             }
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")

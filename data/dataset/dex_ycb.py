@@ -107,6 +107,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         batch_size: int,
         k_shots: int,
         n_queries: int,
+        tiny: bool = False,
         test: bool = False,
         object_as_task: bool = True,
         hold_out: int = 0,
@@ -149,7 +150,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         # Don't use the base class autoloading, this is a custom loading. However we don't want
         # that either in the analysis script.
         if auto_load:
-            samples = self.make_raw_dataset()
+            samples = self.make_raw_dataset(tiny=tiny)
             if test:
                 if test_objects is not None:
                     """
@@ -259,9 +260,9 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             ),
         )
 
-    def make_raw_dataset(self, mirror_left_hand=False) -> dict:
+    def make_raw_dataset(self, mirror_left_hand=False, tiny=False) -> dict:
         pickle_path = (
-            os.path.join(self._root, f"dexycb.pkl")
+            os.path.join(self._root, "dexycb_tiny.pkl" if tiny else "dexycb.pkl")
             if not mirror_left_hand
             else os.path.join(self._root, f"dexycb_mirrorred.pkl")
         )
@@ -271,6 +272,9 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 samples = pickle.load(pickle_file)
         else:
             print(f"[*] Building dataset...")
+            if tiny:
+                self._subjects = self._subjects[0]
+                self._viewpoints = self._viewpoints[:3]
             pbar = tqdm(total=len(self._subjects) * len(self._viewpoints) * 100)
             samples = {}
             failed, no_interaction = 0, {i: 0 for i in range(len(self.obj_labels))}

@@ -1,3 +1,4 @@
 hold_out: 2
 test_objects: null
 seed_factor: 1
+tiny: False
