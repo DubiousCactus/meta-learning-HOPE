@@ -273,7 +273,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         else:
             print(f"[*] Building dataset...")
             if tiny:
-                self._subjects = self._subjects[0]
+                self._subjects = [self._subjects[0]]
                 self._viewpoints = self._viewpoints[:3]
             pbar = tqdm(total=len(self._subjects) * len(self._viewpoints) * 100)
             samples = {}
