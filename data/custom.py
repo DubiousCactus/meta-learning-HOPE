@@ -10,6 +10,7 @@
 Custom dataset classes and interfaces.
 """
 
+import os
 from torch.utils.data import Dataset as TorchDataset
 from typing import Dict, List, Union
 from PIL import Image
@@ -42,8 +43,11 @@ class CustomDataset(TorchDataset):
     ) -> tuple:
         images, points2d, points3d = [], [], []
         labels, i = {}, 0
+        ram_disk = os.path.isdir("/dev/shm/DexYCB")
 
         def load_sample(img_path, p_2d, p_3d):
+            if ram_disk:
+                img_path = os.path.join("/dev/shm/DexYCB/", img_path.split("DexYCB/")[1])
             images.append(img_path)
             p_3d = p_3d[:self._dim] - p_3d[0, :]  # Root aligned
             if self._pin_memory:
