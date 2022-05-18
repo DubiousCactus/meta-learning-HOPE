@@ -41,6 +41,20 @@ class BBBEncoder(ModuleWrapper):
         self.net = BBBLinear(input_dim, output_dim, bias=True, device=device)
 
 
+class Head(torch.nn.Module):
+    def __init__(self, input_dim, hidden_dim, hand_only=True):
+        super().__init__()
+        self._dim = 21 if hand_only else 29
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(input_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, self._dim*3),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
 class ANILTrainer(MAMLTrainer):
     def __init__(
         self,
@@ -76,11 +90,13 @@ class ANILTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
         self.model: torch.nn.Module = model
+        self.head = Head(512, 256, hand_only=hand_only)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
+            self.head = self.head.cuda()
         self.encoder = BBBEncoder(
             self.model.out_features,
-            self.model.out_features,
+            512,
             device="cuda" if use_cuda else "cpu",
         ) if meta_reg else None
         self._beta = beta
@@ -97,9 +113,9 @@ class ANILTrainer(MAMLTrainer):
         resume: bool = True,
         use_scheduler: bool = True,
     ):
-        wandb.watch(self.model)
+        wandb.watch([self.model, self.head])
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             order_annealing_epoch=self._order_annealing_from_epoch,
@@ -266,7 +282,7 @@ class ANILTrainer(MAMLTrainer):
         plot: bool = False,
     ):
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             allow_unused=True,
@@ -352,7 +368,7 @@ class ANILTrainer(MAMLTrainer):
         Used for Table 2 in the Analysis section.
         """
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             allow_unused=True,
