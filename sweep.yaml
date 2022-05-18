@@ -11,16 +11,15 @@ metric:
 parameters:
   experiment: 
     value: anil_cnn_dexycb
-  experiment.tiny:
-    value: True
   experiment.iterations:
-    value: 120
+    value: 150
   experiment.val_every:
     value: 5
   experiment.hold_out:
     value: 10
   experiment.dim_w:
-    values: [196, 256, 576]
+    #values: [196, 256, 576]
+    value: 196
   experiment.beta:
     values: [0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1]
   experiment.tiny:

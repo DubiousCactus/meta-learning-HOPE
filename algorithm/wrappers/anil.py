@@ -83,14 +83,6 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
-<<<<<<< Updated upstream
-        s_inputs_features = features(s_inputs)
-        q_inputs_features = features(q_inputs)
-        if self._meta_reg:
-            # Encoding of inputs through BBB for Meta-Regularisation
-            s_inputs_features, _ = self.encoder(s_inputs_features)
-            q_inputs_features, kl = self.encoder(q_inputs_features)
-=======
         kl = 0
         if self._meta_reg:
             # Encoding of inputs through BBB for Meta-Regularisation
@@ -102,7 +94,6 @@ class ANIL_CNNTrainer(ANILTrainer):
         s_inputs_features = features(s_inputs)
         q_inputs_features = features(q_inputs)
 
->>>>>>> Stashed changes
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
@@ -150,15 +141,6 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
-<<<<<<< Updated upstream
-            s_inputs_features = features(s_inputs)
-            q_inputs_features = features(q_inputs)
-            if self._meta_reg:
-                # Encoding of inputs through BBB for Meta-Regularisation
-                s_inputs_features, _ = self.encoder(s_inputs_features)
-                q_inputs_features, kl = self.encoder(q_inputs_features)
-
-=======
             kl = 0
             if self._meta_reg:
                 # Encoding of inputs through BBB for Meta-Regularisation
@@ -168,7 +150,7 @@ class ANIL_CNNTrainer(ANILTrainer):
                 q_inputs = q_inputs.reshape(-1, self.img_channels, self.img_w_size, self.img_w_size)
             s_inputs_features = features(s_inputs)
             q_inputs_features = features(q_inputs)
->>>>>>> Stashed changes
+
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
