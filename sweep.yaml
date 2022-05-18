@@ -24,6 +24,12 @@ parameters:
     values: [0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1]
   experiment.tiny:
     value: true
+  experiment.meta_lr:
+    value: 0.01
+  experiment.fast_lr:
+    value: 0.001
+  experiment.steps:
+    value: 5
 early_terminate:
   type: hyperband
   min_iter: 30
