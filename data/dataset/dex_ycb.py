@@ -107,6 +107,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         batch_size: int,
         k_shots: int,
         n_queries: int,
+        tiny: bool = False,
         test: bool = False,
         object_as_task: bool = True,
         hold_out: int = 0,
@@ -135,6 +136,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._model_dir = os.path.join(self._root, "models")
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
+        self._ram_disk_path = "/dev/shm/DexYCB"
 
         self.split_categories = self._make_split_categories(hold_out, seed_factor=seed_factor)
         print(
@@ -149,7 +151,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         # Don't use the base class autoloading, this is a custom loading. However we don't want
         # that either in the analysis script.
         if auto_load:
-            samples = self.make_raw_dataset()
+            samples = self.make_raw_dataset(tiny=tiny)
             if test:
                 if test_objects is not None:
                     """
@@ -259,9 +261,9 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             ),
         )
 
-    def make_raw_dataset(self, mirror_left_hand=False) -> dict:
+    def make_raw_dataset(self, mirror_left_hand=False, tiny=False) -> dict:
         pickle_path = (
-            os.path.join(self._root, f"dexycb.pkl")
+            os.path.join(self._root, "dexycb_tiny.pkl" if tiny else "dexycb.pkl")
             if not mirror_left_hand
             else os.path.join(self._root, f"dexycb_mirrorred.pkl")
         )
@@ -271,6 +273,9 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 samples = pickle.load(pickle_file)
         else:
             print(f"[*] Building dataset...")
+            if tiny:
+                self._subjects = self._subjects[:3]
+                self._viewpoints = self._viewpoints[:3]
             pbar = tqdm(total=len(self._subjects) * len(self._viewpoints) * 100)
             samples = {}
             failed, no_interaction = 0, {i: 0 for i in range(len(self.obj_labels))}
@@ -405,12 +410,14 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         if not object_as_task:  # Transform to list
             samples = list(itertools.chain.from_iterable(samples.values()))
         print(f"[*] Generating dataset in pinned memory...")
+        to_ramdisk = lambda path: os.path.join(self._ram_disk_path, path.split("DexYCB")[1])
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
             kp2d_transform=None,
             object_as_task=object_as_task,
             hand_only=self._hand_only,
+            to_ram_disk_fn=to_ramdisk if os.path.isdir(self._ram_disk_path) else None,
         )
 
         return dataset

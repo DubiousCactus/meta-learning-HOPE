@@ -13,6 +13,7 @@ Almost No Inner-Loop meta-learning algorithm.
 from data.dataset.dex_ycb import DexYCBDatasetTaskLoader
 from data.dataset.base import BaseDatasetTaskLoader
 from data.custom import CustomDataset
+from model.cnn import initialize_weights
 
 from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
@@ -26,6 +27,33 @@ import numpy as np
 import random
 import torch
 import wandb
+
+from vendor.bbb import BBBLinear
+from vendor.bbb.misc import ModuleWrapper
+
+
+class BBBEncoder(ModuleWrapper):
+    """
+    Bayes-By-Backprop encoder for Meta-Regularisation
+    """
+
+    def __init__(self, input_dim, output_dim, device):
+        super().__init__()
+        self.net = BBBLinear(input_dim, output_dim, bias=True, device=device)
+
+
+class Head(torch.nn.Module):
+    def __init__(self, input_dim, hidden_dim, hand_only=True):
+        super().__init__()
+        self._dim = 21 if hand_only else 29
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(input_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, self._dim * 3),
+        )
+
+    def forward(self, x):
+        return self.net(x)
 
 
 class ANILTrainer(MAMLTrainer):
@@ -41,6 +69,9 @@ class ANILTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        beta: float = 1e-7,
+        reg_bottleneck_dim: int = 512,
+        meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -61,8 +92,26 @@ class ANILTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
         self.model: torch.nn.Module = model
+        self.head = Head(
+            reg_bottleneck_dim if meta_reg else self.model.out_features,
+            256,
+            hand_only=hand_only,
+        )
+        self.head.apply(initialize_weights)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
+            self.head = self.head.cuda()
+        self.encoder = (
+            BBBEncoder(
+                self.model.out_features,
+                reg_bottleneck_dim,
+                device="cuda" if use_cuda else "cpu",
+            )
+            if meta_reg
+            else None
+        )
+        self._beta = beta
+        self._meta_reg = meta_reg
 
     def train(
         self,
@@ -75,9 +124,9 @@ class ANILTrainer(MAMLTrainer):
         resume: bool = True,
         use_scheduler: bool = True,
     ):
-        wandb.watch(self.model)
+        wandb.watch([self.model, self.head])
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             order_annealing_epoch=self._order_annealing_from_epoch,
@@ -112,6 +161,7 @@ class ANILTrainer(MAMLTrainer):
         )
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         for epoch in range(self._epoch, iterations):
             epoch_meta_train_loss = 0.0
@@ -124,6 +174,7 @@ class ANILTrainer(MAMLTrainer):
                         state_dicts = {
                             "epoch": epoch,
                             "model_state_dict": self.model.state_dict(),
+                            "head_state_dict": self.head.state_dict(),
                             "maml_state_dict": maml.state_dict(),
                             "meta_opt_state_dict": opt.state_dict(),
                             "scheduler_state_dict": scheduler.state_dict(),
@@ -142,15 +193,15 @@ class ANILTrainer(MAMLTrainer):
                     # same image sample can appear in several tasks during one epoch, and some
                     # images can not appear during one epoch)
                     meta_batch = self._split_batch(self.dataset.train.sample())
-                    inner_loss = self._training_step(
+                    outer_loss = self._training_step(
                         meta_batch,
                         maml.clone(),
                         self.model.features,
                         epoch,
                         msl=(self._msl and epoch < self._msl_num_epochs),
                     )
-                    inner_loss.backward()
-                    meta_train_losses.append(inner_loss.detach())
+                    outer_loss.backward()
+                    meta_train_losses.append(outer_loss.detach())
 
                 epoch_meta_train_loss += (
                     torch.Tensor(meta_train_losses).detach().mean().item()
@@ -217,6 +268,7 @@ class ANILTrainer(MAMLTrainer):
                     state_dicts = {
                         "epoch": epoch,
                         "model_state_dict": self.model.state_dict(),
+                        "head_state_dict": self.head.state_dict(),
                         "maml_state_dict": maml.state_dict(),
                         "meta_opt_state_dict": opt.state_dict(),
                         "scheduler_state_dict": scheduler.state_dict(),
@@ -244,7 +296,7 @@ class ANILTrainer(MAMLTrainer):
         plot: bool = False,
     ):
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             allow_unused=True,
@@ -256,6 +308,7 @@ class ANILTrainer(MAMLTrainer):
         opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
+            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
         thresholds = torch.linspace(10, 100, (100 - 10) // 5 + 1)
@@ -330,7 +383,7 @@ class ANILTrainer(MAMLTrainer):
         Used for Table 2 in the Analysis section.
         """
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             allow_unused=True,
@@ -342,6 +395,7 @@ class ANILTrainer(MAMLTrainer):
         opt = torch.optim.Adam(all_parameters)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
+            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         samples = data_loader.make_raw_dataset()
         # Only keep the test set that this model was trained for (so we don't have train/test
@@ -362,6 +416,7 @@ class ANILTrainer(MAMLTrainer):
             worker_seed = torch.initial_seed() % 2**32
             np.random.seed(worker_seed)
             random.seed(worker_seed)
+
         g = torch.Generator()
         g.manual_seed(1995)
 
@@ -375,24 +430,28 @@ class ANILTrainer(MAMLTrainer):
                 return
             # Still using the custom dataset because of the preprocessing (root alignment)
             # Set object_as_task=False because we pass it a list and not a dict
-            task = CustomDataset(samples[obj_id],
-                    img_transform=BaseDatasetTaskLoader._img_transform,
-                    object_as_task=False,
-                    hand_only=self._hand_only)
+            task = CustomDataset(
+                samples[obj_id],
+                img_transform=BaseDatasetTaskLoader._img_transform,
+                object_as_task=False,
+                hand_only=self._hand_only,
+            )
             # I'm not using learn2learn because there's only one class so it wouldn't work
             dataset = DataLoader(
                 task,
                 batch_size=self._k_shots + self._n_queries,
                 shuffle=True,
-                num_workers=0, # Disable multiple workers to avoid issues of randomness, and because it'll be faster since we're re-creating dataloaders
-                worker_init_fn=seed_worker, # But better be cautious haha
+                num_workers=0,  # Disable multiple workers to avoid issues of randomness, and because it'll be faster since we're re-creating dataloaders
+                worker_init_fn=seed_worker,  # But better be cautious haha
                 generator=g,
             )
-            step_norms = {i:.0 for i in range(self._steps)}
+            step_norms = {i: 0.0 for i in range(self._steps)}
             for i, task in tqdm(enumerate(dataset), dynamic_ncols=True, total=n_tasks):
                 if i == n_tasks:
                     break
-                assert len(task[0]) == (self._n_queries+self._k_shots), "Batch not full. Try reducing the number of tasks to analyse!"
+                assert len(task[0]) == (
+                    self._n_queries + self._k_shots
+                ), "Batch not full. Try reducing the number of tasks to analyse!"
                 meta_batch = self._split_batch(task)
 
                 s_inputs, _, s_labels3d = meta_batch.support
@@ -411,10 +470,12 @@ class ANILTrainer(MAMLTrainer):
                         joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
                     )  # Root alignment
                     support_loss = self.inner_criterion(joints, s_labels3d)
-                    grad_norm = head.adapt(support_loss, epoch=None, return_grad_norm=True)
+                    grad_norm = head.adapt(
+                        support_loss, epoch=None, return_grad_norm=True
+                    )
                     step_norms[step] += float(grad_norm.detach().cpu().numpy())
             for step, norm in step_norms.items():
-                step_norms[step] = norm/n_tasks
+                step_norms[step] = norm / n_tasks
             obj_norms[obj_id] = step_norms
         for obj_id, step_norms in obj_norms.items():
             print(f"Object {data_loader.obj_labels[obj_id][4:]}:")

@@ -36,6 +36,9 @@ class ANIL_CNNTrainer(ANILTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        beta: float = 1e-7,
+        reg_bottleneck_dim: int = 512,
+        meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -51,6 +54,9 @@ class ANIL_CNNTrainer(ANILTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            beta=beta,
+            reg_bottleneck_dim=reg_bottleneck_dim,
+            meta_reg=meta_reg,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -77,12 +83,16 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
-        s_inputs = features(s_inputs)
+        s_inputs_features = features(s_inputs)
         q_inputs_features = features(q_inputs)
+        if self._meta_reg:
+            # Encoding of inputs through BBB for Meta-Regularisation
+            s_inputs_features, _ = self.encoder(s_inputs_features)
+            q_inputs_features, kl = self.encoder(q_inputs_features)
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, self._dim, 3)
+            joints = head(s_inputs_features).view(-1, self._dim, 3)
             joints -= (
                 joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
@@ -103,6 +113,10 @@ class ANIL_CNNTrainer(ANILTrainer):
                 q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
+
+        if self._meta_reg:
+            # Only add the KL divergence term once, since it's the same value per query set
+            query_loss += self._beta * kl
         return query_loss
 
     def _testing_step(
@@ -122,11 +136,17 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
-            s_inputs = features(s_inputs)
+            s_inputs_features = features(s_inputs)
+            q_inputs_features = features(q_inputs)
+            if self._meta_reg:
+                # Encoding of inputs through BBB for Meta-Regularisation
+                s_inputs_features, _ = self.encoder(s_inputs_features)
+                q_inputs_features, kl = self.encoder(q_inputs_features)
+
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, self._dim, 3)
+            joints = head(s_inputs_features).view(-1, self._dim, 3)
             joints -= (
                 joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
@@ -134,8 +154,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             head.adapt(support_loss, epoch=epoch)
 
         with torch.no_grad():
-            q_inputs = features(q_inputs)
-            q_joints = head(q_inputs).view(-1, self._dim, 3)
+            q_joints = head(q_inputs_features).view(-1, self._dim, 3)
             q_joints -= (
                 q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment

@@ -78,6 +78,7 @@ class DatasetFactory:
                 "test_objects": config.experiment.test_objects,
                 "seed_factor": config.experiment.seed_factor,
                 "auto_load": auto_load,
+                "tiny": config.experiment.tiny,
             }
         else:
             raise NotImplementedError(f"{dataset} Dataset Loader not implemented!")
@@ -158,6 +159,9 @@ class AlgorithmFactory:
                 "first_order": algorithm == "foanil",
                 "multi_step_loss": config.experiment.multi_step_loss,
                 "msl_num_epochs": config.experiment.msl_num_epochs,
+                "beta": config.experiment.beta,
+                "meta_reg": config.experiment.meta_reg,
+                "reg_bottleneck_dim": config.experiment.reg_bottleneck_dim,
             }
         elif algorithm == "regular":
             if model_def == "hopenet":

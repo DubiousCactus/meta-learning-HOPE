@@ -10,6 +10,7 @@
 Custom dataset classes and interfaces.
 """
 
+import os
 from torch.utils.data import Dataset as TorchDataset
 from typing import Dict, List, Union
 from PIL import Image
@@ -24,9 +25,11 @@ class CustomDataset(TorchDataset):
         object_as_task: bool = False,
         pin_memory=True,
         hand_only=True,
+        to_ram_disk_fn=None,
     ):
         self._dim = 21 if hand_only else 29
         self._pin_memory = pin_memory
+        self._to_ram_disk_fn = to_ram_disk_fn
         self._img_transform = (
             img_transform if img_transform is not None else lambda i: i
         )
@@ -44,6 +47,8 @@ class CustomDataset(TorchDataset):
         labels, i = {}, 0
 
         def load_sample(img_path, p_2d, p_3d):
+            if self._to_ram_disk_fn is not None:
+                img_path = self._to_ram_disk_fn(img_path)
             images.append(img_path)
             p_3d = p_3d[:self._dim] - p_3d[0, :]  # Root aligned
             if self._pin_memory:
