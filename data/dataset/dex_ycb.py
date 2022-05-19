@@ -136,6 +136,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._model_dir = os.path.join(self._root, "models")
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
+        self._ram_disk_path = "/dev/shm/DexYCB"
 
         self.split_categories = self._make_split_categories(hold_out, seed_factor=seed_factor)
         print(
@@ -409,12 +410,14 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         if not object_as_task:  # Transform to list
             samples = list(itertools.chain.from_iterable(samples.values()))
         print(f"[*] Generating dataset in pinned memory...")
+        to_ramdisk = lambda path: os.path.join(self._ram_disk_path, path.split("DexYCB")[1])
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
             kp2d_transform=None,
             object_as_task=object_as_task,
             hand_only=self._hand_only,
+            to_ram_disk_fn=to_ramdisk if os.path.isdir(self._ram_disk_path) else None,
         )
 
         return dataset
