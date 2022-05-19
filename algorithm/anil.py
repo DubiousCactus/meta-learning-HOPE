@@ -49,7 +49,7 @@ class Head(torch.nn.Module):
         self.net = torch.nn.Sequential(
             torch.nn.Linear(input_dim, hidden_dim),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, self._dim*3),
+            torch.nn.Linear(hidden_dim, self._dim * 3),
         )
 
     def forward(self, x):
@@ -92,16 +92,24 @@ class ANILTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
         self.model: torch.nn.Module = model
-        self.head = Head(reg_bottleneck_dim, 256, hand_only=hand_only)
+        self.head = Head(
+            reg_bottleneck_dim if meta_reg else self.model.out_features,
+            256,
+            hand_only=hand_only,
+        )
         self.head.apply(initialize_weights)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.head = self.head.cuda()
-        self.encoder = BBBEncoder(
-            self.model.out_features,
-            reg_bottleneck_dim,
-            device="cuda" if use_cuda else "cpu",
-        ) if meta_reg else None
+        self.encoder = (
+            BBBEncoder(
+                self.model.out_features,
+                reg_bottleneck_dim,
+                device="cuda" if use_cuda else "cpu",
+            )
+            if meta_reg
+            else None
+        )
         self._beta = beta
         self._meta_reg = meta_reg
 
@@ -153,6 +161,7 @@ class ANILTrainer(MAMLTrainer):
         )
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
+            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         for epoch in range(self._epoch, iterations):
             epoch_meta_train_loss = 0.0
@@ -165,6 +174,7 @@ class ANILTrainer(MAMLTrainer):
                         state_dicts = {
                             "epoch": epoch,
                             "model_state_dict": self.model.state_dict(),
+                            "head_state_dict": self.head.state_dict(),
                             "maml_state_dict": maml.state_dict(),
                             "meta_opt_state_dict": opt.state_dict(),
                             "scheduler_state_dict": scheduler.state_dict(),
@@ -258,6 +268,7 @@ class ANILTrainer(MAMLTrainer):
                     state_dicts = {
                         "epoch": epoch,
                         "model_state_dict": self.model.state_dict(),
+                        "head_state_dict": self.head.state_dict(),
                         "maml_state_dict": maml.state_dict(),
                         "meta_opt_state_dict": opt.state_dict(),
                         "scheduler_state_dict": scheduler.state_dict(),
@@ -297,6 +308,7 @@ class ANILTrainer(MAMLTrainer):
         opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
+            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
         thresholds = torch.linspace(10, 100, (100 - 10) // 5 + 1)
@@ -383,6 +395,7 @@ class ANILTrainer(MAMLTrainer):
         opt = torch.optim.Adam(all_parameters)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
+            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         samples = data_loader.make_raw_dataset()
         # Only keep the test set that this model was trained for (so we don't have train/test
