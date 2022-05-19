@@ -13,6 +13,7 @@ Almost No Inner-Loop meta-learning algorithm.
 from data.dataset.dex_ycb import DexYCBDatasetTaskLoader
 from data.dataset.base import BaseDatasetTaskLoader
 from data.custom import CustomDataset
+from model.cnn import initialize_weights
 
 from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
@@ -69,6 +70,7 @@ class ANILTrainer(MAMLTrainer):
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
+        reg_bottleneck_dim: int = 512,
         meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
@@ -90,13 +92,14 @@ class ANILTrainer(MAMLTrainer):
             gpu_numbers=gpu_numbers,
         )
         self.model: torch.nn.Module = model
-        self.head = Head(512, 256, hand_only=hand_only)
+        self.head = Head(reg_bottleneck_dim, 256, hand_only=hand_only)
+        self.head.apply(initialize_weights)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
             self.head = self.head.cuda()
         self.encoder = BBBEncoder(
             self.model.out_features,
-            512,
+            reg_bottleneck_dim,
             device="cuda" if use_cuda else "cpu",
         ) if meta_reg else None
         self._beta = beta
