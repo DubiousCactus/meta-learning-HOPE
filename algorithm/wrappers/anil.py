@@ -39,6 +39,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         beta: float = 1e-7,
         reg_bottleneck_dim: int = 512,
         meta_reg: bool = True,
+        task_aug: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -57,6 +58,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             beta=beta,
             reg_bottleneck_dim=reg_bottleneck_dim,
             meta_reg=meta_reg,
+            task_aug=task_aug,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -82,6 +84,13 @@ class ANIL_CNNTrainer(ANILTrainer):
             s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
+
+        if self._task_aug:
+            # Apply the same random permutation of target vector dims
+            dims = s_labels3d[0].shape[0] # Permute the joints, not the axes
+            perms = torch.randperm(dims)
+            s_labels3d = s_labels3d[:, perms, :]
+            q_labels3d = q_labels3d[:, perms, :]
 
         s_inputs_features = features(s_inputs)
         q_inputs_features = features(q_inputs)

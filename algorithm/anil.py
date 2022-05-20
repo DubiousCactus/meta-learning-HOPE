@@ -71,7 +71,8 @@ class ANILTrainer(MAMLTrainer):
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
         reg_bottleneck_dim: int = 512,
-        meta_reg: bool = True,
+        meta_reg: bool = False,
+        task_aug: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -87,6 +88,7 @@ class ANILTrainer(MAMLTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            task_aug=task_aug,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -112,6 +114,7 @@ class ANILTrainer(MAMLTrainer):
         )
         self._beta = beta
         self._meta_reg = meta_reg
+        self._task_aug = task_aug
 
     def train(
         self,

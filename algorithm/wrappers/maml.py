@@ -114,6 +114,7 @@ class MAML_CNNTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        task_aug: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -129,6 +130,7 @@ class MAML_CNNTrainer(MAMLTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            task_aug=task_aug,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -148,6 +150,13 @@ class MAML_CNNTrainer(MAMLTrainer):
             s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
+
+        if self._task_aug:
+            # Apply the same random permutation of target vector dims
+            dims = s_labels3d[0].shape[0] # Permute the joints, not the axes
+            perms = torch.randperm(dims)
+            s_labels3d = s_labels3d[:, perms, :]
+            q_labels3d = q_labels3d[:, perms, :]
 
         # Adapt the model on the support set
         for step in range(self._steps):
