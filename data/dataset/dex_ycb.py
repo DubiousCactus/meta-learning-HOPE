@@ -410,7 +410,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         if not object_as_task:  # Transform to list
             samples = list(itertools.chain.from_iterable(samples.values()))
         print(f"[*] Generating dataset in pinned memory...")
-        to_ramdisk = lambda path: os.path.join(self._ram_disk_path, path.split("DexYCB")[1])
+        to_ramdisk = lambda path: os.path.join(self._ram_disk_path, path.split("DexYCB/")[1])
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
