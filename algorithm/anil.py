@@ -114,7 +114,6 @@ class ANILTrainer(MAMLTrainer):
         )
         self._beta = beta
         self._meta_reg = meta_reg
-        self._task_aug = task_aug
 
     def train(
         self,
