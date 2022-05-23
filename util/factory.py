@@ -147,6 +147,7 @@ class AlgorithmFactory:
                 "first_order": algorithm == "fomaml",
                 "multi_step_loss": config.experiment.multi_step_loss,
                 "msl_num_epochs": config.experiment.msl_num_epochs,
+                "task_aug": config.experiment.task_aug,
             }
         elif algorithm in ["anil", "foanil"]:
             args: List = [k_shots, n_queries, inner_steps]
@@ -161,6 +162,7 @@ class AlgorithmFactory:
                 "msl_num_epochs": config.experiment.msl_num_epochs,
                 "beta": config.experiment.beta,
                 "meta_reg": config.experiment.meta_reg,
+                "task_aug": config.experiment.task_aug,
                 "reg_bottleneck_dim": config.experiment.reg_bottleneck_dim,
             }
         elif algorithm == "regular":
