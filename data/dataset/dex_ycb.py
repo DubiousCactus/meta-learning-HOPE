@@ -383,27 +383,10 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     ) -> CustomDataset:
         # Hold out
         keys = list(samples.copy().keys())
-        for category_id, _ in keys:
+        for category_id, sequence_id in keys:
             if category_id not in self.split_categories[split]:
-                """
-                This stupid (very stupid I know) bug is kept as is because all experiments were run
-                with it. It doesn't induce any overlap between all splits so that's good. I've
-                algorithmically and manually checked, and the overlap quantities between dataset
-                levels on the test splits are the exact same between the actual "bugged version"
-                and expected "fixed version" splits (I assume the same can be said about the train
-                and val splits but it doesn't matter). The only implication is
-                that the objects described for each split (in the console) are wrong. So after a
-                lot of worry and a loto of double-checking, all is well :)
+                del samples[(category_id, sequence_id)]
 
-                The fix is: del samples[category_id].
-                But my slow-ass brain thought that iterating through the keys would return an index
-                and not the value of the array... It must have been a long day when I wrote this,
-                and I never looked back.
-                """
-                key = keys[category_id]
-                # Could have already been removed (for another subject!)
-                if key in samples:
-                    del samples[keys[category_id]]
         print(
             f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
         )
