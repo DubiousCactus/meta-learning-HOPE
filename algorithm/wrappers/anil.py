@@ -98,6 +98,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             # Encoding of inputs through BBB for Meta-Regularisation
             s_inputs_features, _ = self.encoder(s_inputs_features)
             q_inputs_features, kl = self.encoder(q_inputs_features)
+
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
