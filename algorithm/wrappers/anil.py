@@ -237,18 +237,18 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, 29, 3)
+            joints = head(s_inputs).view(-1, self._dim, 3)
             joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
+                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss)
 
         with torch.no_grad():
             q_inputs_f = features(q_inputs)
-            q_joints = head(q_inputs_f).view(-1, 29, 3)
+            q_joints = head(q_inputs_f).view(-1, self._dim, 3)
             q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
+                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
             )  # Root alignment
             mean, std = torch.tensor(
                 [0.485, 0.456, 0.406], dtype=torch.float32
@@ -268,4 +268,4 @@ class ANIL_CNNTrainer(ANILTrainer):
             print(
                 f"MSE={self.inner_criterion(q_joints, q_labels3d)} - MAE={F.l1_loss(q_joints, q_labels3d)}"
             )
-            plot_3D_pred_gt(q_joints[0].cpu(), npimg, q_labels3d[0].cpu())
+            # plot_3D_pred_gt(q_joints[0].cpu(), npimg, q_labels3d[0].cpu())

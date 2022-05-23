@@ -77,30 +77,6 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         "061_foam_brick",
     ]
 
-    _hand_2_obj_thresholds = [
-        0.08,  # Master chef can
-        0.09,  # Cracker box
-        0.09,  # Sugar box
-        0.08,  # Tomato soup can
-        0.05,  # Mustard bottle
-        0.06,  # Tuna fish can
-        0.05,  # Pudding box
-        0.06,  # Gelatin box
-        0.05,  # Potted meat can
-        0.08,  # Banana
-        0.15,  # Pitcher base
-        0.07,  # Bleach cleanser
-        0.09,  # Bowl
-        0.08,  # Mug
-        0.08,  # Power drill
-        0.1,  # Wood block
-        0.08,  # Scissors
-        0.06,  # Large marker
-        # 0.08, # Large clamp
-        0.1,  # Extra large clamp
-        0.07,  # Foam brick
-    ]
-
     def __init__(
         self,
         root: str,
@@ -118,6 +94,8 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         use_cuda: bool = True,
         gpu_number: int = 0,
         auto_load: bool = True,  # In the analysis, we want to override the loading process
+        interaction_threshold: float = 1e-4,
+        min_fingers_interaction: int = 2,
     ):
         super().__init__(
             root,
@@ -137,8 +115,12 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._h, self._w = 480, 640
         self._bboxes = {}  # Cache
         self._ram_disk_path = "/dev/shm/DexYCB"
+        self._interaction_threshold = interaction_threshold
+        self._min_fingers_interaction = min_fingers_interaction
 
-        self.split_categories = self._make_split_categories(hold_out, seed_factor=seed_factor)
+        self.split_categories = self._make_split_categories(
+            hold_out, seed_factor=seed_factor
+        )
         print(
             f"[*] Training with {', '.join([self.obj_labels[i] for i in self.split_categories['train']])}"
         )
@@ -235,12 +217,20 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             axis=1,
         )
         vert3d = transform.dot(hom_verts.T).T[:, :3]
-        # If the last vertex of the thumb is further than the mean vertex of the object
-        # bounding box according to a threshold, skip it
-        thumb_2_obj_dist = np.linalg.norm(
-            np.mean(vert3d, axis=0) - labels["joint_3d"][0][4, :]
+        # For an interaction to be valid, there needs to be at least N fingertips inside the
+        # bounding cuboid.
+        centroid, obj_corner = np.mean(vert3d, axis=0), vert3d[0]
+        finger_tip_distances = np.linalg.norm(
+            np.tile(centroid, (5, 1)) - labels["joint_3d"][0, [4, 8, 12, 16, 20], :],
+            axis=1,
         )
-        if thumb_2_obj_dist > self._hand_2_obj_thresholds[obj_id]:
+        corner_distance = np.linalg.norm(centroid - obj_corner)
+        if (
+            np.count_nonzero(
+                (finger_tip_distances - corner_distance) < self._interaction_threshold
+            )
+            < self._min_fingers_interaction
+        ):
             raise NoInteractionError
         # Project to 2D
         hom_2d_verts = np.dot(cam_intr, vert3d.transpose())
@@ -300,19 +290,21 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 )
 
             # Load all sequences
-            for n in self._subjects:
+            for subject_id in self._subjects:
                 seq = [
-                    os.path.join(n, s)
-                    for s in sorted(os.listdir(os.path.join(self._root, n)))
+                    os.path.join(subject_id, s)
+                    for s in sorted(os.listdir(os.path.join(self._root, subject_id)))
                 ]
                 assert len(seq) == 100, "Incomplete sequences!"
-                for i, q in enumerate(seq):
-                    meta_file = os.path.join(self._root, q, "meta.yml")
+                for i, sequence_id in enumerate(seq):
+                    meta_file = os.path.join(self._root, sequence_id, "meta.yml")
                     with open(meta_file, "r") as f:
                         meta = yaml.load(f, Loader=yaml.FullLoader)
                     # Fetch samples and compute labels for each camera
                     for c in self._viewpoints:
-                        for root, _, files in os.walk(os.path.join(self._root, q, c)):
+                        for root, _, files in os.walk(
+                            os.path.join(self._root, sequence_id, c)
+                        ):
                             for file in files:
                                 if not file.startswith("color"):
                                     continue
@@ -360,9 +352,15 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                     # to 224x224
                                     # ho2d[:, 0] = ho2d[:, 0] * 256.0 / self._w
                                     # ho2d[:, 1] = ho2d[:, 1] * 256.0 / self._h
-                                    if obj_class_id not in samples:
-                                        samples[obj_class_id] = []
-                                    samples[obj_class_id].append((img_file, ho2d, ho3d))
+
+                                    # Use a combination of object and subject IDs so that a tasks
+                                    # constitues the manipulation of one object by one subject
+                                    # only. This is necessary to avoid including different grasps
+                                    # caused by different subjects!
+                                    key = (obj_class_id, sequence_id)
+                                    if key not in samples:
+                                        samples[key] = []
+                                    samples[key].append((img_file, ho2d, ho3d))
                         pbar.update()
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
@@ -385,7 +383,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
     ) -> CustomDataset:
         # Hold out
         keys = list(samples.copy().keys())
-        for category_id in keys:
+        for category_id, _ in keys:
             if category_id not in self.split_categories[split]:
                 """
                 This stupid (very stupid I know) bug is kept as is because all experiments were run
@@ -393,7 +391,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 algorithmically and manually checked, and the overlap quantities between dataset
                 levels on the test splits are the exact same between the actual "bugged version"
                 and expected "fixed version" splits (I assume the same can be said about the train
-                and val splits but it doesn't matter much). The only implication is
+                and val splits but it doesn't matter). The only implication is
                 that the objects described for each split (in the console) are wrong. So after a
                 lot of worry and a loto of double-checking, all is well :)
 
@@ -402,15 +400,20 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 and not the value of the array... It must have been a long day when I wrote this,
                 and I never looked back.
                 """
-                del samples[keys[category_id]]
+                key = keys[category_id]
+                # Could have already been removed (for another subject!)
+                if key in samples:
+                    del samples[keys[category_id]]
         print(
             f"[*] Loaded {reduce(lambda x, y: x + y, [len(x) for x in samples.values()])} samples from the {split} split."
         )
-        print(f"[*] Total object categories: {len(samples.keys())}")
+        print(f"[*] Total unique tasks (object/subject): {len(samples.keys())}")
         if not object_as_task:  # Transform to list
             samples = list(itertools.chain.from_iterable(samples.values()))
         print(f"[*] Generating dataset in pinned memory...")
-        to_ramdisk = lambda path: os.path.join(self._ram_disk_path, path.split("DexYCB/")[1])
+        to_ramdisk = lambda path: os.path.join(
+            self._ram_disk_path, path.split("DexYCB/")[1]
+        )
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
@@ -437,22 +440,27 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
             normalize_keypoints=normalize_keypoints,
         )
         if object_as_task:
+            assert dataset.min_task_samples >= (
+                self.k_shots + self.n_queries
+            ), f"At least one task has only {dataset.min_task_samples} samples, which is less than < (K + Q)! Consider using different K and Q paramters."
             split_dataset = l2l.data.MetaDataset(
                 dataset, indices_to_labels=dataset.class_labels
             )
             split_dataset_loader = l2l.data.TaskDataset(
                 split_dataset,
                 [
-                    l2l.data.transforms.NWays(split_dataset, n=1),
-                    l2l.data.transforms.KShots(
-                        split_dataset, k=self.k_shots + self.n_queries
+                    l2l.data.transforms.FusedNWaysKShots(
+                        split_dataset,
+                        n=1,
+                        k=self.k_shots + self.n_queries,
+                        replacement=False,
                     ),
                     l2l.data.transforms.LoadData(split_dataset),
                 ],
                 num_tasks=(
                     -1
                     if split == "train"
-                    else (len(dataset) / (self.k_shots + self.n_queries))
+                    else (len(dataset) // (self.k_shots + self.n_queries))
                 ),
             )
         else:
