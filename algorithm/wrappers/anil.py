@@ -102,25 +102,25 @@ class ANIL_CNNTrainer(ANILTrainer):
         for step in range(self._steps):
             # forward + backward + optimize
             joints = head(s_inputs_features).view(-1, self._dim, 3)
-            joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
+            # joints -= (
+            #     joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
+            # )  # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
                 q_joints = head(q_inputs_features).view(-1, self._dim, 3)
-                q_joints -= (
-                    q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-                )  # Root alignment
+                # q_joints -= (
+                #     q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
+                # )  # Root alignment
                 query_loss += self._step_weights[step] * criterion(q_joints, q_labels3d)
 
         del s_inputs
         # Evaluate the adapted model on the query set
         if not msl:
             q_joints = head(q_inputs_features).view(-1, self._dim, 3)
-            q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
+            # q_joints -= (
+            #     q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
+            # )  # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
 
         if self._meta_reg:
@@ -156,17 +156,17 @@ class ANIL_CNNTrainer(ANILTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             joints = head(s_inputs_features).view(-1, self._dim, 3)
-            joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
+            # joints -= (
+            #     joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
+            # )  # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
 
         with torch.no_grad():
             q_joints = head(q_inputs_features).view(-1, self._dim, 3)
-            q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
+            # q_joints -= (
+            #     q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
+            # )  # Root alignment
 
         res = None
         if type(compute) is str:
