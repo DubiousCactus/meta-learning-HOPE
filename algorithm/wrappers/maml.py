@@ -15,7 +15,7 @@ from algorithm.maml import MAMLTrainer, MetaBatch
 from util.utils import select_cnn_model
 from model.hopenet import HOPENet
 
-from typing import List
+from typing import List, Optional
 
 import torch.nn.functional as F
 import torch
@@ -114,7 +114,7 @@ class MAML_CNNTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
-        task_aug: bool = True,
+        task_aug: Optional[str] = None,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -151,7 +151,7 @@ class MAML_CNNTrainer(MAMLTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
-        if self._task_aug:
+        if self._task_aug == "permute":
             # Apply the same random permutation of target vector dims
             dims = s_labels3d[0].shape[0] # Permute the joints, not the axes
             perms = torch.randperm(dims)

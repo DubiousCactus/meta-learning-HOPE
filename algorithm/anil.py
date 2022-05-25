@@ -19,7 +19,7 @@ from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
 
 from torch.utils.data import DataLoader
-from typing import List
+from typing import List, Optional
 from tqdm import tqdm
 
 import learn2learn as l2l
@@ -72,7 +72,7 @@ class ANILTrainer(MAMLTrainer):
         beta: float = 1e-7,
         reg_bottleneck_dim: int = 512,
         meta_reg: bool = False,
-        task_aug: bool = True,
+        task_aug: Optional[str] = None,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -194,6 +194,8 @@ class ANILTrainer(MAMLTrainer):
                     # Randomly sample a task (which is created by randomly sampling images, so the
                     # same image sample can appear in several tasks during one epoch, and some
                     # images can not appear during one epoch)
+                    # TODO: Rename meta_batch into task! This isn't a meta_batch, it's a task as a
+                    # batch of examples (support + query).
                     meta_batch = self._split_batch(self.dataset.train.sample())
                     outer_loss = self._training_step(
                         meta_batch,

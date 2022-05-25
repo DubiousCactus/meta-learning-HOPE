@@ -15,7 +15,7 @@ from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.anil import ANILTrainer
 from algorithm.maml import MetaBatch
 
-from typing import List
+from typing import List, Optional
 
 import torchvision.transforms as transforms
 import torch.nn.functional as F
@@ -39,7 +39,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         beta: float = 1e-7,
         reg_bottleneck_dim: int = 512,
         meta_reg: bool = True,
-        task_aug: bool = True,
+        task_aug: Optional[str] = None,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -85,12 +85,29 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
-        if self._task_aug:
+        if self._task_aug == "permute":
             # Apply the same random permutation of target vector dims
-            dims = s_labels3d[0].shape[0] # Permute the joints, not the axes
+            dims = s_labels3d.shape[1] # Permute the joints, not the axes
             perms = torch.randperm(dims)
             s_labels3d = s_labels3d[:, perms, :]
             q_labels3d = q_labels3d[:, perms, :]
+        elif self._task_aug == "discrete_noise":
+            # Add a noise value sampled form a discrete set to a randomly sampled axis
+            noise_values = np.linspace(0, 1, self._task_aug_noise_values+1)[:-1] # Ignore 1 but include 0
+            noise = np.random.choice(noise_values)
+            axis = np.random.randint(0, 3)
+            # My intuitiion is that it'd make more sense to ignore the root joint, which the
+            # network learns to always be 0. So adding noise to it might interfere in the
+            # learning and cause the gradients to be noisier.
+            s_labels3d[:, 1:, axis] += noise
+            q_labels3d[:, 1:, axis] += noise
+        elif self._task_aug == "shift":
+            # Shift the vertices/joints, such that the order is kept and the gradients are less
+            # noisy.
+            dims = s_labels3d.shape[1] # Permute the joints, not the axes
+            n_shifts = torch.randint(dims, (1,)).item()
+            s_labels3d = torch.roll(s_labels3d, n_shifts, 1)
+            q_labels3d = torch.roll(q_labels3d, n_shifts, 1)
 
         s_inputs_features = features(s_inputs)
         q_inputs_features = features(q_inputs)
@@ -142,7 +159,7 @@ class ANIL_CNNTrainer(ANILTrainer):
             if self._meta_reg:
                 # Encoding of inputs through BBB for Meta-Regularisation
                 s_inputs_features, _ = self.encoder(s_inputs_features)
-                q_inputs_features, kl = self.encoder(q_inputs_features)
+                q_inputs_features, _ = self.encoder(q_inputs_features)
 
         # Adapt the model on the support set
         for _ in range(self._steps):

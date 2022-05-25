@@ -14,4 +14,4 @@ optimizer: adam
 multi_step_loss: true
 msl_num_epochs: 50
 name: maml_training
-task_aug: true
+task_aug: null # One of [null, permute, discrete_noise, shift]
