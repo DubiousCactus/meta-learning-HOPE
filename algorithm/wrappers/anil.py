@@ -85,6 +85,9 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
+        if self._task_aug not in ["permute", "discrete_noise", "shift", None]:
+            raise KeyError("Parameter task_aug must be one of [None, shift, permute, discrete_noise]")
+
         if self._task_aug == "permute":
             # Apply the same random permutation of target vector dims
             dims = s_labels3d.shape[1] # Permute the joints, not the axes

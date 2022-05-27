@@ -12,19 +12,21 @@ parameters:
   experiment: 
     value: anil_cnn_dexycb
   experiment.iterations:
-    value: 150
+    value: 100
   experiment.val_every:
-    value: 10
+    value: 5
   experiment.hold_out:
     value: 10
-  experiment.beta:
-    values: [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7]
+  #experiment.beta:
+  #  values: [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7]
   experiment.meta_reg:
-    values: [true, false]
-  experiment.task_aug:
+    #values: [true, false]
     value: false
+  experiment.task_aug:
+    #value: null
+    values: [null, "shift", "discrete_noise", "permute"]
   experiment.tiny:
     value: true
 early_terminate:
   type: hyperband
-  min_iter: 30
+  min_iter: 25

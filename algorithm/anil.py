@@ -115,6 +115,14 @@ class ANILTrainer(MAMLTrainer):
         self._beta = beta
         self._meta_reg = meta_reg
 
+    def _restore(self, maml, opt, scheduler, resume_training: bool = True) -> float:
+        val_loss = super()._restore(maml, opt, scheduler, resume_training=resume_training)
+        checkpoint = torch.load(self._model_path)
+        self.head.load_state_dict(checkpoint["head_state_dict"])
+        if self._meta_reg:
+            self.encoder.load_state_dict(checkpoint["encoder_state_dict"])
+        return val_loss
+
     def train(
         self,
         batch_size: int = 32,
@@ -163,7 +171,6 @@ class ANILTrainer(MAMLTrainer):
         )
         if self._model_path:
             past_val_loss = self._restore(maml, opt, scheduler, resume_training=resume)
-            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         for epoch in range(self._epoch, iterations):
             epoch_meta_train_loss = 0.0
@@ -182,6 +189,8 @@ class ANILTrainer(MAMLTrainer):
                             "scheduler_state_dict": scheduler.state_dict(),
                             "val_meta_loss": meta_val_mse_loss,
                         }
+                        if self._meta_reg:
+                            state_dicts["encoder_state_dict"] = self.encoder.state_dict()
                         self._checkpoint(
                             epoch,
                             epoch_meta_train_loss,
@@ -278,6 +287,8 @@ class ANILTrainer(MAMLTrainer):
                         "scheduler_state_dict": scheduler.state_dict(),
                         "val_meta_loss": meta_val_mse_loss,
                     }
+                    if self._meta_reg:
+                        state_dicts["encoder_state_dict"] = self.encoder.state_dict()
                     self._checkpoint(
                         epoch,
                         epoch_meta_train_loss,
@@ -312,7 +323,6 @@ class ANILTrainer(MAMLTrainer):
         opt = torch.optim.Adam(all_parameters, lr=meta_lr, amsgrad=False)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
-            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
         thresholds = torch.linspace(10, 100, (100 - 10) // 5 + 1)
@@ -399,7 +409,6 @@ class ANILTrainer(MAMLTrainer):
         opt = torch.optim.Adam(all_parameters)
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
-            self.head.load_state_dict(torch.load(self._model_path)["head_state_dict"])
 
         samples = data_loader.make_raw_dataset()
         # Only keep the test set that this model was trained for (so we don't have train/test
