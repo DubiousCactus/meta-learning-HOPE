@@ -8,4 +8,4 @@ optimizer: adam
 beta: 1e-5
 meta_reg: false
 reg_bottleneck_dim: 512 # Meta-regularisation bottleneck of the BBBLinear layer
-dim_w: 196
+dim_w: 8748

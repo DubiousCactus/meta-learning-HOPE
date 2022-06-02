@@ -64,7 +64,7 @@ class BBBEncoder(ModuleWrapper):
                         "layer1",
                         conv_block(
                             img_channels,
-                            16,
+                            32,
                             kernel_size=3,
                             stride=2,
                             padding=1,
@@ -75,8 +75,8 @@ class BBBEncoder(ModuleWrapper):
                     (
                         "layer2",
                         conv_block(
-                            16,
                             32,
+                            48,
                             kernel_size=3,
                             stride=2,
                             padding=1,
@@ -88,8 +88,33 @@ class BBBEncoder(ModuleWrapper):
                     (
                         "layer3",
                         conv_block(
-                            32,
                             48,
+                            64,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            bias=True,
+                            device=device,
+                        ),
+                    ),
+                    (
+                        "layer4",
+                        conv_block(
+                            64,
+                            96,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            bias=True,
+                            device=device,
+                        ),
+                    ),
+                    ("pool", torch.nn.MaxPool2d((2, 2))),
+                    (
+                        "layer5",
+                        conv_block(
+                            96,
+                            128,
                             kernel_size=3,
                             stride=2,
                             padding=1,
@@ -98,7 +123,7 @@ class BBBEncoder(ModuleWrapper):
                         ),
                     ),
                     ("flatten", FlattenLayer()),
-                    ("linear", BBBLinear(9408, dim_w*img_channels, bias=True, device=device)),
+                    ("linear", BBBLinear(2048, dim_w, bias=True, device=device)),
                 ]
             )
         )
@@ -135,7 +160,7 @@ class ANILTrainer(MAMLTrainer):
         reg_bottleneck_dim: int = 512,
         meta_reg: bool = False,
         task_aug: Optional[str] = None,
-        dim_w: int = 196,
+        dim_w: int = 1176,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -165,10 +190,11 @@ class ANILTrainer(MAMLTrainer):
         self.head.apply(initialize_weights)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
+            self.head = self.head.cuda()
         self.img_channels = dataset.img_size[0]
         self.img_size = dataset.img_size[1:]
         self.dim_w = dim_w
-        self.img_w_size = int(np.sqrt(self.dim_w))
+        self.img_w_size = int(np.sqrt(self.dim_w/self.img_channels))
         self.encoder = (
             BBBEncoder(
                 self.img_channels,

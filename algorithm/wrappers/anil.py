@@ -163,12 +163,11 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         with torch.no_grad():
-            kl = 0
             if self._meta_reg:
                 # Encoding of inputs through BBB for Meta-Regularisation
                 s_inputs, _ = self.encoder(s_inputs)
                 s_inputs = s_inputs.reshape(-1, self.img_channels, self.img_w_size, self.img_w_size)
-                q_inputs, kl = self.encoder(q_inputs)
+                q_inputs, _ = self.encoder(q_inputs)
                 q_inputs = q_inputs.reshape(-1, self.img_channels, self.img_w_size, self.img_w_size)
             s_inputs_features = features(s_inputs)
             q_inputs_features = features(q_inputs)
