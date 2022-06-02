@@ -15,7 +15,7 @@ from util.utils import compute_curve, plot_curve
 from algorithm.base import BaseTrainer
 from collections import namedtuple
 from vendor.bbb import BBBLinear
-from typing import List, Union
+from typing import List, Optional, Union
 from tqdm import tqdm
 
 import learn2learn as l2l
@@ -38,6 +38,7 @@ class MAMLTrainer(BaseTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        task_aug: Optional[str] = None,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -70,6 +71,8 @@ class MAMLTrainer(BaseTrainer):
             (self._steps - 1) * self._msl_min_value_for_non_final_losses
         )
         self._order_annealing_from_epoch = 50
+        self._task_aug = task_aug
+        self._task_aug_noise_values = 4 # TODO: Add to config for hyperparam search
 
     def _anneal_step_weights(self):
         self._step_weights[:-1] = torch.max(

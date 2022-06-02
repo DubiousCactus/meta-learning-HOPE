@@ -13,13 +13,13 @@ Almost No Inner-Loop meta-learning algorithm.
 from data.dataset.dex_ycb import DexYCBDatasetTaskLoader
 from data.dataset.base import BaseDatasetTaskLoader
 from data.custom import CustomDataset
-from model.cnn import Lambda
+from model.cnn import initialize_weights
 
 from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
 
 from torch.utils.data import DataLoader
-from typing import List, OrderedDict
+from typing import List, Optional, OrderedDict
 from tqdm import tqdm
 
 import learn2learn as l2l
@@ -104,6 +104,20 @@ class BBBEncoder(ModuleWrapper):
         )
 
 
+class Head(torch.nn.Module):
+    def __init__(self, input_dim, hidden_dim, hand_only=True):
+        super().__init__()
+        self._dim = 21 if hand_only else 29
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(input_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, self._dim * 3),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
 class ANILTrainer(MAMLTrainer):
     def __init__(
         self,
@@ -118,8 +132,10 @@ class ANILTrainer(MAMLTrainer):
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
+        reg_bottleneck_dim: int = 512,
+        meta_reg: bool = False,
+        task_aug: Optional[str] = None,
         dim_w: int = 196,
-        meta_reg: bool = True,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -135,11 +151,18 @@ class ANILTrainer(MAMLTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            task_aug=task_aug,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
         self.model: torch.nn.Module = model
+        self.head = Head(
+            reg_bottleneck_dim if meta_reg else self.model.out_features,
+            256,
+            hand_only=hand_only,
+        )
+        self.head.apply(initialize_weights)
         if use_cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
         self.img_channels = dataset.img_size[0]
@@ -153,10 +176,18 @@ class ANILTrainer(MAMLTrainer):
                 device="cuda" if use_cuda else "cpu",
             )
             if meta_reg
-            else Lambda(lambda x: x)
+            else None
         )
         self._beta = beta
         self._meta_reg = meta_reg
+
+    def _restore(self, maml, opt, scheduler, resume_training: bool = True) -> float:
+        val_loss = super()._restore(maml, opt, scheduler, resume_training=resume_training)
+        checkpoint = torch.load(self._model_path)
+        self.head.load_state_dict(checkpoint["head_state_dict"])
+        if self._meta_reg:
+            self.encoder.load_state_dict(checkpoint["encoder_state_dict"])
+        return val_loss
 
     def train(
         self,
@@ -169,9 +200,9 @@ class ANILTrainer(MAMLTrainer):
         resume: bool = True,
         use_scheduler: bool = True,
     ):
-        wandb.watch(self.model)
+        wandb.watch([self.model, self.head])
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             order_annealing_epoch=self._order_annealing_from_epoch,
@@ -218,11 +249,14 @@ class ANILTrainer(MAMLTrainer):
                         state_dicts = {
                             "epoch": epoch,
                             "model_state_dict": self.model.state_dict(),
+                            "head_state_dict": self.head.state_dict(),
                             "maml_state_dict": maml.state_dict(),
                             "meta_opt_state_dict": opt.state_dict(),
                             "scheduler_state_dict": scheduler.state_dict(),
                             "val_meta_loss": meta_val_mse_loss,
                         }
+                        if self._meta_reg:
+                            state_dicts["encoder_state_dict"] = self.encoder.state_dict()
                         self._checkpoint(
                             epoch,
                             epoch_meta_train_loss,
@@ -235,6 +269,8 @@ class ANILTrainer(MAMLTrainer):
                     # Randomly sample a task (which is created by randomly sampling images, so the
                     # same image sample can appear in several tasks during one epoch, and some
                     # images can not appear during one epoch)
+                    # TODO: Rename meta_batch into task! This isn't a meta_batch, it's a task as a
+                    # batch of examples (support + query).
                     meta_batch = self._split_batch(self.dataset.train.sample())
                     outer_loss = self._training_step(
                         meta_batch,
@@ -311,11 +347,14 @@ class ANILTrainer(MAMLTrainer):
                     state_dicts = {
                         "epoch": epoch,
                         "model_state_dict": self.model.state_dict(),
+                        "head_state_dict": self.head.state_dict(),
                         "maml_state_dict": maml.state_dict(),
                         "meta_opt_state_dict": opt.state_dict(),
                         "scheduler_state_dict": scheduler.state_dict(),
                         "val_meta_loss": meta_val_mse_loss,
                     }
+                    if self._meta_reg:
+                        state_dicts["encoder_state_dict"] = self.encoder.state_dict()
                     self._checkpoint(
                         epoch,
                         epoch_meta_train_loss,
@@ -338,7 +377,7 @@ class ANILTrainer(MAMLTrainer):
         plot: bool = False,
     ):
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             allow_unused=True,
@@ -424,7 +463,7 @@ class ANILTrainer(MAMLTrainer):
         Used for Table 2 in the Analysis section.
         """
         maml = l2l.algorithms.MAML(
-            self.model.head,
+            self.head,
             lr=fast_lr,
             first_order=self._first_order,
             allow_unused=True,

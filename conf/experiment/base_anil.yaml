@@ -5,6 +5,7 @@ multi_step_loss: true
 msl_num_epochs: 20
 iterations: 100
 optimizer: adam
-beta: 0.0000001
-meta_reg: True
+beta: 1e-5
+meta_reg: false
+reg_bottleneck_dim: 512 # Meta-regularisation bottleneck of the BBBLinear layer
 dim_w: 196

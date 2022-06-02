@@ -15,7 +15,7 @@ from algorithm.maml import MAMLTrainer, MetaBatch
 from util.utils import select_cnn_model
 from model.hopenet import HOPENet
 
-from typing import List
+from typing import List, Optional
 
 import torch.nn.functional as F
 import torch
@@ -114,6 +114,7 @@ class MAML_CNNTrainer(MAMLTrainer):
         first_order: bool = False,
         multi_step_loss: bool = True,
         msl_num_epochs: int = 1000,
+        task_aug: Optional[str] = None,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -129,6 +130,7 @@ class MAML_CNNTrainer(MAMLTrainer):
             first_order=first_order,
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
+            task_aug=task_aug,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -149,16 +151,21 @@ class MAML_CNNTrainer(MAMLTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
+        if self._task_aug == "permute":
+            # Apply the same random permutation of target vector dims
+            dims = s_labels3d[0].shape[0] # Permute the joints, not the axes
+            perms = torch.randperm(dims)
+            s_labels3d = s_labels3d[:, perms, :]
+            q_labels3d = q_labels3d[:, perms, :]
+
         # Adapt the model on the support set
         for step in range(self._steps):
             # forward + backward + optimize
             joints, _ = learner(s_inputs)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             learner.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
                 q_joints, _ = learner(q_inputs)
-                q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
                 query_loss += self._step_weights[step] * criterion(
                     q_joints, q_labels3d
                 )
@@ -166,7 +173,6 @@ class MAML_CNNTrainer(MAMLTrainer):
         # Evaluate the adapted model on the query set
         if not msl:
             q_joints, _ = learner(q_inputs)
-            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
         return query_loss
 
@@ -188,13 +194,11 @@ class MAML_CNNTrainer(MAMLTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             joints, _ = learner(s_inputs)
-            joints -= joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             learner.adapt(support_loss, epoch=epoch)
 
         with torch.no_grad():
             q_joints, _ = learner(q_inputs)
-            q_joints -= q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1) # Root alignment
         return criterion(q_joints, q_labels3d)
 
 

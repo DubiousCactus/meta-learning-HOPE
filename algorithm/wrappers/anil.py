@@ -15,7 +15,7 @@ from data.dataset.base import BaseDatasetTaskLoader
 from algorithm.anil import ANILTrainer
 from algorithm.maml import MetaBatch
 
-from typing import List
+from typing import List, Optional
 
 import torchvision.transforms as transforms
 import torch.nn.functional as F
@@ -38,7 +38,9 @@ class ANIL_CNNTrainer(ANILTrainer):
         msl_num_epochs: int = 1000,
         beta: float = 1e-7,
         dim_w: int = 196,
+        reg_bottleneck_dim: int = 512,
         meta_reg: bool = True,
+        task_aug: Optional[str] = None,
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
@@ -55,8 +57,10 @@ class ANIL_CNNTrainer(ANILTrainer):
             multi_step_loss=multi_step_loss,
             msl_num_epochs=msl_num_epochs,
             beta=beta,
+            reg_bottleneck_dim=reg_bottleneck_dim,
             dim_w=dim_w,
             meta_reg=meta_reg,
+            task_aug=task_aug,
             hand_only=hand_only,
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
@@ -83,6 +87,33 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_inputs = q_inputs.float().cuda(device=self._gpu_number)
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
+        if self._task_aug not in ["permute", "discrete_noise", "shift", None]:
+            raise KeyError("Parameter task_aug must be one of [None, shift, permute, discrete_noise]")
+
+        if self._task_aug == "permute":
+            # Apply the same random permutation of target vector dims
+            dims = s_labels3d.shape[1] # Permute the joints, not the axes
+            perms = torch.randperm(dims)
+            s_labels3d = s_labels3d[:, perms, :]
+            q_labels3d = q_labels3d[:, perms, :]
+        elif self._task_aug == "discrete_noise":
+            # Add a noise value sampled form a discrete set to a randomly sampled axis
+            noise_values = np.linspace(0, 1, self._task_aug_noise_values+1)[:-1] # Ignore 1 but include 0
+            noise = np.random.choice(noise_values)
+            axis = np.random.randint(0, 3)
+            # My intuitiion is that it'd make more sense to ignore the root joint, which the
+            # network learns to always be 0. So adding noise to it might interfere in the
+            # learning and cause the gradients to be noisier.
+            s_labels3d[:, 1:, axis] += noise
+            q_labels3d[:, 1:, axis] += noise
+        elif self._task_aug == "shift":
+            # Shift the vertices/joints, such that the order is kept and the gradients are less
+            # noisy.
+            dims = s_labels3d.shape[1] # Permute the joints, not the axes
+            n_shifts = torch.randint(dims, (1,)).item()
+            s_labels3d = torch.roll(s_labels3d, n_shifts, 1)
+            q_labels3d = torch.roll(q_labels3d, n_shifts, 1)
+
         kl = 0
         if self._meta_reg:
             # Encoding of inputs through BBB for Meta-Regularisation
@@ -98,25 +129,16 @@ class ANIL_CNNTrainer(ANILTrainer):
         for step in range(self._steps):
             # forward + backward + optimize
             joints = head(s_inputs_features).view(-1, self._dim, 3)
-            joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
                 q_joints = head(q_inputs_features).view(-1, self._dim, 3)
-                q_joints -= (
-                    q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-                )  # Root alignment
                 query_loss += self._step_weights[step] * criterion(q_joints, q_labels3d)
 
         del s_inputs
         # Evaluate the adapted model on the query set
         if not msl:
             q_joints = head(q_inputs_features).view(-1, self._dim, 3)
-            q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
             query_loss = criterion(q_joints, q_labels3d)
 
         if self._meta_reg:
@@ -155,17 +177,11 @@ class ANIL_CNNTrainer(ANILTrainer):
         for _ in range(self._steps):
             # forward + backward + optimize
             joints = head(s_inputs_features).view(-1, self._dim, 3)
-            joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss, epoch=epoch)
 
         with torch.no_grad():
             q_joints = head(q_inputs_features).view(-1, self._dim, 3)
-            q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-            )  # Root alignment
 
         res = None
         if type(compute) is str:
@@ -232,19 +248,13 @@ class ANIL_CNNTrainer(ANILTrainer):
         # Adapt the model on the support set
         for _ in range(self._steps):
             # forward + backward + optimize
-            joints = head(s_inputs).view(-1, 29, 3)
-            joints -= (
-                joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
-            )  # Root alignment
+            joints = head(s_inputs).view(-1, self._dim, 3)
             support_loss = self.inner_criterion(joints, s_labels3d)
             head.adapt(support_loss)
 
         with torch.no_grad():
             q_inputs_f = features(q_inputs)
-            q_joints = head(q_inputs_f).view(-1, 29, 3)
-            q_joints -= (
-                q_joints[:, 0, :].unsqueeze(dim=1).expand(-1, 29, -1)
-            )  # Root alignment
+            q_joints = head(q_inputs_f).view(-1, self._dim, 3)
             mean, std = torch.tensor(
                 [0.485, 0.456, 0.406], dtype=torch.float32
             ), torch.tensor([0.221, 0.224, 0.225], dtype=torch.float32)
@@ -263,4 +273,4 @@ class ANIL_CNNTrainer(ANILTrainer):
             print(
                 f"MSE={self.inner_criterion(q_joints, q_labels3d)} - MAE={F.l1_loss(q_joints, q_labels3d)}"
             )
-            plot_3D_pred_gt(q_joints[0].cpu(), npimg, q_labels3d[0].cpu())
+            # plot_3D_pred_gt(q_joints[0].cpu(), npimg, q_labels3d[0].cpu())
