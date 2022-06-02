@@ -72,7 +72,7 @@ class MAMLTrainer(BaseTrainer):
         )
         self._order_annealing_from_epoch = 50
         self._task_aug = task_aug
-        self._task_aug_noise_values = 2 # TODO: Add to config for hyperparam search
+        self._task_aug_noise_values = 4 # TODO: Add to config for hyperparam search
 
     def _anneal_step_weights(self):
         self._step_weights[:-1] = torch.max(

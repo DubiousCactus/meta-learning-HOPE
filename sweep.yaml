@@ -12,19 +12,20 @@ parameters:
   experiment: 
     value: anil_cnn_dexycb
   experiment.iterations:
-    value: 100
+    value: 150
   experiment.val_every:
-    value: 5
+    value: 10
   experiment.hold_out:
     value: 10
-  #experiment.beta:
+  experiment.beta:
+    value: 1e-5
   #  values: [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7]
   experiment.meta_reg:
-    #values: [true, false]
-    value: false
+    values: [true, false]
+    #value: false
   experiment.task_aug:
     #value: null
-    values: [null, "shift", "discrete_noise", "permute"]
+    values: ["null", "discrete_noise"]
   experiment.tiny:
     value: true
 early_terminate:
