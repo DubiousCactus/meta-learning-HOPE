@@ -34,6 +34,7 @@ class RegularTrainer(BaseTrainer):
         hand_only: bool = True,
         use_cuda: int = False,
         gpu_numbers: List = [0],
+        regularise: bool = False,
     ):
         super().__init__(
             model,
@@ -44,6 +45,7 @@ class RegularTrainer(BaseTrainer):
             use_cuda=use_cuda,
             gpu_numbers=gpu_numbers,
         )
+        self._regularise = regularise
 
     def train(
         self,
