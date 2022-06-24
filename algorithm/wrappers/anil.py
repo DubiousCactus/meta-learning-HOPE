@@ -208,7 +208,7 @@ class ANIL_CNNTrainer(ANILTrainer):
                     # Batched vector norm for row-wise elements
                     res[metric] = (
                         torch.linalg.norm(
-                            q_joints[:, :self._dim, :] - q_labels3d[:, :self._dim, :], dim=2
+                            q_joints[:, :21, :] - q_labels3d[:, :21, :], dim=2
                         )
                         .detach()
                     )
@@ -217,7 +217,7 @@ class ANIL_CNNTrainer(ANILTrainer):
                     # Batched vector norm for row-wise elements
                     res[metric] = (
                         torch.linalg.norm(
-                            q_joints[:, self._dim:, :] - q_labels3d[:, self._dim:, :], dim=2
+                            q_joints[:, 21:, :] - q_labels3d[:, 21:, :], dim=2
                         )
                         .detach()
                     )
