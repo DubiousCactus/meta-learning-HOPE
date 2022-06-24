@@ -364,12 +364,12 @@ class ANILTrainer(MAMLTrainer):
             # avg_auc_pck += auc
             mpjpe = float(torch.Tensor(MPJPEs).mean().item())
             avg_mpjpe += mpjpe
-            # if not self._hand_only:
+            if not self._hand_only:
                 # Compute the PCK curves (hand joints)
                 # auc, pcp = compute_curve(PCPEs, thresholds, 8)
                 # avg_auc_pcp += auc
-                # mpcpe = float(torch.Tensor(MPCPEs).mean().item())
-                # avg_mpcpe += mpcpe
+                mpcpe = float(torch.Tensor(MPCPEs).mean().item())
+                avg_mpcpe += mpcpe
 
             # if mpjpe < min_mpjpe and plot:
             #     plot_curve(pck, thresholds, "anil_pck.png")
