@@ -61,7 +61,7 @@ class RegularTrainer(BaseTrainer):
         wandb.watch(self.model)
         if optimizer == "adam":
             opt = torch.optim.Adam(self.model.parameters(), lr=fast_lr)
-        if optimizer == "adamw":
+        elif optimizer == "adamw":
             opt = torch.optim.AdamW(self.model.parameters(), lr=fast_lr)
         elif optimizer == "sgd":
             opt = torch.optim.SGD(self.model.parameters(), lr=fast_lr)

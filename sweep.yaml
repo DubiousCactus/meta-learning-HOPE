@@ -4,7 +4,7 @@ command:
   - ${interpreter}
   - ${program}
   - ${args_no_hyphens}
-method: bayes
+method: grid
 metric:
   name: meta_val_mse_loss
   goal: minimize
@@ -12,22 +12,24 @@ parameters:
   experiment: 
     value: anil_cnn_dexycb
   experiment.iterations:
-    value: 150
+    value: 100
   experiment.val_every:
-    value: 10
+    value: 5
   experiment.hold_out:
-    value: 10
+    value: 12
   experiment.beta:
-    value: 1e-5
-  #  values: [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7]
+    #value: 1e-5
+    values: [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
   experiment.meta_reg:
-    values: [true, false]
-    #value: false
+    #values: [true, false]
+    value: true
+  experiment.optimizer:
+    value: "adam"
   experiment.task_aug:
-    #value: null
-    values: ["null", "discrete_noise"]
+    value: "null"
+    #values: ["null", "discrete_noise"]
   experiment.tiny:
     value: true
 early_terminate:
   type: hyperband
-  min_iter: 25
+  min_iter: 15

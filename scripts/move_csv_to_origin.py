@@ -32,6 +32,7 @@ with open(file_name, "r") as file:
             indices.append(int(line[0]))
 with open(file_name.split('.')[0] + "_origin.csv", "w") as file:
     csv_obj = csv.writer(file, dialect=csv.unix_dialect, quoting=csv.QUOTE_NONE)
+    print(val)
     val = np.array(val, dtype=np.float32)
     val -= val[0]
     print(f"[*] Variance: {np.var(val):.4f}")

@@ -175,6 +175,7 @@ def plot_3D_hands(pose1, title1, pose2, title2):
 
 
 def check_overlap(cfg: DictConfig):
+    # TODO: Remove this. The bug has been fixed and models retrained.
     ##################### Checking overlap due to the bug in the objects pruning #############################
     from functools import reduce
 
