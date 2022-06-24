@@ -327,7 +327,7 @@ class ANILTrainer(MAMLTrainer):
             self._restore(maml, opt, None, resume_training=False)
 
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
-        thresholds = torch.linspace(10, 100, (100 - 10) // 5 + 1)
+        # thresholds = torch.linspace(10, 100, (100 - 10) // 5 + 1)
         min_mpjpe = float("+inf")
         compute = ["pjpe"]
         if not self._hand_only:
@@ -358,35 +358,35 @@ class ANILTrainer(MAMLTrainer):
                     PCPEs.append(res["pcpe"])
                     MPCPEs.append(res["pcpe"].mean())
 
-            print("-> Computing PCK curves...")
+            # print("-> Computing PCK curves...")
             # Compute the PCK curves (hand joints)
-            auc, pck = compute_curve(PJPEs, thresholds, 21)
-            avg_auc_pck += auc
+            # auc, pck = compute_curve(PJPEs, thresholds, 21)
+            # avg_auc_pck += auc
             mpjpe = float(torch.Tensor(MPJPEs).mean().item())
             avg_mpjpe += mpjpe
-            if not self._hand_only:
+            # if not self._hand_only:
                 # Compute the PCK curves (hand joints)
-                auc, pcp = compute_curve(PCPEs, thresholds, 8)
-                avg_auc_pcp += auc
-                mpcpe = float(torch.Tensor(MPCPEs).mean().item())
-                avg_mpcpe += mpcpe
+                # auc, pcp = compute_curve(PCPEs, thresholds, 8)
+                # avg_auc_pcp += auc
+                # mpcpe = float(torch.Tensor(MPCPEs).mean().item())
+                # avg_mpcpe += mpcpe
 
-            if mpjpe < min_mpjpe and plot:
-                plot_curve(pck, thresholds, "anil_pck.png")
-                min_mpjpe = mpjpe
-                if not self._hand_only:
-                    plot_curve(pcp, thresholds, "anil_pcp.png")
+            # if mpjpe < min_mpjpe and plot:
+            #     plot_curve(pck, thresholds, "anil_pck.png")
+            #     min_mpjpe = mpjpe
+            #     if not self._hand_only:
+            #         plot_curve(pcp, thresholds, "anil_pcp.png")
             print(f"=======================================")
         avg_mpjpe /= float(runs)
-        avg_auc_pck /= float(runs)
+        # avg_auc_pck /= float(runs)
         print(f"\n\n==========[Test Error (avg of {runs})]==========")
         print(f"Mean Per Joint Pose Error: {avg_mpjpe:.6f}")
-        print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
+        # print(f"Mean Area Under Curve for PCK: {avg_auc_pck:.6f}")
         if not self._hand_only:
             avg_mpcpe /= float(runs)
-            avg_auc_pcp /= float(runs)
+            # avg_auc_pcp /= float(runs)
             print(f"Mean Per Corner Pose Error: {avg_mpcpe:.6f}")
-            print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")
+            # print(f"Mean Area Under Curve for PCP: {avg_auc_pcp:.6f}")
 
     def analyse_inner_gradients(
         self,
