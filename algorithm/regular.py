@@ -151,7 +151,7 @@ class RegularTrainer(BaseTrainer):
         self.model.eval()
         MPJPEs, MPCPEs = [], []
         PJPEs, PCPEs = [], []
-        thresholds = torch.linspace(10, 100, (100-10)//5 + 1)
+        # thresholds = torch.linspace(10, 100, (100-10)//5 + 1)
         compute = ["pjpe"]
         if not self._hand_only:
             compute.append("pcpe")
@@ -168,20 +168,20 @@ class RegularTrainer(BaseTrainer):
             if visualize:
                 self._testing_step_vis(batch)
 
-        print("-> Computing PCK curves...")
+        # print("-> Computing PCK curves...")
         # Compute the PCK curves (hand joints)
-        auc_pck, pck = compute_curve(PJPEs, thresholds, 21)
-        if plot:
-            plot_curve(pck, thresholds, "baseline_pck.png")
+        # auc_pck, pck = compute_curve(PJPEs, thresholds, 21)
+        # if plot:
+            # plot_curve(pck, thresholds, "baseline_pck.png")
         mpjpe = float(torch.Tensor(MPJPEs).mean().item())
         print(f"\n\n==========[Test Error]==========")
         print(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
-        print(f"Area Under Curve for PCK: {auc_pck:.6f}")
+        # print(f"Area Under Curve for PCK: {auc_pck:.6f}")
         if not self._hand_only:
             mpcpe = float(torch.Tensor(MPCPEs).mean().item())
             # Compute the PCP curves (object corners)
-            auc_pcp, pcp = compute_curve(PCPEs, thresholds, 8)
-            if plot:
-                plot_curve(pcp, thresholds, "baseline_pcp.png")
+            # auc_pcp, pcp = compute_curve(PCPEs, thresholds, 8)
+            # if plot:
+                # plot_curve(pcp, thresholds, "baseline_pcp.png")
             print(f"Mean Per Corner Pose Error: {mpcpe:.6f}")
-            print(f"Area Under Curve for PCP: {auc_pcp:.6f}")
+            # print(f"Area Under Curve for PCP: {auc_pcp:.6f}")

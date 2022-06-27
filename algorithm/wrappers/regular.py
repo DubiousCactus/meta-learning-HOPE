@@ -100,7 +100,7 @@ class Regular_CNNTrainer(RegularTrainer):
                         # Batched vector norm for row-wise elements
                         res[metric] = (
                             torch.linalg.norm(
-                                joints[:, :self._dim, :] - labels3d[:, :self._dim, :], dim=2
+                                joints[:, :21, :] - labels3d[:, :21, :], dim=2
                             )
                             .detach()
                         )
@@ -109,7 +109,7 @@ class Regular_CNNTrainer(RegularTrainer):
                         # Batched vector norm for row-wise elements
                         res[metric] = (
                             torch.linalg.norm(
-                                joints[:, self._dim:, :] - labels3d[:, self._dim:, :], dim=2
+                                joints[:, 21:, :] - labels3d[:, 21:, :], dim=2
                             )
                             .detach()
                         )
