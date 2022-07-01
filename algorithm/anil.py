@@ -416,11 +416,9 @@ class ANILTrainer(MAMLTrainer):
         # Only keep the test set that this model was trained for (so we don't have train/test
         # overlap)
         keys = list(samples.copy().keys())
-        for category_id in keys:
+        for category_id, sequence_id in keys:
             if category_id not in data_loader.split_categories["test"]:
-                # I'm aware of this stupidity... See data/dataset/dex_ycb.py, somewhere in the
-                # make_dataset() function for explanations.
-                del samples[keys[category_id]]
+                del samples[(category_id, sequence_id)]
 
         # Reproducibility:
         np.random.seed(1995)
@@ -474,21 +472,22 @@ class ANILTrainer(MAMLTrainer):
                     s_inputs = s_inputs.float().cuda(device=self._gpu_number)
                     s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
 
-                with torch.no_grad():
-                    s_inputs = self.model.features(s_inputs)
                 head = maml.clone()
+                s_inputs_features = self.model.features(s_inputs)
+                q_inputs_features = self.model.features(q_inputs)
+                if self._meta_reg:
+                    # Encoding of inputs through BBB for Meta-Regularisation
+                    s_inputs_features, _ = self.encoder(s_inputs_features)
+                    q_inputs_features, kl = self.encoder(q_inputs_features)
+
                 # Adapt the model on the support set
                 for step in range(self._steps):
                     # forward + backward + optimize
-                    joints = head(s_inputs).view(-1, self._dim, 3)
-                    joints -= (
-                        joints[:, 0, :].unsqueeze(dim=1).expand(-1, self._dim, -1)
-                    )  # Root alignment
+                    joints = head(s_inputs_features).view(-1, self._dim, 3)
                     support_loss = self.inner_criterion(joints, s_labels3d)
-                    grad_norm = head.adapt(
-                        support_loss, epoch=None, return_grad_norm=True
-                    )
+                    grad_norm = head.adapt(support_loss, epoch=None, return_grad_norm=True)
                     step_norms[step] += float(grad_norm.detach().cpu().numpy())
+
             for step, norm in step_norms.items():
                 step_norms[step] = norm / n_tasks
             obj_norms[obj_id] = step_norms
