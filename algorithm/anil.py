@@ -412,7 +412,7 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        samples = data_loader.make_raw_dataset()
+        samples = data_loader.make_raw_dataset(tiny=True)
         # Only keep the test set that this model was trained for (so we don't have train/test
         # overlap)
         keys = list(samples.copy().keys())
@@ -433,6 +433,7 @@ class ANILTrainer(MAMLTrainer):
         g = torch.Generator()
         g.manual_seed(1995)
 
+        print(list(samples.keys()))
         random_obj = list(np.random.choice(list(samples.keys()), size=5, replace=False))
         print(
             f"[*] Analysing gradients for {', '.join([data_loader.obj_labels[i] for i in random_obj])}"
