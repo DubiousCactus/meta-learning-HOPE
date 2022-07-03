@@ -299,7 +299,7 @@ def compute_dist_matrix(samples, dataloader):
         if obj_id not in obj_tasks:
             obj_tasks[obj_id] = []
         obj_tasks[obj_id] += task
-    for obj_id, task in samples.items():
+    for obj_id, task in obj_tasks.items():
         print(f"[*] Computing the mean shape of {dataloader.obj_labels[obj_id]}...")
         # Still using the custom dataset because of the preprocessing (root alignment)
         # Set object_as_task=False because we pass it a list and not a dict
@@ -307,7 +307,6 @@ def compute_dist_matrix(samples, dataloader):
         poses = [pose3d.cpu().numpy() for _, _, pose3d in task_dataset]
         task_mean_poses[obj_id] = ProcrustesAnalysis.generalised_procrustes_analysis(poses)
     print("[*] Computing distances...")
-    print(list(task_mean_poses.keys()))
     lines = []
     print(f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}")
     lines.append(f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}\n")
