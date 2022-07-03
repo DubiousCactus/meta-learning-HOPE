@@ -321,6 +321,7 @@ def compute_dist_matrix(samples, dataloader):
         lines.append(line+"\n")
     with open("distance_matrix.txt", "w") as f:
         f.writelines(lines)
+        print(f"[*] Saved distance matrix in {os.path.join(os.getcwd(), 'distance_matrix.txt')}")
 
 
 @hydra.main(config_path="conf", config_name="config")
