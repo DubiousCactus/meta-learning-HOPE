@@ -118,21 +118,21 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         self._interaction_threshold = interaction_threshold
         self._min_fingers_interaction = min_fingers_interaction
 
-        self.split_categories = self._make_split_categories(
-            hold_out, seed_factor=seed_factor
-        )
-        print(
-            f"[*] Training with {', '.join([self.obj_labels[i] for i in self.split_categories['train']])}"
-        )
-        print(
-            f"[*] Validating with {', '.join([self.obj_labels[i] for i in self.split_categories['val']])}"
-        )
-        print(
-            f"[*] Testing with {', '.join([self.obj_labels[i] for i in self.split_categories['test']])}"
-        )
         # Don't use the base class autoloading, this is a custom loading. However we don't want
         # that either in the analysis script.
         if auto_load:
+            self.split_categories = self._make_split_categories(
+                hold_out, seed_factor=seed_factor
+            )
+            print(
+                f"[*] Training with {', '.join([self.obj_labels[i] for i in self.split_categories['train']])}"
+            )
+            print(
+                f"[*] Validating with {', '.join([self.obj_labels[i] for i in self.split_categories['val']])}"
+            )
+            print(
+                f"[*] Testing with {', '.join([self.obj_labels[i] for i in self.split_categories['test']])}"
+            )
             samples = self.make_raw_dataset(tiny=tiny)
             if test:
                 if test_objects is not None:
