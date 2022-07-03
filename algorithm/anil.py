@@ -493,8 +493,8 @@ class ANILTrainer(MAMLTrainer):
 
             for step, norm in step_norms.items():
                 step_norms[step] = norm / n_tasks
-            obj_norms[obj_id] = step_norms
-        for obj_id, step_norms in obj_norms.items():
+            obj_norms[obj_id] = (step_norms, batches_per_task)
+        for obj_id, (step_norms, batches_per_task) in obj_norms.items():
             print(f"Object {data_loader.obj_labels[obj_id][4:]} ({batches_per_task} batches):")
             for step, norm in step_norms.items():
                 print(f"\tStep {step}: {norm:.2f}")
