@@ -412,7 +412,7 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        samples = data_loader.make_raw_dataset(tiny=True)
+        samples = data_loader.make_raw_dataset(tiny=True) # TODO: No tiny
         # Only keep the test set that this model was trained for (so we don't have train/test
         # overlap)
         keys = list(samples.copy().keys())
@@ -433,19 +433,23 @@ class ANILTrainer(MAMLTrainer):
         g = torch.Generator()
         g.manual_seed(1995)
 
-        print(list(samples.keys()))
-        random_obj = list(np.random.choice(list(samples.keys()), size=5, replace=False))
+        rand_obj_sequence, obj_sampled = [], []
+        keys = list(samples.keys())
+        while len(rand_obj_sequence) < 5:
+            obj_id, seq_id = keys[np.random.randint(0, len(keys))]
+            if obj_id not in obj_sampled:
+                rand_obj_sequence.append((obj_id, seq_id))
         print(
-            f"[*] Analysing gradients for {', '.join([data_loader.obj_labels[i] for i in random_obj])}"
+            f"[*] Analysing gradients for {', '.join([data_loader.obj_labels[i] for i, _ in rand_obj_sequence])}"
         )
         obj_norms = {}
-        for obj_id in random_obj:
+        for obj_id, seq_id in rand_obj_sequence:
             if self._exit:
                 return
             # Still using the custom dataset because of the preprocessing (root alignment)
             # Set object_as_task=False because we pass it a list and not a dict
             task = CustomDataset(
-                samples[obj_id],
+                samples[(obj_id, seq_id)],
                 img_transform=BaseDatasetTaskLoader._img_transform,
                 object_as_task=False,
                 hand_only=self._hand_only,
@@ -460,12 +464,11 @@ class ANILTrainer(MAMLTrainer):
                 generator=g,
             )
             step_norms = {i: 0.0 for i in range(self._steps)}
-            for i, task in tqdm(enumerate(dataset), dynamic_ncols=True, total=n_tasks):
-                if i == n_tasks:
+            batches_per_task = 0
+            for i, task in tqdm(enumerate(dataset), dynamic_ncols=True):
+                if len(task[0]) != (self._n_queries + self._k_shots):
                     break
-                assert len(task[0]) == (
-                    self._n_queries + self._k_shots
-                ), "Batch not full. Try reducing the number of tasks to analyse!"
+                batches_per_task += i
                 meta_batch = self._split_batch(task)
 
                 s_inputs, _, s_labels3d = meta_batch.support
@@ -475,11 +478,9 @@ class ANILTrainer(MAMLTrainer):
 
                 head = maml.clone()
                 s_inputs_features = self.model.features(s_inputs)
-                q_inputs_features = self.model.features(q_inputs)
                 if self._meta_reg:
                     # Encoding of inputs through BBB for Meta-Regularisation
                     s_inputs_features, _ = self.encoder(s_inputs_features)
-                    q_inputs_features, kl = self.encoder(q_inputs_features)
 
                 # Adapt the model on the support set
                 for step in range(self._steps):
@@ -493,7 +494,7 @@ class ANILTrainer(MAMLTrainer):
                 step_norms[step] = norm / n_tasks
             obj_norms[obj_id] = step_norms
         for obj_id, step_norms in obj_norms.items():
-            print(f"Object {data_loader.obj_labels[obj_id][4:]}:")
+            print(f"Object {data_loader.obj_labels[obj_id][4:]} ({batches_per_task} batches):")
             for step, norm in step_norms.items():
                 print(f"\tStep {step}: {norm:.2f}")
             print()
