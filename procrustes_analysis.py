@@ -296,11 +296,11 @@ def compute_dist_matrix(samples, dataloader):
     task_mean_poses = {}
     obj_tasks = {}
     for (obj_id, sequence_id), task in samples.items():
-        print(f"[*] Computing the mean shape of {dataloader.obj_labels[obj_id]}...")
         if obj_id not in obj_tasks:
             obj_tasks[obj_id] = []
         obj_tasks[obj_id] += task
     for obj_id, task in samples.items():
+        print(f"[*] Computing the mean shape of {dataloader.obj_labels[obj_id]}...")
         # Still using the custom dataset because of the preprocessing (root alignment)
         # Set object_as_task=False because we pass it a list and not a dict
         task_dataset = CustomDataset(task, object_as_task=False)

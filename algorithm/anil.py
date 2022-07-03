@@ -412,7 +412,7 @@ class ANILTrainer(MAMLTrainer):
         if self._model_path:
             self._restore(maml, opt, None, resume_training=False)
 
-        samples = data_loader.make_raw_dataset(tiny=True) # TODO: No tiny
+        samples = data_loader.make_raw_dataset()
         # Only keep the test set that this model was trained for (so we don't have train/test
         # overlap)
         keys = list(samples.copy().keys())
