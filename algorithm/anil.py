@@ -439,6 +439,7 @@ class ANILTrainer(MAMLTrainer):
             obj_id, seq_id = keys[np.random.randint(0, len(keys))]
             if obj_id not in obj_sampled:
                 rand_obj_sequence.append((obj_id, seq_id))
+                obj_sampled.append(obj_id)
         print(
             f"[*] Analysing gradients for {', '.join([data_loader.obj_labels[i] for i, _ in rand_obj_sequence])}"
         )
