@@ -1,5 +1,0 @@
-defaults:
-  - base_fomaml_hopenet
-dataset: fphad
-dataset_path: ../FPHAD
-name: fomaml_hopenet_fphad

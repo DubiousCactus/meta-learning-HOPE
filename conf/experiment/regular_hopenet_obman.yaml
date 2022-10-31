@@ -1,5 +1,0 @@
-defaults:
-  - base_regular_hopenet
-dataset: obman
-dataset_path: ../Obman
-name: regular_hopenet_obman

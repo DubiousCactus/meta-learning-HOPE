@@ -10,7 +10,6 @@
 Custom ResNet and MobileNet
 """
 
-from HOPE.models.resnet import resnet10, model_urls
 from typing import Tuple, Union
 from torch import Tensor
 
@@ -86,11 +85,7 @@ class ResNet(InitWrapper, torch.nn.Module):
         self.randomly_initialize_weights = False
         self._dim = 21 if hand_only else 29
         hidden = 128
-        if model == "10":
-            network = resnet10(num_classes=21 * 3)
-            if pretrained:
-                self._load_resnet10_model(network)
-        elif model == "18":
+        if model == "18":
             network = models.resnet18(pretrained=pretrained)
             hidden = 256
         elif model == "34":
@@ -111,13 +106,6 @@ class ResNet(InitWrapper, torch.nn.Module):
             torch.nn.Linear(hidden, self._dim * 3),
         )
         self.fc.apply(initialize_weights)
-
-    def _load_resnet10_model(self, model: torch.nn.Module):
-        res_18_state_dict = torch.hub.load_state_dict_from_url(model_urls["resnet18"])
-        # Exclude the fully connected layer
-        del res_18_state_dict["fc.weight"]
-        del res_18_state_dict["fc.bias"]
-        model.load_state_dict(res_18_state_dict, strict=False)
 
     def _forward_impl(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
         """

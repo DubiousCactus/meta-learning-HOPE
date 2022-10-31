@@ -1,6 +1,0 @@
-defaults:
-    - base_maml
-model_def: GraphUNet
-dataset: fphad
-dataset_path: ../FPHAD
-name: maml_graphunet_fphad

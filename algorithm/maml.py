@@ -14,7 +14,6 @@ from data.dataset.base import BaseDatasetTaskLoader
 from util.utils import compute_curve, plot_curve
 from algorithm.base import BaseTrainer
 from collections import namedtuple
-from vendor.bbb import BBBLinear
 from typing import List, Optional, Union
 from tqdm import tqdm
 

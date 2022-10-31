@@ -267,4 +267,4 @@ class ANIL_CNNTrainer(ANILTrainer):
             print(
                 f"MSE={self.inner_criterion(q_joints, q_labels3d)} - MAE={F.l1_loss(q_joints, q_labels3d)}"
             )
-            # plot_3D_pred_gt(q_joints[0].cpu(), npimg, q_labels3d[0].cpu())
+            plot_3D_pred_gt(q_joints[0].cpu(), npimg, q_labels3d[0].cpu())

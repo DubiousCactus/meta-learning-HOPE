@@ -1,9 +1,0 @@
-defaults:
-  - base_regular
-fast_lr: 0.001
-val_every: 1
-model_def: HOPENet
-cnn_def: ResNet10
-resnet_model_path: null
-graphnet_model_path: null
-graphunet_model_path: null

@@ -1,5 +1,0 @@
-defaults:
-  - base_regular_hopenet
-dataset: fphad
-dataset_path: ../FPHAD
-name: regular_hopenet_fphad

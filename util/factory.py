@@ -15,19 +15,11 @@ from data.dataset.base import BaseDatasetTaskLoader
 from data.dataset.obman import ObManTaskLoader
 from data.dataset.fphad import FPHADTaskLoader
 from data.dataset.ho3d import HO3DTaskLoader
-from hydra.utils import to_absolute_path
 from algorithm.wrappers.anil import ANIL_CNNTrainer
 from algorithm.wrappers.maml import (
-    MAML_GraphUNetTrainer,
     MAML_CNNTrainer,
-    MAML_HOPETrainer,
 )
 from algorithm.wrappers.regular import (
-    Regular_GraphNetwResNetTrainer,
-    Regular_GraphUNetTrainer,
-    Regular_GraphNetTrainer,
-    Regular_HOPENetTrainer,
-    Regular_HOPENetTester,
     Regular_CNNTrainer,
 )
 from algorithm.base import BaseTrainer
@@ -125,22 +117,9 @@ class AlgorithmFactory:
         trainer = None
         if algorithm in ["maml", "fomaml"]:
             args: List = [k_shots, n_queries, inner_steps]
-            if model_def == "hopenet":
-                trainer = MAML_HOPETrainer
-                resnet_path = config.experiment.resnet_model_path
-                graphnet_path = config.experiment.graphnet_model_path
-                graphunet_path = config.experiment.graphunet_model_path
-                args += [
-                    cnn_def,
-                    to_absolute_path(resnet_path) if resnet_path else None,
-                    to_absolute_path(graphnet_path) if graphnet_path else None,
-                    to_absolute_path(graphunet_path) if graphunet_path else None,
-                ]
-            elif "resnet" in model_def or "mobilenet" in model_def:
+            if "resnet" in model_def or "mobilenet" in model_def:
                 trainer = MAML_CNNTrainer
                 args += [model_def]
-            elif model_def == "graphunet":
-                trainer = MAML_GraphUNetTrainer
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
             kargs = {
@@ -166,30 +145,9 @@ class AlgorithmFactory:
                 "reg_bottleneck_dim": config.experiment.reg_bottleneck_dim,
             }
         elif algorithm == "regular":
-            if model_def == "hopenet":
-                trainer = Regular_HOPENetTester if test_mode else Regular_HOPENetTrainer
-                resnet_path = config.experiment.resnet_model_path
-                graphnet_path = config.experiment.graphnet_model_path
-                graphunet_path = config.experiment.graphunet_model_path
-                args = [
-                    cnn_def,
-                    to_absolute_path(resnet_path) if resnet_path else None,
-                    to_absolute_path(graphnet_path) if graphnet_path else None,
-                    to_absolute_path(graphunet_path) if graphunet_path else None,
-                ]
-            elif "resnet" in model_def or "mobilenet" in model_def:
+            if "resnet" in model_def or "mobilenet" in model_def:
                 trainer = Regular_CNNTrainer
                 args = [model_def]
-            elif model_def == "graphunet":
-                trainer = Regular_GraphUNetTrainer
-            elif model_def == "graphnet":
-                resnet_path = config.experiment.resnet_model_path
-                trainer = (
-                    Regular_GraphNetTrainer
-                    if resnet_path
-                    else Regular_GraphNetwResNetTrainer
-                )
-                args = [cnn_def, to_absolute_path(resnet_path) if resnet_path else None]
             else:
                 raise Exception(f"No training algorithm found for model {model_def}")
         else:

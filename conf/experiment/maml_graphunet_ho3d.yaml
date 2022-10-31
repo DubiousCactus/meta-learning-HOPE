@@ -1,7 +1,0 @@
-defaults:
-    - base_maml
-    - base_ho3d
-model_def: GraphUNet
-dataset: ho3d
-dataset_path: ../HO3D_v3
-name: maml_graphunet_ho3d

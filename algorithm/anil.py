@@ -15,7 +15,7 @@ from data.dataset.base import BaseDatasetTaskLoader
 from data.custom import CustomDataset
 from model.cnn import initialize_weights
 
-from util.utils import compute_curve, plot_curve
+# from util.utils import compute_curve, plot_curve
 from algorithm.maml import MAMLTrainer
 
 from torch.utils.data import DataLoader

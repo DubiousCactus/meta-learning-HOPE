@@ -1,5 +1,5 @@
 program: train.py
-command: 
+command:
   - ${env}
   - ${interpreter}
   - ${program}
@@ -9,7 +9,7 @@ metric:
   name: meta_val_mse_loss
   goal: minimize
 parameters:
-  experiment: 
+  experiment:
     value: anil_cnn_dexycb
   experiment.iterations:
     value: 100

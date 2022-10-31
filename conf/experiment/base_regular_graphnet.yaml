@@ -1,7 +1,0 @@
-defaults:
-    - base_regular
-iterations: 10000
-model_def: GraphNet
-augment: False
-cnn_def: ResNet10
-resnet_model_path: null

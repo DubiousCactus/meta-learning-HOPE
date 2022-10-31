@@ -1,6 +1,0 @@
-defaults:
-    - base_regular_graphunet
-dataset: fphad
-dataset_path: ../FPHAD
-name: regular_graphunet_fphad
-augment: True
