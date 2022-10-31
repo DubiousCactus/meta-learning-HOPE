@@ -11,7 +11,6 @@ Base training class.051_large_clamp
 """
 
 from data.dataset.base import BaseDatasetTaskLoader
-from HOPE.utils.model import select_model
 from typing import List, Union
 from abc import ABC
 
@@ -40,7 +39,7 @@ def initialize_weights(m):
 class BaseTrainer(ABC):
     def __init__(
         self,
-        model: Union[str, torch.nn.Module],
+        model: torch.nn.Module,
         dataset: BaseDatasetTaskLoader,
         checkpoint_path: str,
         model_path: str = None,
@@ -53,12 +52,7 @@ class BaseTrainer(ABC):
         self._use_cuda = use_cuda
         self._gpu_number = gpu_numbers[0]
         self._model_path = model_path
-        if type(model) is str:
-            # TODO: Get rid of this, it won't work because of the hand_only param and it's not
-            # needed anymore. There's so much old cold from older experiments...
-            self.model: torch.nn.Module = select_model(model)
-        else:
-            self.model: torch.nn.Module = model
+        self.model: torch.nn.Module = model
         try:
             rinit = self.model.randomly_initialize_weights
         except Exception as e:
