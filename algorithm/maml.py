@@ -71,7 +71,7 @@ class MAMLTrainer(BaseTrainer):
         )
         self._order_annealing_from_epoch = 50
         self._task_aug = task_aug
-        self._task_aug_noise_values = 4 # TODO: Add to config for hyperparam search
+        self._task_aug_noise_values = 4  # TODO: Add to config for hyperparam search
 
     def _anneal_step_weights(self):
         self._step_weights[:-1] = torch.max(
@@ -265,7 +265,7 @@ class MAMLTrainer(BaseTrainer):
             self._restore(maml, opt, None, resume_training=False)
 
         avg_mpjpe, avg_mpcpe, avg_auc_pck, avg_auc_pcp = 0.0, 0.0, 0.0, 0.0
-        thresholds = torch.linspace(10, 100, (100-10)//5+1)
+        thresholds = torch.linspace(10, 100, (100 - 10) // 5 + 1)
         min_mpjpe = float("+inf")
         compute = ["pjpe"]
         if not self._hand_only:
@@ -287,9 +287,7 @@ class MAMLTrainer(BaseTrainer):
                 )
                 PJPEs.append(res["pjpe"])
                 if visualize:
-                    self._testing_step_vis(
-                        meta_batch, maml.clone()
-                    )
+                    self._testing_step_vis(meta_batch, maml.clone())
                 MPJPEs.append(res["pjpe"].mean())
                 if not self._hand_only:
                     PCPEs.append(res["pcpe"])

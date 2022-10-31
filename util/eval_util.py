@@ -4,8 +4,8 @@ import numpy as np
 
 
 class EvalUtil:
-    """ Util class for evaluation networks.
-    """
+    """Util class for evaluation networks."""
+
     def __init__(self, num_kp=21):
         # init empty data storage
         self.data = list()
@@ -14,11 +14,11 @@ class EvalUtil:
             self.data.append(list())
 
     def feed(self, keypoint_gt, keypoint_vis, keypoint_pred, skip_check=False):
-        """ Used to feed data to the class. Stores the euclidean distance between gt and pred, when it is visible. """
+        """Used to feed data to the class. Stores the euclidean distance between gt and pred, when it is visible."""
         if not skip_check:
             keypoint_gt = np.squeeze(keypoint_gt)
             keypoint_pred = np.squeeze(keypoint_pred)
-            keypoint_vis = np.squeeze(keypoint_vis).astype('bool')
+            keypoint_vis = np.squeeze(keypoint_vis).astype("bool")
 
             assert len(keypoint_gt.shape) == 2
             assert len(keypoint_pred.shape) == 2
@@ -34,16 +34,16 @@ class EvalUtil:
                 self.data[i].append(euclidean_dist[i])
 
     def _get_pck(self, kp_id, threshold):
-        """ Returns pck for one keypoint for the given threshold. """
+        """Returns pck for one keypoint for the given threshold."""
         if len(self.data[kp_id]) == 0:
             return None
 
         data = np.array(self.data[kp_id])
-        pck = np.mean((data <= threshold).astype('float'))
+        pck = np.mean((data <= threshold).astype("float"))
         return pck
 
     def _get_epe(self, kp_id):
-        """ Returns end point error for one keypoint. """
+        """Returns end point error for one keypoint."""
         if len(self.data[kp_id]) == 0:
             return None, None
 
@@ -53,7 +53,7 @@ class EvalUtil:
         return epe_mean, epe_median
 
     def get_measures(self, val_min, val_max, steps):
-        """ Outputs the average mean and median error as well as the pck score. """
+        """Outputs the average mean and median error as well as the pck score."""
         thresholds = np.linspace(val_min, val_max, steps)
         thresholds = np.array(thresholds)
         norm_factor = np.trapz(np.ones_like(thresholds), thresholds)
@@ -94,4 +94,3 @@ class EvalUtil:
         pck_curve_all = np.mean(np.array(pck_curve_all), 0)  # mean only over keypoints
 
         return epe_mean_all, epe_median_all, auc_all, pck_curve_all, thresholds
-

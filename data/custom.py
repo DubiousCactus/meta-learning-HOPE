@@ -55,7 +55,7 @@ class CustomDataset(TorchDataset):
             if self._to_ram_disk_fn is not None:
                 img_path = self._to_ram_disk_fn(img_path)
             images.append(img_path)
-            p_3d = p_3d[:self._dim] - p_3d[0, :]  # Root aligned
+            p_3d = p_3d[: self._dim] - p_3d[0, :]  # Root aligned
             if self._pin_memory:
                 p_2d.pin_memory()
                 p_3d.pin_memory()

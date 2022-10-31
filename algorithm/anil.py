@@ -116,7 +116,9 @@ class ANILTrainer(MAMLTrainer):
         self._meta_reg = meta_reg
 
     def _restore(self, maml, opt, scheduler, resume_training: bool = True) -> float:
-        val_loss = super()._restore(maml, opt, scheduler, resume_training=resume_training)
+        val_loss = super()._restore(
+            maml, opt, scheduler, resume_training=resume_training
+        )
         checkpoint = torch.load(self._model_path)
         self.head.load_state_dict(checkpoint["head_state_dict"])
         if self._meta_reg:
@@ -192,7 +194,9 @@ class ANILTrainer(MAMLTrainer):
                             "val_meta_loss": meta_val_mse_loss,
                         }
                         if self._meta_reg:
-                            state_dicts["encoder_state_dict"] = self.encoder.state_dict()
+                            state_dicts[
+                                "encoder_state_dict"
+                            ] = self.encoder.state_dict()
                         self._checkpoint(
                             epoch,
                             epoch_meta_train_loss,
@@ -488,14 +492,18 @@ class ANILTrainer(MAMLTrainer):
                     # forward + backward + optimize
                     joints = head(s_inputs_features).view(-1, self._dim, 3)
                     support_loss = self.inner_criterion(joints, s_labels3d)
-                    grad_norm = head.adapt(support_loss, epoch=None, return_grad_norm=True)
+                    grad_norm = head.adapt(
+                        support_loss, epoch=None, return_grad_norm=True
+                    )
                     step_norms[step] += float(grad_norm.detach().cpu().numpy())
 
             for step, norm in step_norms.items():
                 step_norms[step] = norm / n_tasks
             obj_norms[obj_id] = (step_norms, batches_per_task)
         for obj_id, (step_norms, batches_per_task) in obj_norms.items():
-            print(f"Object {data_loader.obj_labels[obj_id][4:]} ({batches_per_task} batches):")
+            print(
+                f"Object {data_loader.obj_labels[obj_id][4:]} ({batches_per_task} batches):"
+            )
             for step, norm in step_norms.items():
                 print(f"\tStep {step}: {norm:.2f}")
             print()

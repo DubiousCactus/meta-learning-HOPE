@@ -28,6 +28,7 @@ class Lambda(torch.nn.Module):
     def forward(self, x):
         return self.fn(x)
 
+
 def initialize_weights(m):
     if isinstance(m, torch.nn.Linear):
         torch.nn.init.kaiming_uniform_(m.weight.data, nonlinearity="relu")
@@ -50,9 +51,12 @@ class ResNet12(InitWrapper, torch.nn.Module):
         )
         self.fc.apply(initialize_weights)
         import torchsummary
-        torchsummary.summary(self.resnet.to('cuda'), input_size=(3, 224, 224))
 
-    def _forward_impl(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
+        torchsummary.summary(self.resnet.to("cuda"), input_size=(3, 224, 224))
+
+    def _forward_impl(
+        self, x: Tensor, features_only=False
+    ) -> Union[Tuple[Tensor, Tensor], Tensor]:
         f = self.resnet(x)
         f = torch.flatten(f, 1)
 
@@ -62,7 +66,9 @@ class ResNet12(InitWrapper, torch.nn.Module):
             x = self.fc(f)
             return (x.view(-1, 29, 3), f)
 
-    def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
+    def forward(
+        self, x: Tensor, features_only=False
+    ) -> Union[Tuple[Tensor, Tensor], Tensor]:
         return self._forward_impl(x, features_only=features_only)
 
     @property
@@ -76,7 +82,6 @@ class ResNet12(InitWrapper, torch.nn.Module):
     @property
     def head(self):
         return self.fc
-
 
 
 class ResNet(InitWrapper, torch.nn.Module):
@@ -107,7 +112,9 @@ class ResNet(InitWrapper, torch.nn.Module):
         )
         self.fc.apply(initialize_weights)
 
-    def _forward_impl(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
+    def _forward_impl(
+        self, x: Tensor, features_only=False
+    ) -> Union[Tuple[Tensor, Tensor], Tensor]:
         """
         Original implementation from PyTorch, modified to return the image features vector.
         """
@@ -131,7 +138,9 @@ class ResNet(InitWrapper, torch.nn.Module):
             x = self.fc(features)
             return (x.view(-1, self._dim, 3), features)
 
-    def forward(self, x: Tensor, features_only=False) -> Union[Tuple[Tensor, Tensor], Tensor]:
+    def forward(
+        self, x: Tensor, features_only=False
+    ) -> Union[Tuple[Tensor, Tensor], Tensor]:
         return self._forward_impl(x, features_only=features_only)
 
     @property

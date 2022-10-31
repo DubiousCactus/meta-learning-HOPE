@@ -129,7 +129,7 @@ class ObManTaskLoader(BaseDatasetTaskLoader):
         transform = meta_info["affine_transform"]
         # 3. Obtain the oriented bounding box vertices (x1000?)
         if hash(mesh) not in self._bboxes:
-            verts = compute_OBB_corners(mesh) # * 1000
+            verts = compute_OBB_corners(mesh)  # * 1000
             self._bboxes[hash(mesh)] = verts
         else:
             verts = self._bboxes[hash(mesh)]

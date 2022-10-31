@@ -19,17 +19,17 @@ size = 256
 crop_sz = 224
 
 _subjects = [
-        "20200709-subject-01",
-        "20200813-subject-02",
-        "20200820-subject-03",
-        "20200903-subject-04",
-        "20200908-subject-05",
-        "20200918-subject-06",
-        "20200928-subject-07",
-        "20201002-subject-08",
-        "20201015-subject-09",
-        "20201022-subject-10",
-    ]
+    "20200709-subject-01",
+    "20200813-subject-02",
+    "20200820-subject-03",
+    "20200903-subject-04",
+    "20200908-subject-05",
+    "20200918-subject-06",
+    "20200928-subject-07",
+    "20201002-subject-08",
+    "20201015-subject-09",
+    "20201022-subject-10",
+]
 
 _viewpoints = [
     "836212060125",
@@ -41,12 +41,9 @@ _viewpoints = [
     "932122061900",
     "932122062010",
 ]
-pbar = tqdm(total=len(_subjects)*len(_viewpoints)*100)
+pbar = tqdm(total=len(_subjects) * len(_viewpoints) * 100)
 for n in _subjects:
-    seq = [
-            os.path.join(n, s)
-            for s in sorted(os.listdir(os.path.join(_root, n)))
-            ]
+    seq = [os.path.join(n, s) for s in sorted(os.listdir(os.path.join(_root, n)))]
     for i, q in enumerate(seq):
         # Fetch samples and compute labels for each camera
         for c in _viewpoints:
@@ -58,7 +55,7 @@ for n in _subjects:
                     if not file.startswith("color"):
                         continue
                     img_path = os.path.join(root, file)
-                    while img_path.endswith('.old'):
+                    while img_path.endswith(".old"):
                         shutil.move(img_path, f"{img_path[:-4]}")
                         img_path = f"{img_path[:-4]}"
                     moved_path = os.path.join(root, file + ".old")
@@ -69,13 +66,13 @@ for n in _subjects:
                         continue
                     new_size = size, size
                     if w > h:
-                        new_size = (size, h*size//w)
+                        new_size = (size, h * size // w)
                     new_img = img.resize(new_size)
-                    width, height = new_img.size   # Get dimensions
-                    left = (width - crop_sz)//2
-                    top = (height - crop_sz)//2
-                    right = (width + crop_sz)//2
-                    bottom = (height + crop_sz)//2
+                    width, height = new_img.size  # Get dimensions
+                    left = (width - crop_sz) // 2
+                    top = (height - crop_sz) // 2
+                    right = (width + crop_sz) // 2
+                    bottom = (height + crop_sz) // 2
 
                     # Crop the center of the image
                     new_img = new_img.crop((left, top, right, bottom))

@@ -59,9 +59,9 @@ def main(cfg: DictConfig):
     print(
         f"[*] Saving random samples for {', '.join([data_loader.obj_labels[i] for i, _ in rand_obj_sequence])}"
     )
-    mean, std = torch.tensor(
-        [0.485, 0.456, 0.406], dtype=torch.float32
-    ), torch.tensor([0.221, 0.224, 0.225], dtype=torch.float32)
+    mean, std = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32), torch.tensor(
+        [0.221, 0.224, 0.225], dtype=torch.float32
+    )
     unnormalize = transforms.Normalize(
         mean=(-mean / std).tolist(), std=(1.0 / std).tolist()
     )
@@ -102,6 +102,7 @@ def main(cfg: DictConfig):
             )
             img = Image.fromarray(npimg)
             img.save(os.path.join(base_path, obj_dir, f"{i:03d}.jpg"))
+
 
 if __name__ == "__main__":
     main()

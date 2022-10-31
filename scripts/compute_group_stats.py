@@ -114,7 +114,7 @@ def stats(samples):
         label_var = labels_sum / joints_count
         img_std = np.sqrt(img_var)
         label_std = np.sqrt(label_var)
-        stats[group_id] = {'img': (img_mean, img_std), 'lbl': (label_mean, label_std)}
+        stats[group_id] = {"img": (img_mean, img_std), "lbl": (label_mean, label_std)}
 
         print(f"\t-> Images: mean={img_mean}, std={img_std}")
         print(f"\t-> Labels: {label_mean}, {label_std}")

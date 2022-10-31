@@ -86,17 +86,21 @@ class ANIL_CNNTrainer(ANILTrainer):
             q_labels3d = q_labels3d.float().cuda(device=self._gpu_number)
 
         if self._task_aug not in ["permute", "discrete_noise", "shift", None]:
-            raise KeyError("Parameter task_aug must be one of [None, shift, permute, discrete_noise]")
+            raise KeyError(
+                "Parameter task_aug must be one of [None, shift, permute, discrete_noise]"
+            )
 
         if self._task_aug == "permute":
             # Apply the same random permutation of target vector dims
-            dims = s_labels3d.shape[1] # Permute the joints, not the axes
+            dims = s_labels3d.shape[1]  # Permute the joints, not the axes
             perms = torch.randperm(dims)
             s_labels3d = s_labels3d[:, perms, :]
             q_labels3d = q_labels3d[:, perms, :]
         elif self._task_aug == "discrete_noise":
             # Add a noise value sampled form a discrete set to a randomly sampled axis
-            noise_values = np.linspace(0, 1, self._task_aug_noise_values+1)[:-1] # Ignore 1 but include 0
+            noise_values = np.linspace(0, 1, self._task_aug_noise_values + 1)[
+                :-1
+            ]  # Ignore 1 but include 0
             noise = np.random.choice(noise_values)
             axis = np.random.randint(0, 3)
             # My intuitiion is that it'd make more sense to ignore the root joint, which the
@@ -107,7 +111,7 @@ class ANIL_CNNTrainer(ANILTrainer):
         elif self._task_aug == "shift":
             # Shift the vertices/joints, such that the order is kept and the gradients are less
             # noisy.
-            dims = s_labels3d.shape[1] # Permute the joints, not the axes
+            dims = s_labels3d.shape[1]  # Permute the joints, not the axes
             n_shifts = torch.randint(dims, (1,)).item()
             s_labels3d = torch.roll(s_labels3d, n_shifts, 1)
             q_labels3d = torch.roll(q_labels3d, n_shifts, 1)
@@ -188,7 +192,8 @@ class ANIL_CNNTrainer(ANILTrainer):
                 # Batched vector norm for row-wise elements
                 return (
                     torch.linalg.norm(
-                        q_joints[:, :self._dim, :] - q_labels3d[:, :self._dim, :], dim=2
+                        q_joints[:, : self._dim, :] - q_labels3d[:, : self._dim, :],
+                        dim=2,
                     )
                     .detach()
                     .mean()
@@ -200,27 +205,21 @@ class ANIL_CNNTrainer(ANILTrainer):
             res = {}
             for metric in compute:
                 if metric == "mse":
-                    res[metric] = (self.inner_criterion(q_joints, q_labels3d).detach())
+                    res[metric] = self.inner_criterion(q_joints, q_labels3d).detach()
                 elif metric == "mae":
                     res[metric] = F.l1_loss(q_joints, q_labels3d).detach()
                 elif metric == "pjpe":
                     # Hand-pose only
                     # Batched vector norm for row-wise elements
-                    res[metric] = (
-                        torch.linalg.norm(
-                            q_joints[:, :21, :] - q_labels3d[:, :21, :], dim=2
-                        )
-                        .detach()
-                    )
+                    res[metric] = torch.linalg.norm(
+                        q_joints[:, :21, :] - q_labels3d[:, :21, :], dim=2
+                    ).detach()
                 elif metric == "pcpe":
                     # Object-pose only
                     # Batched vector norm for row-wise elements
-                    res[metric] = (
-                        torch.linalg.norm(
-                            q_joints[:, 21:, :] - q_labels3d[:, 21:, :], dim=2
-                        )
-                        .detach()
-                    )
+                    res[metric] = torch.linalg.norm(
+                        q_joints[:, 21:, :] - q_labels3d[:, 21:, :], dim=2
+                    ).detach()
         assert res is not None, f"{compute} is not a valid metric!"
         return res
 

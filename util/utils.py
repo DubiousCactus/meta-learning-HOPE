@@ -188,10 +188,10 @@ def plot_pose(ax, pose, plot_obj=True):
             [0, 3, 7, 4, 0],
             [1, 5, 6, 2, 1],
             [2, 3, 7, 6, 2],
-            [5, 6, 7, 4, 5]
+            [5, 6, 7, 4, 5],
         ]
         for face in faces:
-            prev = pose[21+face[0], :]
+            prev = pose[21 + face[0], :]
             for idx in face:
                 row = 21 + idx
                 cur = pose[row, :]
@@ -205,10 +205,16 @@ def plot_pose(ax, pose, plot_obj=True):
                 ax.text(cur[0], cur[1], cur[2], f"{row-21}", color="green")
                 prev = cur
 
-#     scaling = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
-#     ax.auto_scale_xyz(*[[np.min(scaling), np.max(scaling)]]*3)
+    #     scaling = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
+    #     ax.auto_scale_xyz(*[[np.min(scaling), np.max(scaling)]]*3)
     world_limits = ax.get_w_lims()
-    ax.set_box_aspect((world_limits[1]-world_limits[0],world_limits[3]-world_limits[2],world_limits[5]-world_limits[4]))
+    ax.set_box_aspect(
+        (
+            world_limits[1] - world_limits[0],
+            world_limits[3] - world_limits[2],
+            world_limits[5] - world_limits[4],
+        )
+    )
 
 
 def plot_3D_hand(pose):
@@ -231,13 +237,13 @@ def plot_3D_gt(gt, img_path, gt2d):
         size, crop_sz = 256, 224
         new_size = size, size
         if w > h:
-            new_size = (size, h*size//w)
+            new_size = (size, h * size // w)
         new_img = img.resize(new_size)
-        width, height = new_img.size   # Get dimensions
-        left = (width - crop_sz)//2
-        top = (height - crop_sz)//2
-        right = (width + crop_sz)//2
-        bottom = (height + crop_sz)//2
+        width, height = new_img.size  # Get dimensions
+        left = (width - crop_sz) // 2
+        top = (height - crop_sz) // 2
+        right = (width + crop_sz) // 2
+        bottom = (height + crop_sz) // 2
 
         # Crop the center of the image
         img = new_img.crop((left, top, right, bottom))
@@ -248,10 +254,10 @@ def plot_3D_gt(gt, img_path, gt2d):
         [0, 3, 7, 4, 0],
         [1, 5, 6, 2, 1],
         [2, 3, 7, 6, 2],
-        [5, 6, 7, 4, 5]
+        [5, 6, 7, 4, 5],
     ]
     for face in faces:
-        prev = gt2d[21+face[0], :]
+        prev = gt2d[21 + face[0], :]
         for idx in face:
             row = 21 + idx
             cur = gt2d[row, :]
@@ -263,7 +269,6 @@ def plot_3D_gt(gt, img_path, gt2d):
     ax2.get_xaxis().set_visible(False)
     ax2.get_yaxis().set_visible(False)
     plt.show()
-
 
 
 def plot_3D_pred_gt(pred, img, gt=None):
@@ -314,6 +319,7 @@ def select_cnn_model(cnn_def: str, hand_only: bool) -> torch.nn.Module:
         raise ValueError(f"{cnn_def} is not a valid CNN definition!")
     return cnn
 
+
 def compute_OBB_corners(mesh: trimesh.Trimesh) -> np.ndarray:
     # From https://github.com/mikedh/trimesh/issues/573
     half = mesh.bounding_box_oriented.primitive.extents / 2
@@ -322,6 +328,7 @@ def compute_OBB_corners(mesh: trimesh.Trimesh) -> np.ndarray:
         mesh.bounding_box_oriented.primitive.transform,
     )
 
+
 def compute_curve(distances, thresholds, nb_keypoints):
     auc_all = list()
     pck_curve_all = list()
@@ -329,9 +336,7 @@ def compute_curve(distances, thresholds, nb_keypoints):
     for kp in range(nb_keypoints):
         pck_curve = []
         for t in thresholds:
-            pck = torch.mean(
-                (torch.vstack(distances)[:, kp] <= t).type(torch.float)
-            )
+            pck = torch.mean((torch.vstack(distances)[:, kp] <= t).type(torch.float))
             pck_curve.append(pck)
 
         pck_curve_all.append(pck_curve)
@@ -343,6 +348,7 @@ def compute_curve(distances, thresholds, nb_keypoints):
     # mean only over keypoints
     pck_curve_all = torch.Tensor(pck_curve_all).mean(dim=0)
     return auc_all, pck_curve_all
+
 
 def plot_curve(values, thresholds, file_path: str, type="pck"):
     label, title = "", ""

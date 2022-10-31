@@ -136,7 +136,7 @@ class RegularTrainer(BaseTrainer):
     def test(
         self,
         batch_size: int = 32,
-        runs: int = 1, # Unused
+        runs: int = 1,  # Unused
         fast_lr: float = 0.01,
         meta_lr: float = None,
         visualize: bool = False,
@@ -172,7 +172,7 @@ class RegularTrainer(BaseTrainer):
         # Compute the PCK curves (hand joints)
         # auc_pck, pck = compute_curve(PJPEs, thresholds, 21)
         # if plot:
-            # plot_curve(pck, thresholds, "baseline_pck.png")
+        # plot_curve(pck, thresholds, "baseline_pck.png")
         mpjpe = float(torch.Tensor(MPJPEs).mean().item())
         print(f"\n\n==========[Test Error]==========")
         print(f"Mean Per Joint Pose Error: {mpjpe:.6f}")
@@ -182,6 +182,6 @@ class RegularTrainer(BaseTrainer):
             # Compute the PCP curves (object corners)
             # auc_pcp, pcp = compute_curve(PCPEs, thresholds, 8)
             # if plot:
-                # plot_curve(pcp, thresholds, "baseline_pcp.png")
+            # plot_curve(pcp, thresholds, "baseline_pcp.png")
             print(f"Mean Per Corner Pose Error: {mpcpe:.6f}")
             # print(f"Area Under Curve for PCP: {auc_pcp:.6f}")

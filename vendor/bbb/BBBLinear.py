@@ -19,6 +19,7 @@
 #   cf. 3rd-party-licenses.txt file in the root directory of this source tree.
 
 import sys
+
 sys.path.append("..")
 
 import math
@@ -31,7 +32,15 @@ from .misc import ModuleWrapper
 
 
 def calculate_kl(mu_q, sig_q, mu_p, sig_p):
-    kl = 0.5 * (2 * torch.log(sig_p / sig_q) - 1 + (sig_q / sig_p).pow(2) + ((mu_p - mu_q) / sig_p).pow(2)).sum()
+    kl = (
+        0.5
+        * (
+            2 * torch.log(sig_p / sig_q)
+            - 1
+            + (sig_q / sig_p).pow(2)
+            + ((mu_p - mu_q) / sig_p).pow(2)
+        ).sum()
+    )
     return kl
 
 
@@ -45,25 +54,29 @@ class BBBLinear(ModuleWrapper):
 
         if priors is None:
             priors = {
-                'prior_mu': 0,
-                'prior_sigma': 0.1,
-                'posterior_mu_initial': (0, 0.1),
-                'posterior_rho_initial': (-3, 0.1),
+                "prior_mu": 0,
+                "prior_sigma": 0.1,
+                "posterior_mu_initial": (0, 0.1),
+                "posterior_rho_initial": (-3, 0.1),
             }
-        self.prior_mu = priors['prior_mu']
-        self.prior_sigma = priors['prior_sigma']
-        self.posterior_mu_initial = priors['posterior_mu_initial']
-        self.posterior_rho_initial = priors['posterior_rho_initial']
+        self.prior_mu = priors["prior_mu"]
+        self.prior_sigma = priors["prior_sigma"]
+        self.posterior_mu_initial = priors["posterior_mu_initial"]
+        self.posterior_rho_initial = priors["posterior_rho_initial"]
 
-        self.W_mu = Parameter(torch.empty((out_features, in_features), device=self.device))
-        self.W_rho = Parameter(torch.empty((out_features, in_features), device=self.device))
+        self.W_mu = Parameter(
+            torch.empty((out_features, in_features), device=self.device)
+        )
+        self.W_rho = Parameter(
+            torch.empty((out_features, in_features), device=self.device)
+        )
 
         if self.use_bias:
             self.bias_mu = Parameter(torch.empty((out_features), device=self.device))
             self.bias_rho = Parameter(torch.empty((out_features), device=self.device))
         else:
-            self.register_parameter('bias_mu', None)
-            self.register_parameter('bias_rho', None)
+            self.register_parameter("bias_mu", None)
+            self.register_parameter("bias_rho", None)
 
         self.reset_parameters()
 
@@ -82,7 +95,9 @@ class BBBLinear(ModuleWrapper):
             weight = self.W_mu + W_eps * self.W_sigma
 
             if self.use_bias:
-                bias_eps = torch.empty(self.bias_mu.size()).normal_(0, 1).to(self.device)
+                bias_eps = (
+                    torch.empty(self.bias_mu.size()).normal_(0, 1).to(self.device)
+                )
                 self.bias_sigma = torch.log1p(torch.exp(self.bias_rho))
                 bias = self.bias_mu + bias_eps * self.bias_sigma
             else:
@@ -96,5 +111,7 @@ class BBBLinear(ModuleWrapper):
     def kl_loss(self):
         kl = calculate_kl(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
         if self.use_bias:
-            kl += calculate_kl(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
+            kl += calculate_kl(
+                self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma
+            )
         return kl

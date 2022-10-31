@@ -94,9 +94,15 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
             # "019_pitcher_base",
         ]
         self._split_categories = self._make_split_categories(hold_out, manual=True)
-        print(f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}")
-        print(f"[*] Validating with {', '.join([self._obj_labels[i] for i in self._split_categories['val']])}")
-        print(f"[*] Testing with {', '.join([self._obj_labels[i] for i in self._split_categories['test']])}")
+        print(
+            f"[*] Training with {', '.join([self._obj_labels[i] for i in self._split_categories['train']])}"
+        )
+        print(
+            f"[*] Validating with {', '.join([self._obj_labels[i] for i in self._split_categories['val']])}"
+        )
+        print(
+            f"[*] Testing with {', '.join([self._obj_labels[i] for i in self._split_categories['test']])}"
+        )
         # Don't auto load, this is a custom loading
         if test:
             self.test = self._load(
@@ -135,20 +141,20 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
         if manual and hold_out == 3:
             splits = {
                 "train": [1, 3, 8],
-                "val": [2, 6, 7], # Mustard bottle, Bleach cleanser, and Mug
-                "test": [4, 5, 0] # Power drill, Scissors and Banana
+                "val": [2, 6, 7],  # Mustard bottle, Bleach cleanser, and Mug
+                "test": [4, 5, 0],  # Power drill, Scissors and Banana
             }
         elif manual and hold_out == 2:
             splits = {
                 "train": [1, 2, 3, 6, 8],
-                "val": [0, 7], # Banana and Mug
-                "test": [4, 5] # Power drill and Scissors
+                "val": [0, 7],  # Banana and Mug
+                "test": [4, 5],  # Power drill and Scissors
             }
         elif manual and hold_out == 1:
             splits = {
                 "train": [0, 1, 2, 3, 6, 7, 8],
-                "val": [5], # Scissors
-                "test": [4] # Power drill
+                "val": [5],  # Scissors
+                "test": [4],  # Power drill
             }
         else:
             splits = {
@@ -291,7 +297,11 @@ class HO3DTaskLoader(BaseDatasetTaskLoader):
                     ),
                     l2l.data.transforms.LoadData(split_dataset),
                 ],
-                num_tasks=(-1 if split == "train" else (len(dataset) / (self.k_shots + self.n_queries))),
+                num_tasks=(
+                    -1
+                    if split == "train"
+                    else (len(dataset) / (self.k_shots + self.n_queries))
+                ),
             )
         else:
             split_dataset_loader = DataLoader(

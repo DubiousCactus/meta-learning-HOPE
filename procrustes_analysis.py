@@ -232,10 +232,18 @@ def check_overlap(cfg: DictConfig):
     prev_actual, prev_expected = [], []
     for lvl, splits in level_splits.items():
         actual, expected = splits[0]["test"], splits[1]["test"]
-        test_overlap_actual = reduce(lambda a, b: a+b, [1 for i in actual if i in prev_actual] + [0])
-        test_overlap_expected = reduce(lambda a, b: a+b, [1 for i in expected if i in prev_expected] + [0])
-        print(f"[*] Overlap from {lvl} to {lvl-1} in actual test splits: {test_overlap_actual}")
-        print(f"[*] Overlap from {lvl} to {lvl-1} in expected test splits: {test_overlap_expected}")
+        test_overlap_actual = reduce(
+            lambda a, b: a + b, [1 for i in actual if i in prev_actual] + [0]
+        )
+        test_overlap_expected = reduce(
+            lambda a, b: a + b, [1 for i in expected if i in prev_expected] + [0]
+        )
+        print(
+            f"[*] Overlap from {lvl} to {lvl-1} in actual test splits: {test_overlap_actual}"
+        )
+        print(
+            f"[*] Overlap from {lvl} to {lvl-1} in expected test splits: {test_overlap_expected}"
+        )
         prev_actual, prev_expected = actual, expected
 
 
@@ -250,19 +258,23 @@ def compute_test_to_mean_train(samples, dataset_loader):
             del train_samples[keys[category_id]]
 
     print("\n\n\n\n--------------------------------------------------")
-    print(f"[*] Training set objects: {', '.join([dataset_loader.obj_labels[i] for i in train_samples.keys()])}")
+    print(
+        f"[*] Training set objects: {', '.join([dataset_loader.obj_labels[i] for i in train_samples.keys()])}"
+    )
     print("[*] Computing mean train shape...")
     mean_train_pose = ProcrustesAnalysis.generalised_procrustes_analysis(poses)
 
     # Build one dataset per task for the analysis of the test set
-    mean_test_dist, total_test_poses = .0, 0
+    mean_test_dist, total_test_poses = 0.0, 0
     test_samples = copy(samples)
     keys = list(test_samples.copy().keys())
     for category_id in keys:
         if category_id not in dataset_loader.split_categories["test"]:
             del test_samples[keys[category_id]]
     for obj_id, task in test_samples.items():
-        print(f"[*] Computing the mean distance of {dataset_loader.obj_labels[obj_id]} to the mean train shape...")
+        print(
+            f"[*] Computing the mean distance of {dataset_loader.obj_labels[obj_id]} to the mean train shape..."
+        )
         # Still using the custom dataset because of the preprocessing (root alignment)
         # Set object_as_task=False because we pass it a list and not a dict
         task_dataset = CustomDataset(task, object_as_task=False)
@@ -273,7 +285,7 @@ def compute_test_to_mean_train(samples, dataset_loader):
             total_test_poses += 1
         distances = np.array(distances)
         print(f"[*] Mean distance to the mean train shape (MSE): {np.mean(distances)}")
-        mean_test_dist += len(poses) * np.mean(distances) # Weighted average!
+        mean_test_dist += len(poses) * np.mean(distances)  # Weighted average!
         if cfg.vis:
             fig, ax = plt.subplots(1, 1, sharey=True, tight_layout=True)
             ax.hist(distances)
@@ -292,6 +304,7 @@ def compute_test_to_mean_train(samples, dataset_loader):
             )
     print(f"[*] Mean test-train distance: {mean_test_dist/total_test_poses}")
 
+
 def compute_dist_matrix(samples, dataloader):
     task_mean_poses = {}
     obj_tasks = {}
@@ -305,23 +318,37 @@ def compute_dist_matrix(samples, dataloader):
         # Set object_as_task=False because we pass it a list and not a dict
         task_dataset = CustomDataset(task, object_as_task=False)
         poses = [pose3d.cpu().numpy() for _, _, pose3d in task_dataset]
-        task_mean_poses[obj_id] = ProcrustesAnalysis.generalised_procrustes_analysis(poses)
+        task_mean_poses[obj_id] = ProcrustesAnalysis.generalised_procrustes_analysis(
+            poses
+        )
     print("[*] Computing distances...")
     lines = []
-    print(f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}")
-    lines.append(f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}\n")
+    print(
+        f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}"
+    )
+    lines.append(
+        f"_________________|{''.join(['{s:{c}^{n}}|'.format(s=dataloader.obj_labels[i][4:], n=17, c=' ') for i in task_mean_poses.keys()])}\n"
+    )
     for obj_id, pose_a in task_mean_poses.items():
-        print("{s:{c}^{n}}|".format(s=dataloader.obj_labels[obj_id][4:], n=17, c=' '), end="", flush=False)
-        line = "{s:{c}^{n}}|".format(s=dataloader.obj_labels[obj_id][4:], n=17, c=' ')
+        print(
+            "{s:{c}^{n}}|".format(s=dataloader.obj_labels[obj_id][4:], n=17, c=" "),
+            end="",
+            flush=False,
+        )
+        line = "{s:{c}^{n}}|".format(s=dataloader.obj_labels[obj_id][4:], n=17, c=" ")
         for obj_id, pose_b in task_mean_poses.items():
             dist = ProcrustesAnalysis.compute_distance(pose_a, pose_b)
-            print("{s:{c}^{n}}|".format(s=f"{dist:.4f}", n=17, c=' '), end="", flush=False)
-            line += "{s:{c}^{n}}|".format(s=f"{dist:.4f}", n=17, c=' ')
+            print(
+                "{s:{c}^{n}}|".format(s=f"{dist:.4f}", n=17, c=" "), end="", flush=False
+            )
+            line += "{s:{c}^{n}}|".format(s=f"{dist:.4f}", n=17, c=" ")
         print()
-        lines.append(line+"\n")
+        lines.append(line + "\n")
     with open("distance_matrix.txt", "w") as f:
         f.writelines(lines)
-        print(f"[*] Saved distance matrix in {os.path.join(os.getcwd(), 'distance_matrix.txt')}")
+        print(
+            f"[*] Saved distance matrix in {os.path.join(os.getcwd(), 'distance_matrix.txt')}"
+        )
 
 
 @hydra.main(config_path="conf", config_name="config")

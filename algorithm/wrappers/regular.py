@@ -74,7 +74,8 @@ class Regular_CNNTrainer(RegularTrainer):
                     # Batched vector norm for row-wise elements
                     return (
                         torch.linalg.norm(
-                            joints[:, :self._dim, :] - labels3d[:, :self._dim, :], dim=2
+                            joints[:, : self._dim, :] - labels3d[:, : self._dim, :],
+                            dim=2,
                         )
                         .detach()
                         .mean()
@@ -86,27 +87,21 @@ class Regular_CNNTrainer(RegularTrainer):
                 res = {}
                 for metric in compute:
                     if metric == "mse":
-                        res[metric] = (self.inner_criterion(joints, labels3d).detach())
+                        res[metric] = self.inner_criterion(joints, labels3d).detach()
                     elif metric == "mae":
-                        res[metric] = (F.l1_loss(joints, labels3d).detach())
+                        res[metric] = F.l1_loss(joints, labels3d).detach()
                     elif metric == "pjpe":
                         # Hand-pose only
                         # Batched vector norm for row-wise elements
-                        res[metric] = (
-                            torch.linalg.norm(
-                                joints[:, :21, :] - labels3d[:, :21, :], dim=2
-                            )
-                            .detach()
-                        )
+                        res[metric] = torch.linalg.norm(
+                            joints[:, :21, :] - labels3d[:, :21, :], dim=2
+                        ).detach()
                     elif metric == "pcpe":
                         # Object-pose only
                         # Batched vector norm for row-wise elements
-                        res[metric] = (
-                            torch.linalg.norm(
-                                joints[:, 21:, :] - labels3d[:, 21:, :], dim=2
-                            )
-                            .detach()
-                        )
+                        res[metric] = torch.linalg.norm(
+                            joints[:, 21:, :] - labels3d[:, 21:, :], dim=2
+                        ).detach()
         assert res is not None, f"{compute} is not a valid metric!"
         return res
 

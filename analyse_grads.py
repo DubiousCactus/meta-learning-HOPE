@@ -58,7 +58,10 @@ def main(cfg: DictConfig):
         gpu_numbers=cfg.gpu_numbers,
     )
     assert type(trainer) is ANIL_CNNTrainer, "Can only analyse ANIL"
-    trainer.analyse_inner_gradients(dataset, cfg.experiment.fast_lr, n_tasks=cfg.analyse_tasks)
+    trainer.analyse_inner_gradients(
+        dataset, cfg.experiment.fast_lr, n_tasks=cfg.analyse_tasks
+    )
+
 
 if __name__ == "__main__":
     main()

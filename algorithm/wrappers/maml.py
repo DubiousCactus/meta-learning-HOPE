@@ -19,6 +19,7 @@ from typing import List, Optional
 import torch.nn.functional as F
 import torch
 
+
 class MAML_CNNTrainer(MAMLTrainer):
     def __init__(
         self,
@@ -71,7 +72,7 @@ class MAML_CNNTrainer(MAMLTrainer):
 
         if self._task_aug == "permute":
             # Apply the same random permutation of target vector dims
-            dims = s_labels3d[0].shape[0] # Permute the joints, not the axes
+            dims = s_labels3d[0].shape[0]  # Permute the joints, not the axes
             perms = torch.randperm(dims)
             s_labels3d = s_labels3d[:, perms, :]
             q_labels3d = q_labels3d[:, perms, :]
@@ -84,9 +85,7 @@ class MAML_CNNTrainer(MAMLTrainer):
             learner.adapt(support_loss, epoch=epoch)
             if msl:  # Multi-step loss
                 q_joints, _ = learner(q_inputs)
-                query_loss += self._step_weights[step] * criterion(
-                    q_joints, q_labels3d
-                )
+                query_loss += self._step_weights[step] * criterion(q_joints, q_labels3d)
 
         # Evaluate the adapted model on the query set
         if not msl:
@@ -94,9 +93,7 @@ class MAML_CNNTrainer(MAMLTrainer):
             query_loss = criterion(q_joints, q_labels3d)
         return query_loss
 
-    def _testing_step(
-        self, meta_batch: MetaBatch, learner, epoch=None, compute="mse"
-    ):
+    def _testing_step(self, meta_batch: MetaBatch, learner, epoch=None, compute="mse"):
         criterion = self.inner_criterion
         if compute == "mae":
             criterion = F.l1_loss
