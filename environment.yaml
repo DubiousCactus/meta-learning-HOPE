@@ -1,0 +1,12 @@
+name: metalearning-hope
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy
+  - matplotlib
+  - pip:
+    - hydra-core==1.1.1
+    - wandb
+    - cpython
+    - trimesh

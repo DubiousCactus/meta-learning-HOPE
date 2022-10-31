@@ -33,13 +33,13 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         "20200709-subject-01",
         "20200813-subject-02",
         "20200820-subject-03",
-        "20200903-subject-04",
-        "20200908-subject-05",
-        "20200918-subject-06",
-        "20200928-subject-07",
-        "20201002-subject-08",
-        "20201015-subject-09",
-        "20201022-subject-10",
+        # "20200903-subject-04",
+        # "20200908-subject-05",
+        # "20200918-subject-06",
+        # "20200928-subject-07",
+        # "20201002-subject-08",
+        # "20201015-subject-09",
+        # "20201022-subject-10",
     ]
 
     _viewpoints = [
