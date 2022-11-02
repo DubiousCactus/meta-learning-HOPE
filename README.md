@@ -1,8 +1,8 @@
 # About
 
-This is the code repository for the experiments of the paper *"A new benchmark for group
+This is the code repository for the experiments of the paper [*"A new benchmark for group
 distribution shifts in hand grasp regression for object manipulation. Can meta-learning raise the
-bar?"* accepted at the DistShift workshop of NeurIPS 2022.
+bar?"*](https://doi.org/10.48550/arXiv.2211.00110) accepted at the DistShift workshop of NeurIPS 2022.
 
 ## Setting up
 
