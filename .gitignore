@@ -9,7 +9,6 @@ wandb/
 *.tar
 *.csv
 temp.*
-*.png
 *.tgz
 .idea/
 *.pkl

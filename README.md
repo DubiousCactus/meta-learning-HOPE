@@ -4,6 +4,8 @@ This is the code repository for the experiments of the paper [*"A new benchmark 
 distribution shifts in hand grasp regression for object manipulation. Can meta-learning raise the
 bar?"*](https://doi.org/10.48550/arXiv.2211.00110) accepted at the DistShift workshop of NeurIPS 2022.
 
+![Example of DexYCB tasks from our proposed benchmark.](./dexycb_tasks.png)
+
 ## Setting up
 
 ### Python environment
@@ -35,6 +37,8 @@ Use the option `test_mode=true` to test, and don't forget to specify a trained m
 ### Procrustes Analysis for the heatmap of grasps
 
 Run the `procrustes_analysis.py` script.
+
+![Distance heat map of mean hand shapes](./heatmap.png)
 
 ### Analysing the gradient norms during adaptation
 
