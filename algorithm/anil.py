@@ -10,20 +10,15 @@
 Almost No Inner-Loop meta-learning algorithm.
 """
 
-from data.dataset.base import BaseDatasetTaskLoader
-from util.utils import compute_curve, plot_curve
-from algorithm.maml import MAMLTrainer
-from sklearn.manifold import TSNE
 from typing import List
-from tqdm import tqdm
 
-import matplotlib.pyplot as plt
 import learn2learn as l2l
-import seaborn as sns
-import pandas as pd
-import numpy as np
 import torch
 import wandb
+from tqdm import tqdm
+
+from algorithm.maml import MAMLTrainer
+from data.dataset.base import BaseDatasetTaskLoader
 
 
 class ANILTrainer(MAMLTrainer):
@@ -192,9 +187,7 @@ class ANILTrainer(MAMLTrainer):
                 meta_val_mse_loss = float(
                     torch.Tensor(meta_val_mse_losses).mean().item()
                 )
-                meta_val_mpjpe = float(
-                    torch.Tensor(meta_val_mpjpes).mean().item()
-                )
+                meta_val_mpjpe = float(torch.Tensor(meta_val_mpjpes).mean().item())
 
                 wandb.log(
                     {
@@ -251,6 +244,8 @@ class ANILTrainer(MAMLTrainer):
             self._restore(maml, opt, None, resume_training=False)
 
         all_params, weights1, weights2, y = [], [], [], []
+        activations_1, activations_2 = [], []
+        bias1, bias2 = [], []
         for task in tqdm(self.dataset.test, dynamic_ncols=True):
             if self._exit:
                 return
@@ -259,6 +254,7 @@ class ANILTrainer(MAMLTrainer):
             meta_batch = self._split_batch(task)
             s_inputs, obj_label, s_labels3d = meta_batch.support
             q_inputs, obj_label, q_labels3d = meta_batch.query
+            assert torch.all(obj_label == obj_label[0])
             if self._use_cuda:
                 s_inputs = s_inputs.float().cuda(device=self._gpu_number)
                 s_labels3d = s_labels3d.float().cuda(device=self._gpu_number)
@@ -278,33 +274,90 @@ class ANILTrainer(MAMLTrainer):
                 head.adapt(support_loss, epoch=None)
 
             net_params_a, net_params1, net_params2 = [], [], []
+            net_bias1, net_bias2 = [], []
             for name, p in head.named_parameters():
                 if "module.0.weight" in name:
                     net_params1.append(p.detach().flatten())
                 elif "module.2.weight" in name:
                     net_params2.append(p.detach().flatten())
+                elif "module.0.bias" in name:
+                    net_bias1.append(p.detach().flatten())
+                elif "module.2.bias" in name:
+                    net_bias2.append(p.detach().flatten())
             for p in head.parameters():
-                net_params_a.append(p.detach().flatten())#.cpu().numpy())
+                net_params_a.append(p.detach().flatten())  # .cpu().numpy())
 
             all_params.append(torch.cat(net_params_a).cpu().numpy())
             weights1.append(torch.cat(net_params1).cpu().numpy())
             weights2.append(torch.cat(net_params2).cpu().numpy())
+            bias1.append(torch.cat(net_bias1).cpu().numpy())
+            bias2.append(torch.cat(net_bias2).cpu().numpy())
+
+            # Now let's look at post-adaptation per-layer activations:
+            # Recall the structure of model.head:
+            # head-> self.fc = torch.nn.Sequential(
+            #     torch.nn.Linear(n_features, hidden),
+            #     torch.nn.ReLU(),
+            #     torch.nn.Linear(hidden, 21 * 3),
+            # )
+            activations_1.append(
+                torch.nn.functional.relu(
+                    torch.nn.functional.linear(
+                        s_inputs, head.module[0].weight, head.module[0].bias
+                    )
+                )
+                .detach()
+                .cpu()
+                .numpy()
+            )
+            activations_2.append(
+                torch.nn.functional.linear(
+                    activations_1[-1], head.module[2].weight, head.module[2].bias
+                )
+                .detach()
+                .cpu()
+                .numpy()
+            )
             y.append(int(obj_label[0]))
 
-        print("[*] Running t-SNE...")
-        for name, params in {"all_params": all_params, "weights1": weights1, "weights2": weights2}.items():
-            params = np.array(params)
-            # params = torch.cat(params).cpu().numpy()
-            print(params.shape)
-            embedded = TSNE(n_components=2, learning_rate="auto", init="random").fit_transform(params)
-            tsne_result_df = pd.DataFrame({'tsne_1': embedded[:,0], 'tsne_2': embedded[:,1], 'label': y})
-            fig, ax = plt.subplots(1)
-            sns.scatterplot(x='tsne_1', y='tsne_2', hue='label', data=tsne_result_df, ax=ax,s=120,
-                    palette="deep")
-            lim = (embedded.min()-5, embedded.max()+5)
-            ax.set_xlim(lim)
-            ax.set_ylim(lim)
-            ax.set_aspect('equal')
-            ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
-            plt.savefig(f"{name}_tsne_{self.dataset.held_out}.png")
-            # plt.show()
+        print("Saving adapted weights...")
+        torch.save(weights1, "weights1.pt")
+        torch.save(weights2, "weights2.pt")
+        torch.save(bias1, "bias1.pt")
+        torch.save(bias2, "bias2.pt")
+        torch.save(activations_1, "activations1.pt")
+        torch.save(activations_2, "activations2.pt")
+        torch.save(y, "labels.pt")
+        #
+        # print("[*] Running t-SNE...")
+        # for name, params in {
+        #     "all_params": all_params,
+        #     "weights1": weights1,
+        #     "weights2": weights2,
+        # }.items():
+        #     params = np.array(params)
+        #     # params = torch.cat(params).cpu().numpy()
+        #     print(params.shape)
+        #     embedded = TSNE(
+        #         n_components=2, learning_rate="auto", init="random"
+        #     ).fit_transform(params)
+        #     tsne_result_df = pd.DataFrame(
+        #         {"tsne_1": embedded[:, 0], "tsne_2": embedded[:, 1], "label": y}
+        #     )
+        #     fig, ax = plt.subplots(1)
+        #     sns.scatterplot(
+        #         x="tsne_1",
+        #         y="tsne_2",
+        #         hue="label",
+        #         data=tsne_result_df,
+        #         ax=ax,
+        #         s=120,
+        #         palette="deep",
+        #     )
+        #     lim = (embedded.min() - 5, embedded.max() + 5)
+        #     ax.set_xlim(lim)
+        #     ax.set_ylim(lim)
+        #     ax.set_aspect("equal")
+        #     ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
+        #     plt.savefig(f"{name}_tsne_{self.dataset.held_out}.png")
+        # plt.show()

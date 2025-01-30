@@ -4,23 +4,24 @@
 
 """DexYCB dataset."""
 
-from util.utils import fast_load_obj, compute_OBB_corners
-from data.dataset.base import BaseDatasetTaskLoader
-from torch.utils.data import DataLoader
-from data.custom import CustomDataset
-from typing import Union, Tuple
-from functools import reduce
-from tqdm import tqdm
+import itertools
+import os
+import pickle
 from copy import copy
+from functools import reduce
+from typing import Tuple, Union
 
 import learn2learn as l2l
 import numpy as np
-import itertools
-import trimesh
-import pickle
 import torch
+import trimesh
 import yaml
-import os
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from data.custom import CustomDataset
+from data.dataset.base import BaseDatasetTaskLoader
+from util.utils import compute_OBB_corners, fast_load_obj
 
 
 class NoInteractionError(Exception):
@@ -153,18 +154,21 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 normalize_keypoints,
             )
         else:
-            self.train, self.val = self._load(
-                samples,
-                object_as_task,
-                "train",
-                True,
-                normalize_keypoints,
-            ), self._load(
-                samples,
-                object_as_task,
-                "val",
-                False,
-                normalize_keypoints,
+            self.train, self.val = (
+                self._load(
+                    samples,
+                    object_as_task,
+                    "train",
+                    True,
+                    normalize_keypoints,
+                ),
+                self._load(
+                    samples,
+                    object_as_task,
+                    "val",
+                    False,
+                    normalize_keypoints,
+                ),
             )
         del samples
 
@@ -205,8 +209,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                 mesh = fast_load_obj(m_f)[0]
             mesh = trimesh.load(mesh)
             self._bboxes[obj_file_path] = compute_OBB_corners(mesh)
-        else:
-            vert3d = self._bboxes[obj_file_path]
+        vert3d = self._bboxes[obj_file_path]
 
         # Apply the rotation + translation to the bbox vertices
         # The format is [R; t] with R 3x3 and t 3x1.
@@ -243,13 +246,13 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         )
 
     def _make_raw_dataset(self) -> dict:
-        pickle_path = os.path.join(self._root, f"dexycb.pkl")
+        pickle_path = os.path.join(self._root, "dexycb.pkl")
         if os.path.isfile(pickle_path):
             with open(pickle_path, "rb") as pickle_file:
                 print(f"[*] Loading dataset from {pickle_path}...")
                 samples = pickle.load(pickle_file)
         else:
-            print(f"[*] Building dataset...")
+            print("[*] Building dataset...")
             pbar = tqdm(total=len(self._subjects) * len(self._viewpoints) * 100)
             samples = {}
             failed, no_interaction = 0, {i: 0 for i in range(len(self._obj_labels))}
@@ -329,9 +332,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
                                     # ho2d[:, 1] = ho2d[:, 1] * 256.0 / self._h
                                     if obj_class_id not in samples:
                                         samples[obj_class_id] = []
-                                    samples[obj_class_id].append(
-                                        (img_file, ho2d, ho3d)
-                                    )
+                                    samples[obj_class_id].append((img_file, ho2d, ho3d))
                         pbar.update()
             if failed != 0:
                 print(f"[!] {failed} samples were missing annotations!")
@@ -370,7 +371,7 @@ class DexYCBDatasetTaskLoader(BaseDatasetTaskLoader):
         print(f"[*] Total object categories: {len(samples.keys())}")
         if not object_as_task:  # Transform to list
             samples = list(itertools.chain.from_iterable(samples.values()))
-        print(f"[*] Generating dataset in pinned memory...")
+        print("[*] Generating dataset in pinned memory...")
         dataset = CustomDataset(
             samples,
             img_transform=self._img_transform,
